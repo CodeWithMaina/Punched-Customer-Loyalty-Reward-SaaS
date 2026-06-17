@@ -1,0 +1,75 @@
+services:
+  # ── PostgreSQL ────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: punched_db
+      POSTGRES_USER: punched
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U punched -d punched_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── .NET 8 API ────────────────────────────────────────────
+  api:
+    build:
+      context: ./PunchedApi
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: >-
+        Host=db;Database=punched_db;Username=punched;Password=${DB_PASSWORD:-changeme};
+      JwtSettings__Secret: ${JWT_SECRET:-CHANGE_THIS_TO_A_SECURE_SECRET_KEY_AT_LEAST_32_CHARS_LONG}
+      JwtSettings__Issuer: PunchedApi
+      JwtSettings__Audience: PunchedApp
+      JwtSettings__AccessTokenExpiryMinutes: "60"
+      JwtSettings__RefreshTokenExpiryDays: "30"
+      Email__Host: ${SMTP_HOST:-smtp.gmail.com}
+      Email__Port: ${SMTP_PORT:-587}
+      Email__Username: ${SMTP_USER:-}
+      Email__Password: ${SMTP_PASS:-}
+      Email__FromAddress: ${SMTP_FROM:-noreply@punched.app}
+      Email__FromName: Punched
+      CorsOrigins__0: http://localhost:3000
+      CorsOrigins__1: http://web:3000
+      CorsOrigins__2: https://punched.app
+      CorsOrigins__3: https://www.punched.app
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # ── Next.js PWA ───────────────────────────────────────────
+  web:
+    build:
+      context: ./punched-pwd
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080/v1
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+
+volumes:
+  pgdata:

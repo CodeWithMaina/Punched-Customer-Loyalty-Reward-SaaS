@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="42" fill="#2563EB"/>
+  <g transform="translate(96,96)">
+    <!-- Punch card icon -->
+    <rect x="-48" y="-56" width="96" height="112" rx="12" fill="white" opacity="0.95"/>
+    <!-- Stamp dots -->
+    <circle cx="-24" cy="-28" r="10" fill="#2563EB" opacity="0.9"/>
+    <circle cx="8" cy="-28" r="10" fill="#2563EB" opacity="0.9"/>
+    <circle cx="-24" cy="4" r="10" fill="#2563EB" opacity="0.9"/>
+    <circle cx="8" cy="4" r="10" fill="#F59E0B" opacity="0.9"/>
+    <circle cx="-24" cy="36" r="10" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="4 3"/>
+    <circle cx="8" cy="36" r="10" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="4 3"/>
+    <!-- Star reward -->
+    <path d="M32,-28 L35,-19 L44,-19 L37,-13 L39,-4 L32,-9 L25,-4 L27,-13 L20,-19 L29,-19 Z" fill="#F59E0B"/>
+  </g>
+</svg>

@@ -1,0 +1,318 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════
+   Punched Loyalty — Global Styles + 60-30-10 Theme System
+   60% — Neutral base (white, gray, surface)
+   30% — Brand color (nav, headers, primary actions)
+   10% — Accent color (CTAs, highlights, rewards, badges)
+   Font: Inter (sans), Space Grotesk (display)
+   ═══════════════════════════════════════════════════════════════ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+
+/* ── Blue Theme (default) ──────────────────────────────────── */
+:root,
+[data-theme="blue"] {
+  /* 30% — Brand */
+  --brand: #2563EB;
+  --brand-hover: #1D4ED8;
+  --brand-dark: #1E40AF;
+  --brand-light: #DBEAFE;
+  --brand-surface: #EFF6FF;
+  --brand-text: #1E40AF;
+  --brand-ring: rgba(37, 99, 235, 0.18);
+
+  /* 10% — Accent */
+  --accent: #F59E0B;
+  --accent-hover: #D97706;
+  --accent-light: #FEF3C7;
+  --accent-text: #92400E;
+
+  /* Semantic */
+  --success: #16A34A;
+  --success-light: #DCFCE7;
+  --success-text: #15803D;
+
+  /* 60% — Neutral base */
+  --background: #FAFBFC;
+  --foreground: #111827;
+  --surface: #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --text-muted: #D1D5DB;
+}
+
+/* ── Green Theme ───────────────────────────────────────────── */
+[data-theme="green"] {
+  --brand: #059669;
+  --brand-hover: #047857;
+  --brand-dark: #065F46;
+  --brand-light: #D1FAE5;
+  --brand-surface: #ECFDF5;
+  --brand-text: #065F46;
+  --brand-ring: rgba(5, 150, 105, 0.18);
+
+  --accent: #7C3AED;
+  --accent-hover: #6D28D9;
+  --accent-light: #EDE9FE;
+  --accent-text: #5B21B6;
+
+  --success: #0D9488;
+  --success-light: #CCFBF1;
+  --success-text: #0F766E;
+
+  --background: #FAFBFC;
+  --foreground: #111827;
+  --surface: #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --text-muted: #D1D5DB;
+}
+
+/* ── Purple Theme ──────────────────────────────────────────── */
+[data-theme="purple"] {
+  --brand: #7C3AED;
+  --brand-hover: #6D28D9;
+  --brand-dark: #5B21B6;
+  --brand-light: #EDE9FE;
+  --brand-surface: #F5F3FF;
+  --brand-text: #5B21B6;
+  --brand-ring: rgba(124, 58, 237, 0.18);
+
+  --accent: #EC4899;
+  --accent-hover: #DB2777;
+  --accent-light: #FCE7F3;
+  --accent-text: #9D174D;
+
+  --success: #16A34A;
+  --success-light: #DCFCE7;
+  --success-text: #15803D;
+
+  --background: #FAFBFC;
+  --foreground: #111827;
+  --surface: #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --text-muted: #D1D5DB;
+}
+
+/* ── Amber Theme ───────────────────────────────────────────── */
+[data-theme="amber"] {
+  --brand: #D97706;
+  --brand-hover: #B45309;
+  --brand-dark: #92400E;
+  --brand-light: #FDE68A;
+  --brand-surface: #FFFBEB;
+  --brand-text: #92400E;
+  --brand-ring: rgba(217, 119, 6, 0.18);
+
+  --accent: #0EA5E9;
+  --accent-hover: #0284C7;
+  --accent-light: #E0F2FE;
+  --accent-text: #075985;
+
+  --success: #16A34A;
+  --success-light: #DCFCE7;
+  --success-text: #15803D;
+
+  --background: #FAFBFC;
+  --foreground: #111827;
+  --surface: #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --text-muted: #D1D5DB;
+}
+
+/* ── Slate Theme ───────────────────────────────────────────── */
+[data-theme="slate"] {
+  --brand: #475569;
+  --brand-hover: #334155;
+  --brand-dark: #1E293B;
+  --brand-light: #E2E8F0;
+  --brand-surface: #F8FAFC;
+  --brand-text: #1E293B;
+  --brand-ring: rgba(71, 85, 105, 0.18);
+
+  --accent: #0EA5E9;
+  --accent-hover: #0284C7;
+  --accent-light: #E0F2FE;
+  --accent-text: #075985;
+
+  --success: #16A34A;
+  --success-light: #DCFCE7;
+  --success-text: #15803D;
+
+  --background: #FAFBFC;
+  --foreground: #111827;
+  --surface: #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --text-muted: #D1D5DB;
+}
+
+/* ── Smooth theme transitions ──────────────────────────────── */
+:root { color-scheme: light; }
+
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prevent transition flicker on initial load */
+.no-transition,
+.no-transition * {
+  transition: none !important;
+}
+
+/* ── Base body styles ──────────────────────────────────────── */
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  color: var(--text-primary);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+/* ── Touch-friendly interactions ───────────────────────────── */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Smooth focus outlines */
+*:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Remove default input appearance on iOS */
+input,
+textarea,
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  font-size: 16px; /* prevent iOS zoom on focus */
+}
+
+/* ── Scrollbar & overflow utilities ────────────────────────── */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe area paddings for notched devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ── PWA standalone mode adjustments ───────────────────────── */
+@media (display-mode: standalone) {
+  body {
+    /* Add top safe area for status bar in standalone mode */
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+/* ── Animations ────────────────────────────────────────────── */
+@keyframes scale-in {
+  0% { transform: scale(0.85); opacity: 0; }
+  60% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes stamp-pop {
+  0% { transform: scale(0.5) rotate(-15deg); opacity: 0; }
+  60% { transform: scale(1.15) rotate(4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out both;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out both;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* ── Staggered animation delays ────────────────────────────── */
+.delay-75 { animation-delay: 75ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+
+/* ── Skeleton loading ──────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--border-light) 25%, var(--border) 50%, var(--border-light) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

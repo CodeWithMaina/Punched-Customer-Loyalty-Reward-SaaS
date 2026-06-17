@@ -1,0 +1,12 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/manifest.webmanifest/route": "app/manifest.webmanifest/route.js",
+  "/dashboard/business/customers/page": "app/dashboard/business/customers/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/business/customers/[customerId]/page": "app/dashboard/business/customers/[customerId]/page.js",
+  "/dashboard/business/staff/page": "app/dashboard/business/staff/page.js",
+  "/dashboard/admin/page": "app/dashboard/admin/page.js",
+  "/dashboard/business/staff/[staffId]/page": "app/dashboard/business/staff/[staffId]/page.js",
+  "/dashboard/admin/businesses/page": "app/dashboard/admin/businesses/page.js",
+  "/dashboard/admin/businesses/[businessId]/page": "app/dashboard/admin/businesses/[businessId]/page.js"
+}
