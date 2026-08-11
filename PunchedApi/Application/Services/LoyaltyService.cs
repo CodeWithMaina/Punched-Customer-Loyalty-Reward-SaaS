@@ -46,14 +46,47 @@ public class LoyaltyService : ILoyaltyService
                     CreatedAt = DateTime.UtcNow
                 };
                 await _unitOfWork.LoyaltyPrograms.AddAsync(program);
+                await _context.LoyaltyProgramHistory.AddAsync(new LoyaltyProgramHistory
+                {
+                    Id = Guid.NewGuid(),
+                    LoyaltyProgramId = program.Id,
+                    StampsRequired = program.StampsRequired,
+                    RewardValue = program.RewardValue,
+                    RewardDescription = program.RewardDescription,
+                    EffectiveFrom = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow,
+                    ChangedByUserId = ownerId
+                });
             }
             else
             {
+                var now = DateTime.UtcNow;
+                var activeHistory = await _context.LoyaltyProgramHistory
+                    .Where(h => h.LoyaltyProgramId == program.Id && h.EffectiveTo == null)
+                    .ToListAsync();
+
+                foreach (var history in activeHistory)
+                {
+                    history.EffectiveTo = now;
+                }
+
                 program.StampsRequired = request.StampsRequired;
                 program.RewardValue = request.RewardValue;
                 program.RewardDescription = request.RewardDescription.Trim();
                 program.RewardExpirationHours = request.RewardExpirationHours;
                 _unitOfWork.LoyaltyPrograms.Update(program);
+
+                await _context.LoyaltyProgramHistory.AddAsync(new LoyaltyProgramHistory
+                {
+                    Id = Guid.NewGuid(),
+                    LoyaltyProgramId = program.Id,
+                    StampsRequired = program.StampsRequired,
+                    RewardValue = program.RewardValue,
+                    RewardDescription = program.RewardDescription,
+                    EffectiveFrom = now,
+                    CreatedAt = now,
+                    ChangedByUserId = ownerId
+                });
             }
 
             await _unitOfWork.SaveChangesAsync();
@@ -103,6 +136,17 @@ public class LoyaltyService : ILoyaltyService
             };
 
             await _unitOfWork.LoyaltyPrograms.AddAsync(program);
+            await _context.LoyaltyProgramHistory.AddAsync(new LoyaltyProgramHistory
+            {
+                Id = Guid.NewGuid(),
+                LoyaltyProgramId = program.Id,
+                StampsRequired = program.StampsRequired,
+                RewardValue = program.RewardValue,
+                RewardDescription = program.RewardDescription,
+                EffectiveFrom = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                ChangedByUserId = ownerId
+            });
             await _unitOfWork.SaveChangesAsync();
             return ApiResponse<LoyaltyProgramResponse>.Ok(MapProgram(program));
         }
@@ -129,11 +173,41 @@ public class LoyaltyService : ILoyaltyService
 
             if (request.Name != null) program.Name = request.Name.Trim();
             if (request.IsActive.HasValue) program.IsActive = request.IsActive.Value;
+            var changed = false;
+            var now = DateTime.UtcNow;
+            if (request.StampsRequired.HasValue && request.StampsRequired.Value != program.StampsRequired) changed = true;
+            if (request.RewardValue.HasValue && request.RewardValue.Value != program.RewardValue) changed = true;
+            if (request.RewardDescription != null && request.RewardDescription.Trim() != program.RewardDescription) changed = true;
             if (request.StampsRequired.HasValue) program.StampsRequired = request.StampsRequired.Value;
             if (request.RewardValue.HasValue) program.RewardValue = request.RewardValue.Value;
             if (request.RewardDescription != null) program.RewardDescription = request.RewardDescription.Trim();
 
             _unitOfWork.LoyaltyPrograms.Update(program);
+
+            if (changed)
+            {
+                var activeHistory = await _context.LoyaltyProgramHistory
+                    .Where(h => h.LoyaltyProgramId == program.Id && h.EffectiveTo == null)
+                    .ToListAsync();
+
+                foreach (var history in activeHistory)
+                {
+                    history.EffectiveTo = now;
+                }
+
+                await _context.LoyaltyProgramHistory.AddAsync(new LoyaltyProgramHistory
+                {
+                    Id = Guid.NewGuid(),
+                    LoyaltyProgramId = program.Id,
+                    StampsRequired = program.StampsRequired,
+                    RewardValue = program.RewardValue,
+                    RewardDescription = program.RewardDescription,
+                    EffectiveFrom = now,
+                    CreatedAt = now,
+                    ChangedByUserId = ownerId
+                });
+            }
+
             await _unitOfWork.SaveChangesAsync();
             return ApiResponse<LoyaltyProgramResponse>.Ok(MapProgram(program));
         }

@@ -386,9 +386,47 @@ export interface StaffMember {
 }
 
 export interface StaffActivityItem {
+  activityId?: string;
+  activityType?: "stamp" | "scan" | "redemption" | string;
+  customerId?: string;
   customerName: string;
   stampNumber: number;
+  status?: string;
+  rewardValue?: number;
   stampedAt: string;
+}
+
+export interface StaffActivitySummary {
+  totalScans: number;
+  totalStamps: number;
+  totalRedemptions: number;
+  customersServed: number;
+  totalActivities: number;
+}
+
+export interface StaffIdentity {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface StaffActivityFeedResponse {
+  staff: StaffIdentity;
+  summary: StaffActivitySummary;
+  activity: StaffActivityItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export interface StaffActivityQuery {
+  activityType?: "all" | "stamp" | "scan" | "redemption";
+  customerId?: string;
+  from?: string;
+  to?: string;
+  status?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export type AnalyticsPeriod = "today" | "7d" | "30d" | "all";
@@ -603,12 +641,21 @@ export interface EngagementTrendPoint {
   enrollments: number;
 }
 
+export interface CompletionTrendPoint {
+  date: string;
+  value: number;
+}
+
 export interface ProgramPerformanceItem {
   programId: string;
   programName: string;
   totalRedemptions: number;
   activeCards: number;
   completionRate: number;
+  rewardPayoutKes: number;
+  rewardsPaidKes: number;
+  rewardsPendingKes: number;
+  completionTrend: CompletionTrendPoint[];
 }
 
 export interface GrowthPoint {
@@ -629,6 +676,12 @@ export interface StaffPerformanceItem {
   name: string;
   stampsIssued: number;
   customersServed: number;
+  stampsToday: number;
+  stampsLast7Days: number;
+  stampsLast30Days: number;
+  stampsAllTime: number;
+  stampsPerActiveDay: number;
+  personalBest: number;
 }
 
 export interface FunnelData {
@@ -647,6 +700,7 @@ export interface TopCustomerItem {
 }
 
 export interface BusinessAnalyticsResponse {
+  period: string;
   hourlyActivity: HourlyActivityPoint[];
   weeklyHeatmap: HeatmapCell[];
   genderBreakdown: DemographicSlice[];
@@ -658,4 +712,105 @@ export interface BusinessAnalyticsResponse {
   staffPerformance: StaffPerformanceItem[];
   funnelData: FunnelData;
   topCustomers: TopCustomerItem[];
+  overview: ExecutiveOverviewResponse;
+  revenue: BusinessRevenueResponse;
+  traffic: BusinessTrafficResponse;
+    recommendations: BusinessRecommendation[];
 }
+
+// ── Extended analytics DTOs (executive / revenue / traffic) ─────────
+
+export interface ExecutiveOverviewResponse {
+  totalEnrolledCustomers: number;
+  newCustomers: number;
+  returningCustomers: number;
+  totalStamps: number;
+  stampsThisWeek: number;
+  avgStampsPerCustomer: number;
+  rewardPayoutKes: number;
+  redemptionRate: number;
+  netEngagementValueKes: number;
+  rewardReadyCustomers: number;
+  dormantCustomers: number;
+  churnedCustomers: number;
+}
+
+export interface RewardPayoutPoint {
+  date: string;
+  value: number;
+}
+
+export interface BusinessRevenueResponse {
+  rewardPayoutKes: number;
+  rewardPayoutTrend: RewardPayoutPoint[];
+  accruedLiabilityKes: number;
+  payoutSuccessRate: number;
+  rewardsEarnedKes: number;
+  rewardsPaidKes: number;
+  pendingPayoutKes: number;
+  avgPayoutLatencyDays?: number | null;
+  failedPayouts: number;
+}
+
+export interface PeakHourItem {
+  hour: number;
+  stampCount: number;
+}
+
+export interface UnderutilizedHourItem {
+  hour: number;
+  stampCount: number;
+  label: string;
+}
+
+export interface BusinessTrafficResponse {
+  peakHours: PeakHourItem[];
+  busiestDayOfWeek: string | null;
+  busiestDayStamps: number;
+  underutilizedHours: UnderutilizedHourItem[];
+  visitCadenceDays?: number | null;
+}
+
+export type RecommendationPriority = "high" | "medium" | "low";
+
+export interface BusinessRecommendation {
+  type: string;
+  priority: RecommendationPriority;
+  title: string;
+  description: string;
+  action: string;
+  actionUrl?: string | null;
+  entityId?: string | null;
+}
+
+// ── Period-over-period comparison ──────────────────────────────
+
+export interface ComparisonWindowInfo {
+  currentStart: string;
+  currentEnd: string;
+  previousStart: string;
+  previousEnd: string;
+}
+
+export interface MetricComparisonResult {
+  metric: string;
+  previousValue: number;
+  currentValue: number;
+  changePct: number | null;
+  trend: "up" | "down" | "flat";
+}
+
+export interface BusinessComparisonSummary {
+  stamps: MetricComparisonResult;
+  customers: MetricComparisonResult;
+  payoutKes: MetricComparisonResult;
+}
+
+export interface BusinessAnalyticsComparisonResponse {
+  period: string;
+  previousPeriod: string;
+  windows: ComparisonWindowInfo | null;
+  metrics: MetricComparisonResult[];
+  summary: BusinessComparisonSummary;
+}
+

@@ -35,6 +35,21 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(500)
             .HasColumnName("avatar_url");
 
+        builder.Property(e => e.SourceProvider)
+            .HasMaxLength(30)
+            .HasColumnName("source_provider");
+
+        builder.Property(e => e.SourceCampaign)
+            .HasMaxLength(100)
+            .HasColumnName("source_campaign");
+
+        builder.Property(e => e.IsDeleted)
+            .HasColumnName("is_deleted")
+            .HasDefaultValue(false);
+
+        builder.Property(e => e.DeletedAt)
+            .HasColumnName("deleted_at");
+
         builder.Property(e => e.CreatedAt)
             .HasColumnName("created_at");
 
@@ -42,6 +57,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasIndex(e => e.Email).IsUnique();
         builder.HasIndex(e => new { e.FullName, e.Email });
         builder.HasIndex(e => e.StaffBusinessId);
+        builder.HasIndex(e => e.IsDeleted);
 
         // 1:1 with UserAuth via email
         builder.HasOne(e => e.Auth)

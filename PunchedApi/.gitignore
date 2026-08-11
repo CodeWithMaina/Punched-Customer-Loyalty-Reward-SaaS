@@ -1,0 +1,38 @@
+# Build outputs
+bin/
+obj/
+
+# .NET
+*.dll
+*.exe
+*.pdb
+*.deps.json
+*.runtimeconfig.json
+*.assets.cache
+*.AssemblyInfo.cs
+*.AssemblyInfoInputs.cache
+*.GeneratedMSBuildEditorConfig.editorconfig
+*.genruntimeconfig.cache
+*.GlobalUsings.g.cs
+*.MvcApplicationPartsAssemblyInfo.cs
+*.FileListAbsolute.txt
+*.Up2Date
+*.swa.cache.json
+staticwebassets.build.json
+staticwebassets.build.json.cache
+staticwebassets.build.endpoints.json
+rpswa.dswa.cache.json
+rjsmcshtml.dswa.cache.json
+rjsmrazor.dswa.cache.json
+swae.build.ex.cache
+project.assets.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -261,6 +261,26 @@ Reward types: **Bonus Stamps**, **Discount**, or **Free Item**.
 
 ---
 
+## Docker Database Setup And Seeding
+
+The API container runs in `Production` mode in Docker, so automatic startup seeding is skipped by design. Use the explicit CLI runner:
+
+```powershell
+docker compose up -d db
+docker compose build api
+docker compose run --rm -e Seed__Enabled=true api db migrate-seed
+```
+
+Useful variants:
+
+```powershell
+docker compose run --rm api db migrate
+docker compose run --rm -e Seed__Enabled=true api db seed
+docker compose run --rm --entrypoint sh -e Seed__Enabled=true api -lc "dotnet PunchedApi.dll db migrate-seed && cat /app/seed-report.json"
+```
+
+---
+
 ## Getting Started
 
 ### Prerequisites

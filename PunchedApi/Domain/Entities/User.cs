@@ -55,10 +55,32 @@ public class User : BaseEntity
     public UserRole Role { get; set; } = UserRole.Customer;
 
     /// <summary>
+    /// Optional acquisition provider (google, apple, referral, organic, other).
+    /// </summary>
+    [MaxLength(30)]
+    public string? SourceProvider { get; set; }
+
+    /// <summary>
+    /// Optional acquisition campaign or UTM source value.
+    /// </summary>
+    [MaxLength(100)]
+    public string? SourceCampaign { get; set; }
+
+    /// <summary>
     /// For Staff users: the Business they are linked to.
     /// Null for Customer and Business roles.
     /// </summary>
     public Guid? StaffBusinessId { get; set; }
+
+    /// <summary>
+    /// Soft-delete marker. Deleted users are excluded from normal queries.
+    /// </summary>
+    public bool IsDeleted { get; set; }
+
+    /// <summary>
+    /// UTC timestamp when this user was soft-deleted.
+    /// </summary>
+    public DateTime? DeletedAt { get; set; }
 
     // ── Navigation ──────────────────────────────────────────
     /// <summary>
@@ -72,7 +94,7 @@ public class User : BaseEntity
     public virtual ICollection<LoyaltyCard> LoyaltyCards { get; set; } = new List<LoyaltyCard>();
 
     /// <summary>
-    /// Reward redemptions made by this user.
+    /// Reward actions performed by this user.
     /// </summary>
     public virtual ICollection<Redemption> Redemptions { get; set; } = new List<Redemption>();
 }

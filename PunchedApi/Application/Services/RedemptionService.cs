@@ -17,15 +17,18 @@ public class RedemptionService : IRedemptionService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ApplicationDbContext _context;
+    private readonly IAnalyticsAggregationService _analyticsAggregationService;
     private readonly ILogger<RedemptionService> _logger;
 
     public RedemptionService(
         IUnitOfWork unitOfWork,
         ApplicationDbContext context,
+        IAnalyticsAggregationService analyticsAggregationService,
         ILogger<RedemptionService> logger)
     {
         _unitOfWork = unitOfWork;
         _context = context;
+        _analyticsAggregationService = analyticsAggregationService;
         _logger = logger;
     }
 
@@ -53,8 +56,10 @@ public class RedemptionService : IRedemptionService
                 Id = Guid.NewGuid(),
                 CardId = card.Id,
                 BusinessId = card.BusinessId,
+                PerformedByUserId = customerId,
+                PerformedByRole = UserRole.Customer.ToString(),
                 RewardValue = card.Program.RewardValue,
-                Status = "completed",
+                Status = "pending",
                 RedeemedAt = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow
             };
@@ -67,6 +72,7 @@ public class RedemptionService : IRedemptionService
             _unitOfWork.LoyaltyCards.Update(card);
 
             await _unitOfWork.SaveChangesAsync();
+            await _analyticsAggregationService.RecomputeTodayForBusinessAsync(card.BusinessId);
 
             _logger.LogInformation(
                 "Reward claimed: card={CardId}, redemption={RedemptionId}, value={Value}",

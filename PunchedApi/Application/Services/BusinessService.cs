@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
+using PunchedApi.Application.Analytics;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Entities;
 using PunchedApi.Domain.Interfaces;
@@ -7,16 +9,22 @@ using PunchedApi.Infrastructure.Data;
 
 namespace PunchedApi.Application.Services;
 
-public class BusinessService : IBusinessService
+public partial class BusinessService : IBusinessService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ApplicationDbContext _context;
+    private readonly IInsightService _insightService;
     private readonly ILogger<BusinessService> _logger;
 
-    public BusinessService(IUnitOfWork unitOfWork, ApplicationDbContext context, ILogger<BusinessService> logger)
+    public BusinessService(
+        IUnitOfWork unitOfWork,
+        ApplicationDbContext context,
+        IInsightService insightService,
+        ILogger<BusinessService> logger)
     {
         _unitOfWork = unitOfWork;
         _context = context;
+        _insightService = insightService;
         _logger = logger;
     }
 
@@ -328,20 +336,20 @@ public class BusinessService : IBusinessService
 
             // All queries scoped to this specific staff member's awarded stamps
             var stampsToday = await _context.Stamps
-                .CountAsync(s => s.AwardedByUserId == staffUserId && s.StampedAt >= todayUtc);
+                .CountAsync(s => s.AwardedByUserId == staffUserId && s.Card.BusinessId == businessId && s.StampedAt >= todayUtc);
 
             var stampsThisWeek = await _context.Stamps
-                .CountAsync(s => s.AwardedByUserId == staffUserId && s.StampedAt >= weekStart);
+                .CountAsync(s => s.AwardedByUserId == staffUserId && s.Card.BusinessId == businessId && s.StampedAt >= weekStart);
 
             var stampsThisMonth = await _context.Stamps
-                .CountAsync(s => s.AwardedByUserId == staffUserId && s.StampedAt >= monthStart);
+                .CountAsync(s => s.AwardedByUserId == staffUserId && s.Card.BusinessId == businessId && s.StampedAt >= monthStart);
 
             var totalStamps = await _context.Stamps
-                .CountAsync(s => s.AwardedByUserId == staffUserId);
+                .CountAsync(s => s.AwardedByUserId == staffUserId && s.Card.BusinessId == businessId);
 
             // Unique customers this staff member has stamped
             var totalCustomers = await _context.Stamps
-                .Where(s => s.AwardedByUserId == staffUserId)
+                .Where(s => s.AwardedByUserId == staffUserId && s.Card.BusinessId == businessId)
                 .Select(s => s.Card.CustomerId)
                 .Distinct()
                 .CountAsync();
@@ -350,7 +358,7 @@ public class BusinessService : IBusinessService
             // Reward-ready count: customers whose cards were stamped by this staff and are now reward-ready
             var rewardReadyCount = activeProgram == null ? 0 :
                 await _context.Stamps
-                    .Where(s => s.AwardedByUserId == staffUserId)
+                    .Where(s => s.AwardedByUserId == staffUserId && s.Card.BusinessId == businessId)
                     .Select(s => s.CardId)
                     .Distinct()
                     .Join(_context.LoyaltyCards.Where(c => c.TotalStamps >= activeProgram.StampsRequired),
@@ -363,12 +371,17 @@ public class BusinessService : IBusinessService
                 .Include(s => s.Card)
                     .ThenInclude(c => c.Customer)
                 .Where(s => s.AwardedByUserId == staffUserId)
+                .Where(s => s.Card.BusinessId == businessId)
                 .OrderByDescending(s => s.StampedAt)
                 .Take(20)
                 .Select(s => new StaffActivityItem
                 {
+                    ActivityId = s.Id,
+                    ActivityType = "stamp",
+                    CustomerId = s.Card.CustomerId,
                     CustomerName = s.Card.Customer.FullName,
                     StampNumber = s.StampNumber,
+                    Status = "completed",
                     StampedAt = s.StampedAt
                 })
                 .ToListAsync();
@@ -420,7 +433,7 @@ public class BusinessService : IBusinessService
             FullName = u.FullName,
             Email = u.Email,
             AvatarUrl = u.AvatarUrl,
-            StampsIssued = _context.Stamps.Count(s => s.AwardedByUserId == u.Id),
+            StampsIssued = _context.Stamps.Count(s => s.AwardedByUserId == u.Id && s.Card.BusinessId == business.Id),
         });
 
         // DB-level sort
@@ -508,8 +521,12 @@ public class BusinessService : IBusinessService
                 .Take(20)
                 .Select(s => new StaffActivityItem
                 {
+                    ActivityId = s.Id,
+                    ActivityType = "stamp",
+                    CustomerId = s.Card.CustomerId,
                     CustomerName = s.Card.Customer.FullName,
                     StampNumber  = s.StampNumber,
+                    Status = "completed",
                     StampedAt    = s.StampedAt,
                 })
                 .ToListAsync();
@@ -533,6 +550,173 @@ public class BusinessService : IBusinessService
             _logger.LogError(ex, "Error getting staff member analytics for {StaffId}", staffUserId);
             return ApiResponse<StaffMemberAnalyticsResponse>.Fail("ANALYTICS_FAILED", "Failed to load staff analytics.");
         }
+    }
+
+    public async Task<ApiResponse<StaffActivityFeedResponse>> GetStaffActivityForOwnerAsync(
+        Guid ownerId,
+        Guid staffUserId,
+        StaffActivityFilterRequest request)
+    {
+        try
+        {
+            var business = await _unitOfWork.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+            if (business == null)
+                return ApiResponse<StaffActivityFeedResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+            var staffUser = await _unitOfWork.Users.FirstOrDefaultAsync(
+                u => u.Id == staffUserId && u.StaffBusinessId == business.Id);
+            if (staffUser == null)
+                return ApiResponse<StaffActivityFeedResponse>.Fail("NOT_FOUND", "Staff member not found in your business.");
+
+            return await BuildStaffActivityFeedAsync(business.Id, staffUser, request);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting owner-view staff activity for staff {StaffUserId}", staffUserId);
+            return ApiResponse<StaffActivityFeedResponse>.Fail("ACTIVITY_FAILED", "Failed to load staff activity.");
+        }
+    }
+
+    public async Task<ApiResponse<StaffActivityFeedResponse>> GetMyStaffActivityAsync(
+        Guid staffUserId,
+        StaffActivityFilterRequest request)
+    {
+        try
+        {
+            var staffUser = await _unitOfWork.Users.FirstOrDefaultAsync(
+                u => u.Id == staffUserId && u.Role == UserRole.Staff);
+
+            if (staffUser == null || staffUser.StaffBusinessId == null)
+                return ApiResponse<StaffActivityFeedResponse>.Fail("NOT_LINKED", "You are not linked to any business.");
+
+            return await BuildStaffActivityFeedAsync(staffUser.StaffBusinessId.Value, staffUser, request);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting self staff activity for user {StaffUserId}", staffUserId);
+            return ApiResponse<StaffActivityFeedResponse>.Fail("ACTIVITY_FAILED", "Failed to load your activity.");
+        }
+    }
+
+    private async Task<ApiResponse<StaffActivityFeedResponse>> BuildStaffActivityFeedAsync(
+        Guid businessId,
+        User staffUser,
+        StaffActivityFilterRequest request)
+    {
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 200);
+        var activityType = request.ActivityType?.Trim().ToLowerInvariant();
+        var includeStamps = string.IsNullOrWhiteSpace(activityType) || activityType == "all" || activityType == "stamp" || activityType == "scan";
+        var includeRedemptions = string.IsNullOrWhiteSpace(activityType) || activityType == "all" || activityType == "redemption";
+        var normalizedStatus = request.Status?.Trim().ToLowerInvariant();
+
+        var stampQuery = _context.Stamps
+            .Include(s => s.Card)
+                .ThenInclude(c => c.Customer)
+            .Where(s => s.AwardedByUserId == staffUser.Id && s.Card.BusinessId == businessId)
+            .AsQueryable();
+
+        var redemptionQuery = _context.Redemptions
+            .Include(r => r.Card)
+                .ThenInclude(c => c.Customer)
+            .Where(r => r.PerformedByUserId == staffUser.Id && r.BusinessId == businessId)
+            .AsQueryable();
+
+        if (request.CustomerId.HasValue)
+        {
+            stampQuery = stampQuery.Where(s => s.Card.CustomerId == request.CustomerId.Value);
+            redemptionQuery = redemptionQuery.Where(r => r.Card.CustomerId == request.CustomerId.Value);
+        }
+
+        if (request.From.HasValue)
+        {
+            stampQuery = stampQuery.Where(s => s.StampedAt >= request.From.Value);
+            redemptionQuery = redemptionQuery.Where(r => r.RedeemedAt >= request.From.Value);
+        }
+
+        if (request.To.HasValue)
+        {
+            stampQuery = stampQuery.Where(s => s.StampedAt <= request.To.Value);
+            redemptionQuery = redemptionQuery.Where(r => r.RedeemedAt <= request.To.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedStatus))
+        {
+            redemptionQuery = redemptionQuery.Where(r => r.Status.ToLower() == normalizedStatus);
+            if (normalizedStatus != "completed")
+            {
+                includeStamps = false;
+            }
+        }
+
+        var activity = new List<StaffActivityItem>();
+
+        if (includeStamps)
+        {
+            var stamps = await stampQuery
+                .OrderByDescending(s => s.StampedAt)
+                .Select(s => new StaffActivityItem
+                {
+                    ActivityId = s.Id,
+                    ActivityType = "stamp",
+                    CustomerId = s.Card.CustomerId,
+                    CustomerName = s.Card.Customer.FullName,
+                    StampNumber = s.StampNumber,
+                    Status = "completed",
+                    StampedAt = s.StampedAt
+                })
+                .ToListAsync();
+
+            activity.AddRange(stamps);
+        }
+
+        if (includeRedemptions)
+        {
+            var redemptions = await redemptionQuery
+                .OrderByDescending(r => r.RedeemedAt)
+                .Select(r => new StaffActivityItem
+                {
+                    ActivityId = r.Id,
+                    ActivityType = "redemption",
+                    CustomerId = r.Card.CustomerId,
+                    CustomerName = r.Card.Customer.FullName,
+                    StampNumber = 0,
+                    Status = r.Status,
+                    RewardValue = r.RewardValue,
+                    StampedAt = r.RedeemedAt
+                })
+                .ToListAsync();
+
+            activity.AddRange(redemptions);
+        }
+
+        var ordered = activity.OrderByDescending(a => a.StampedAt).ToList();
+        var total = ordered.Count;
+        var paged = ordered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+        var summary = new StaffActivitySummaryResponse
+        {
+            TotalScans = ordered.Count(a => a.ActivityType == "stamp"),
+            TotalStamps = ordered.Count(a => a.ActivityType == "stamp"),
+            TotalRedemptions = ordered.Count(a => a.ActivityType == "redemption"),
+            CustomersServed = ordered.Where(a => a.CustomerId.HasValue).Select(a => a.CustomerId!.Value).Distinct().Count(),
+            TotalActivities = total
+        };
+
+        return ApiResponse<StaffActivityFeedResponse>.Ok(new StaffActivityFeedResponse
+        {
+            Staff = new StaffIdentityResponse
+            {
+                Id = staffUser.Id,
+                Name = staffUser.FullName,
+                Email = staffUser.Email
+            },
+            Summary = summary,
+            Activity = paged,
+            Page = page,
+            PageSize = pageSize,
+            Total = total
+        });
     }
 
     public async Task<ApiResponse<CustomerPeriodStatsResponse>> GetCustomerPeriodStatsAsync(
@@ -814,13 +998,16 @@ public class BusinessService : IBusinessService
 
             // 9. Funnel data
             var activeProgram = business.LoyaltyPrograms.FirstOrDefault(p => p.IsActive);
+            var funnelCompleted = activeProgram != null
+                ? cardSummaries.Count(c => c.LifetimeStamps >= activeProgram.StampsRequired) : 0;
             var funnel = new FunnelData
             {
                 TotalCustomers = cardSummaries.Count,
                 StampedAtLeastOnce = cardSummaries.Count(c => c.LifetimeStamps > 0),
-                CompletedCard = activeProgram != null
-                    ? cardSummaries.Count(c => c.LifetimeStamps >= activeProgram.StampsRequired) : 0,
-                Redeemed = cardSummaries.Count(c => c.TotalRedemptions > 0)
+                CompletedCard = funnelCompleted,
+                Redeemed = cardSummaries.Count(c => c.TotalRedemptions > 0),
+                RepeatRedeemer = cardSummaries.Count(c => c.TotalRedemptions > 1),
+                CompletionRate = cardSummaries.Count > 0 ? Math.Round((double)funnelCompleted / cardSummaries.Count * 100, 1) : 0
             };
 
             // 10. Top customers
@@ -837,6 +1024,24 @@ public class BusinessService : IBusinessService
                 })
                 .ToList();
 
+            // 11. Extended analytics (overview, revenue, traffic, program/staff detail, recommendations)
+            var cardInsights = cardSummaries.Select(c => new CardInsight
+            {
+                ProgramId = c.ProgramId,
+                TotalStamps = c.TotalStamps,
+                LifetimeStamps = c.LifetimeStamps,
+                TotalRedemptions = c.TotalRedemptions,
+                LastStampAt = c.LastStampAt,
+                EnrolledAt = c.EnrolledAt
+            }).ToList();
+            var staffPeriodStats = staffStampStats.ToDictionary(
+                x => x.StaffId, x => (StampsIssued: x.StampsIssued, CustomersServed: x.CustomersServed));
+            var totalPeriodStamps = stampsByHour.Values.Sum();
+            var redemptionCount = redemptionsByHour.Values.Sum();
+            var extended = await BuildExtendedAnalyticsAsync(
+                businessId, now, periodStart, activeProgram, business.LoyaltyPrograms.ToList(),
+                totalPeriodStamps, stampsByHour, redemptionCount, cardInsights, staffUsers, staffPeriodStats);
+
             return ApiResponse<BusinessAnalyticsResponse>.Ok(new BusinessAnalyticsResponse
             {
                 HourlyActivity = hourlyActivity,
@@ -844,18 +1049,338 @@ public class BusinessService : IBusinessService
                 GenderBreakdown = genderBreakdown,
                 AgeBreakdown = ageBreakdown,
                 EngagementTrends = engagementTrends,
-                ProgramPerformance = programPerformance,
+                ProgramPerformance = extended.ProgramPerformance,
                 CustomerGrowth = growthData,
                 Retention = retention,
-                StaffPerformance = staffPerformance,
+                StaffPerformance = extended.StaffPerformance,
                 Funnel = funnel,
-                TopCustomers = topCustomers
+                TopCustomers = topCustomers,
+                Period = period,
+                Overview = extended.Overview,
+                Revenue = extended.Revenue,
+                Traffic = extended.Traffic,
+                Recommendations = extended.Recommendations
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting business analytics for owner {OwnerId}", ownerId);
             return ApiResponse<BusinessAnalyticsResponse>.Fail("ANALYTICS_FAILED", "Failed to load analytics.");
+        }
+    }
+
+    public async Task<ApiResponse<List<InsightResponse>>> GetBusinessInsightsAsync(Guid ownerId, bool includeDismissed = false)
+    {
+        var business = await _context.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+        if (business == null)
+            return ApiResponse<List<InsightResponse>>.Fail("NOT_FOUND", "No business found for this account.");
+
+        var insights = await _insightService.GetBusinessInsightsAsync(business.Id, includeDismissed);
+        var dto = insights.Select(i => new InsightResponse
+        {
+            Id = i.Id,
+            Audience = i.Audience,
+            Category = i.Category,
+            Metric = i.Metric,
+            Severity = i.Severity,
+            Confidence = i.Confidence,
+            Title = i.Title,
+            Message = i.Message,
+            Recommendation = i.Recommendation,
+            DataJson = i.DataJson,
+            GeneratedAt = i.GeneratedAt,
+            ExpiresAt = i.ExpiresAt,
+            Dismissed = i.Dismissed
+        }).ToList();
+
+        return ApiResponse<List<InsightResponse>>.Ok(dto);
+    }
+
+    public async Task<ApiResponse<MessageResponse>> DismissBusinessInsightAsync(Guid ownerId, Guid actorUserId, Guid insightId)
+    {
+        var business = await _context.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+        if (business == null)
+            return ApiResponse<MessageResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+        var dismissed = await _insightService.DismissInsightAsync(insightId, actorUserId, business.Id);
+        if (!dismissed)
+            return ApiResponse<MessageResponse>.Fail("NOT_FOUND", "Insight not found for this business.");
+
+        return ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "Insight dismissed." });
+    }
+
+    public async Task<ApiResponse<List<CustomerSegmentResponse>>> GetBusinessCustomerSegmentsAsync(Guid ownerId, string? segment = null)
+    {
+        var business = await _context.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+        if (business == null)
+            return ApiResponse<List<CustomerSegmentResponse>>.Fail("NOT_FOUND", "No business found for this account.");
+
+        var query = _context.CustomerSegments.Where(x => x.BusinessId == business.Id);
+        if (!string.IsNullOrWhiteSpace(segment))
+        {
+            var s = segment.Trim().ToLowerInvariant();
+            query = query.Where(x => x.Segment == s);
+        }
+
+        var rows = await query
+            .OrderByDescending(x => x.Score)
+            .ToListAsync();
+
+        return ApiResponse<List<CustomerSegmentResponse>>.Ok(rows.Select(x => new CustomerSegmentResponse
+        {
+            CustomerId = x.CustomerId,
+            Segment = x.Segment,
+            Score = x.Score,
+            ComputedAt = x.ComputedAt,
+            LastStampAt = x.LastStampAt
+        }).ToList());
+    }
+
+    public async Task<ApiResponse<NotificationAnalyticsResponse>> GetNotificationAnalyticsAsync(Guid ownerId, int days = 30)
+    {
+        var business = await _context.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+        if (business == null)
+            return ApiResponse<NotificationAnalyticsResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+        var periodDays = Math.Clamp(days, 1, 365);
+        var since = DateTime.UtcNow.AddDays(-periodDays);
+
+        var q = _context.NotificationLogs.Where(n => n.BusinessId == business.Id && n.SentAt >= since);
+
+        var total = await q.CountAsync();
+        var sent = await q.CountAsync(n => n.Status == "sent");
+        var failed = await q.CountAsync(n => n.Status == "failed");
+        var delivered = await q.CountAsync(n => n.Status == "delivered");
+        var opened = await q.CountAsync(n => n.Status == "opened");
+
+        return ApiResponse<NotificationAnalyticsResponse>.Ok(new NotificationAnalyticsResponse
+        {
+            PeriodDays = periodDays,
+            Total = total,
+            Sent = sent,
+            Failed = failed,
+            Delivered = delivered,
+            Opened = opened
+        });
+    }
+
+    public async Task<ApiResponse<List<StaffUtilizationResponse>>> GetStaffUtilizationAsync(Guid ownerId, DateOnly? from = null, DateOnly? to = null)
+    {
+        var business = await _context.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+        if (business == null)
+            return ApiResponse<List<StaffUtilizationResponse>>.Fail("NOT_FOUND", "No business found for this account.");
+
+        var fromDate = from ?? DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-30));
+        var toDate = to ?? DateOnly.FromDateTime(DateTime.UtcNow.Date);
+
+        var shifts = await _context.StaffShifts
+            .Where(s => s.BusinessId == business.Id && s.Date >= fromDate && s.Date <= toDate)
+            .ToListAsync();
+
+        var staffIds = shifts.Select(s => s.StaffUserId).Distinct().ToList();
+        if (staffIds.Count == 0)
+            return ApiResponse<List<StaffUtilizationResponse>>.Ok(new List<StaffUtilizationResponse>());
+
+        var startUtc = fromDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var endUtc = toDate.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+
+        var stampCounts = await _context.Stamps
+            .Where(s => s.Card.BusinessId == business.Id && s.AwardedByUserId != null && staffIds.Contains(s.AwardedByUserId.Value)
+                && s.StampedAt >= startUtc && s.StampedAt < endUtc)
+            .GroupBy(s => s.AwardedByUserId!.Value)
+            .Select(g => new { StaffId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.StaffId, x => x.Count);
+
+        var names = await _context.Users
+            .Where(u => staffIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        var result = shifts
+            .GroupBy(s => s.StaffUserId)
+            .Select(g =>
+            {
+                var workingHours = g.Where(x => x.IsWorking).Sum(x => Math.Max(0, x.EndHour - x.StartHour));
+                var stamps = stampCounts.GetValueOrDefault(g.Key, 0);
+                return new StaffUtilizationResponse
+                {
+                    StaffUserId = g.Key,
+                    StaffName = names.GetValueOrDefault(g.Key, "Unknown"),
+                    BusinessId = business.Id,
+                    WorkingHours = workingHours,
+                    Stamps = stamps,
+                    StampsPerHour = workingHours > 0 ? Math.Round((double)stamps / workingHours, 2) : 0
+                };
+            })
+            .OrderByDescending(x => x.StampsPerHour)
+            .ToList();
+
+        return ApiResponse<List<StaffUtilizationResponse>>.Ok(result);
+    }
+
+    public async Task<ApiResponse<List<StaffShiftResponse>>> GetStaffShiftsAsync(Guid ownerId, Guid staffUserId, DateOnly? from = null, DateOnly? to = null)
+    {
+        var business = await _context.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+        if (business == null)
+            return ApiResponse<List<StaffShiftResponse>>.Fail("NOT_FOUND", "No business found for this account.");
+
+        var staff = await _context.Users.FirstOrDefaultAsync(u => u.Id == staffUserId && u.StaffBusinessId == business.Id);
+        if (staff == null)
+            return ApiResponse<List<StaffShiftResponse>>.Fail("NOT_FOUND", "Staff member not found in your business.");
+
+        var fromDate = from ?? DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-30));
+        var toDate = to ?? DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(30));
+
+        var rows = await _context.StaffShifts
+            .Where(s => s.BusinessId == business.Id && s.StaffUserId == staffUserId && s.Date >= fromDate && s.Date <= toDate)
+            .OrderBy(s => s.Date)
+            .ToListAsync();
+
+        return ApiResponse<List<StaffShiftResponse>>.Ok(rows.Select(s => new StaffShiftResponse
+        {
+            StaffUserId = s.StaffUserId,
+            BusinessId = s.BusinessId,
+            Date = s.Date,
+            StartHour = s.StartHour,
+            EndHour = s.EndHour,
+            IsWorking = s.IsWorking
+        }).ToList());
+    }
+
+    public async Task<ApiResponse<MessageResponse>> UpsertStaffShiftAsync(Guid ownerId, Guid staffUserId, UpsertStaffShiftRequest request)
+    {
+        var business = await _context.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+        if (business == null)
+            return ApiResponse<MessageResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+        var staff = await _context.Users.FirstOrDefaultAsync(u => u.Id == staffUserId && u.StaffBusinessId == business.Id);
+        if (staff == null)
+            return ApiResponse<MessageResponse>.Fail("NOT_FOUND", "Staff member not found in your business.");
+
+        if (request.StartHour < 0 || request.StartHour > 23 || request.EndHour < 0 || request.EndHour > 23)
+            return ApiResponse<MessageResponse>.Fail("VALIDATION_ERROR", "startHour and endHour must be in range 0-23.");
+
+        var row = await _context.StaffShifts.FirstOrDefaultAsync(s =>
+            s.BusinessId == business.Id &&
+            s.StaffUserId == staffUserId &&
+            s.Date == request.Date);
+
+        if (row == null)
+        {
+            row = new StaffShift
+            {
+                Id = Guid.NewGuid(),
+                BusinessId = business.Id,
+                StaffUserId = staffUserId,
+                Date = request.Date,
+                StartHour = request.StartHour,
+                EndHour = request.EndHour,
+                IsWorking = request.IsWorking,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _context.StaffShifts.AddAsync(row);
+        }
+        else
+        {
+            row.StartHour = request.StartHour;
+            row.EndHour = request.EndHour;
+            row.IsWorking = request.IsWorking;
+        }
+
+        await _context.SaveChangesAsync();
+        return ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "Staff shift saved." });
+    }
+/// <summary>
+    /// Period-over-period comparison scoped strictly to the authenticated owner's business.
+    /// The business is derived from <paramref name="ownerId"/> (JWT) — a client-supplied
+    /// BusinessId is never trusted.
+    /// </summary>
+    public async Task<ApiResponse<BusinessAnalyticsComparisonResponse>> GetBusinessAnalyticsComparisonAsync(
+        Guid ownerId, string period, string? prev, DateOnly? start, DateOnly? end)
+    {
+        try
+        {
+            var business = await _context.Businesses
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+            if (business == null)
+                return ApiResponse<BusinessAnalyticsComparisonResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+            var businessId = business.Id;
+            period = (period ?? "30d").ToLowerInvariant();
+            if (!PeriodAnalytics.SupportedPeriods.Contains(period))
+                return ApiResponse<BusinessAnalyticsComparisonResponse>.Fail("INVALID_PERIOD", $"Unsupported period '{period}'.");
+
+            var now = DateTime.UtcNow;
+            DateTime curStart, curEnd, prevStart, prevEnd;
+            try
+            {
+                (curStart, curEnd) = PeriodAnalytics.ResolveRange(period, now, start, end);
+                (prevStart, prevEnd) = PeriodAnalytics.ResolvePrevious(period, now, start, end);
+            }
+            catch (ArgumentException ex)
+            {
+                return ApiResponse<BusinessAnalyticsComparisonResponse>.Fail("INVALID_PERIOD", ex.Message);
+            }
+
+            // ── Tenant-scoped aggregate queries (businessId derived from authenticated user) ──
+            var stampsPrev = await _context.Stamps
+                .CountAsync(s => s.Card.BusinessId == businessId && s.StampedAt >= prevStart && s.StampedAt < prevEnd);
+            var stampsCur = await _context.Stamps
+                .CountAsync(s => s.Card.BusinessId == businessId && s.StampedAt >= curStart && s.StampedAt < curEnd);
+
+            var activePrev = await _context.LoyaltyCards
+                .CountAsync(c => c.BusinessId == businessId && c.LastStampAt != null && c.LastStampAt >= prevStart && c.LastStampAt < prevEnd);
+            var activeCur = await _context.LoyaltyCards
+                .CountAsync(c => c.BusinessId == businessId && c.LastStampAt != null && c.LastStampAt >= curStart && c.LastStampAt < curEnd);
+
+            var redemptionsPrev = await _context.Redemptions
+                .CountAsync(r => r.BusinessId == businessId && r.RedeemedAt >= prevStart && r.RedeemedAt < prevEnd);
+            var redemptionsCur = await _context.Redemptions
+                .CountAsync(r => r.BusinessId == businessId && r.RedeemedAt >= curStart && r.RedeemedAt < curEnd);
+
+            var enrollmentsPrev = await _context.LoyaltyCards
+                .CountAsync(c => c.BusinessId == businessId && c.EnrolledAt >= prevStart && c.EnrolledAt < prevEnd);
+            var enrollmentsCur = await _context.LoyaltyCards
+                .CountAsync(c => c.BusinessId == businessId && c.EnrolledAt >= curStart && c.EnrolledAt < curEnd);
+
+            // Reward payout — measured at RedeemedAt per the analytics contract.
+            var payoutPrev = await _context.Redemptions
+                .Where(r => r.BusinessId == businessId && r.RedeemedAt >= prevStart && r.RedeemedAt < prevEnd)
+                .SumAsync(r => (decimal?)r.RewardValue) ?? 0m;
+            var payoutCur = await _context.Redemptions
+                .Where(r => r.BusinessId == businessId && r.RedeemedAt >= curStart && r.RedeemedAt < curEnd)
+                .SumAsync(r => (decimal?)r.RewardValue) ?? 0m;
+
+            var stamps = PeriodAnalytics.Compare("stamps", stampsPrev, stampsCur);
+            var active = PeriodAnalytics.Compare("activeCustomers", activePrev, activeCur);
+            var redemptions = PeriodAnalytics.Compare("redemptions", redemptionsPrev, redemptionsCur);
+            var enrollments = PeriodAnalytics.Compare("newEnrollments", enrollmentsPrev, enrollmentsCur);
+            var payout = PeriodAnalytics.Compare("rewardPayout", (double)payoutPrev, (double)payoutCur);
+
+            return ApiResponse<BusinessAnalyticsComparisonResponse>.Ok(new BusinessAnalyticsComparisonResponse
+            {
+                Period = period,
+                PreviousPeriod = string.IsNullOrWhiteSpace(prev) ? period : prev,
+                Windows = new ComparisonWindowInfo
+                {
+                    PreviousStart = prevStart,
+                    PreviousEnd = prevEnd,
+                    CurrentStart = curStart,
+                    CurrentEnd = curEnd
+                },
+                Metrics = new List<MetricComparisonResult> { stamps, active, redemptions, enrollments, payout },
+                Summary = new BusinessComparisonSummary
+                {
+                    Stamps = stamps,
+                    Customers = active,
+                    PayoutKes = payout
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error comparing analytics for owner {OwnerId}", ownerId);
+            return ApiResponse<BusinessAnalyticsComparisonResponse>.Fail("ANALYTICS_FAILED", "Failed to compare analytics.");
         }
     }
 }

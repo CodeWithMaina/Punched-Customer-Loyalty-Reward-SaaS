@@ -66,6 +66,16 @@ public class Business : BaseEntity
     /// </summary>
     public Guid? OwnerId { get; set; }
 
+    /// <summary>
+    /// Soft-delete marker. Deleted businesses are excluded from normal queries.
+    /// </summary>
+    public bool IsDeleted { get; set; }
+
+    /// <summary>
+    /// UTC timestamp when this business was soft-deleted.
+    /// </summary>
+    public DateTime? DeletedAt { get; set; }
+
     // ── Navigation ──────────────────────────────────────────
     /// <summary>
     /// All loyalty programs for this business.

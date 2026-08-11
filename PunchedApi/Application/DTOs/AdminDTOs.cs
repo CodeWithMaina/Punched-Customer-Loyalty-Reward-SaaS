@@ -367,3 +367,24 @@ public class AdminUpdateUserRequest
     [JsonPropertyName("dateOfBirth")]
     public DateOnly? DateOfBirth { get; set; }
 }
+
+public class AdminApiHealthResponse
+{
+    [JsonPropertyName("periodDays")]
+    public int PeriodDays { get; set; }
+
+    [JsonPropertyName("totalRequests")]
+    public int TotalRequests { get; set; }
+
+    [JsonPropertyName("error5xx")]
+    public int Error5xx { get; set; }
+
+    [JsonPropertyName("error4xx")]
+    public int Error4xx { get; set; }
+
+    [JsonPropertyName("errorRatePct")]
+    public double ErrorRatePct { get; set; }
+
+    [JsonPropertyName("avgDurationMs")]
+    public double AvgDurationMs { get; set; }
+}

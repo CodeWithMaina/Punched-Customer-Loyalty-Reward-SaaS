@@ -9,10 +9,13 @@ import type {
   BusinessCustomer,
   BusinessDashboardResponse,
   BusinessAnalyticsResponse,
+  BusinessAnalyticsComparisonResponse,
   CustomerPeriodStatsResponse,
   MessageResponse,
   StaffBusinessResponse,
   StaffAnalyticsResponse,
+  StaffActivityFeedResponse,
+  StaffActivityQuery,
   StaffMember,
   StaffMemberAnalyticsResponse,
 } from "@/types";
@@ -93,6 +96,20 @@ export const businessesApi = {
       })
       .then((r) => r.data),
 
+  getStaffMemberActivity: (staffId: string, params?: StaffActivityQuery) =>
+    apiClient
+      .get<ApiResponse<StaffActivityFeedResponse>>(`/businesses/me/staff/${staffId}/activity`, {
+        params: params ?? undefined,
+      })
+      .then((r) => r.data),
+
+  getMyStaffActivity: (params?: StaffActivityQuery) =>
+    apiClient
+      .get<ApiResponse<StaffActivityFeedResponse>>("/businesses/staff/activity", {
+        params: params ?? undefined,
+      })
+      .then((r) => r.data),
+
   getCustomerPeriodStats: (customerId: string, period: AnalyticsPeriod = "7d") =>
     apiClient
       .get<ApiResponse<CustomerPeriodStatsResponse>>(`/businesses/me/customers/${customerId}/stats`, {
@@ -100,7 +117,7 @@ export const businessesApi = {
       })
       .then((r) => r.data),
 
-  getAnalytics: (period: string = "30d") =>
+    getAnalytics: (period: string = "30d") =>
     cachedFetch(`biz:analytics:${period}`, () =>
       apiClient
         .get<ApiResponse<BusinessAnalyticsResponse>>("/businesses/me/analytics", {
@@ -109,4 +126,16 @@ export const businessesApi = {
         .then((r) => r.data),
       30_000
     ),
+
+  getAnalyticsCompare: (period: string = "30d", prev: string | null = null) =>
+    cachedFetch(`biz:analytics:compare:${period}:${prev ?? ""}`, () =>
+      apiClient
+        .get<ApiResponse<BusinessAnalyticsComparisonResponse>>(
+          "/businesses/me/analytics/compare",
+          { params: prev ? { period, prev } : { period } }
+        )
+        .then((r) => r.data),
+      30_000
+    ),
 };
+

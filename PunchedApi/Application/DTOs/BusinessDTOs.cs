@@ -527,14 +527,104 @@ public class StaffAnalyticsResponse
 
 public class StaffActivityItem
 {
+    [JsonPropertyName("activityId")]
+    public Guid? ActivityId { get; set; }
+
+    [JsonPropertyName("activityType")]
+    public string ActivityType { get; set; } = "stamp";
+
     [JsonPropertyName("customerName")]
     public string CustomerName { get; set; } = string.Empty;
+
+    [JsonPropertyName("customerId")]
+    public Guid? CustomerId { get; set; }
 
     [JsonPropertyName("stampNumber")]
     public int StampNumber { get; set; }
 
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    [JsonPropertyName("rewardValue")]
+    public decimal? RewardValue { get; set; }
+
     [JsonPropertyName("stampedAt")]
     public DateTime StampedAt { get; set; }
+}
+
+public class StaffActivityFilterRequest
+{
+    [JsonPropertyName("activityType")]
+    public string? ActivityType { get; set; }
+
+    [JsonPropertyName("customerId")]
+    public Guid? CustomerId { get; set; }
+
+    [JsonPropertyName("from")]
+    public DateTime? From { get; set; }
+
+    [JsonPropertyName("to")]
+    public DateTime? To { get; set; }
+
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    [JsonPropertyName("page")]
+    public int Page { get; set; } = 1;
+
+    [JsonPropertyName("pageSize")]
+    public int PageSize { get; set; } = 50;
+}
+
+public class StaffIdentityResponse
+{
+    [JsonPropertyName("id")]
+    public Guid Id { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("email")]
+    public string Email { get; set; } = string.Empty;
+}
+
+public class StaffActivitySummaryResponse
+{
+    [JsonPropertyName("totalScans")]
+    public int TotalScans { get; set; }
+
+    [JsonPropertyName("totalStamps")]
+    public int TotalStamps { get; set; }
+
+    [JsonPropertyName("totalRedemptions")]
+    public int TotalRedemptions { get; set; }
+
+    [JsonPropertyName("customersServed")]
+    public int CustomersServed { get; set; }
+
+    [JsonPropertyName("totalActivities")]
+    public int TotalActivities { get; set; }
+}
+
+public class StaffActivityFeedResponse
+{
+    [JsonPropertyName("staff")]
+    public StaffIdentityResponse Staff { get; set; } = new();
+
+    [JsonPropertyName("summary")]
+    public StaffActivitySummaryResponse Summary { get; set; } = new();
+
+    [JsonPropertyName("activity")]
+    public List<StaffActivityItem> Activity { get; set; } = [];
+
+    [JsonPropertyName("page")]
+    public int Page { get; set; }
+
+    [JsonPropertyName("pageSize")]
+    public int PageSize { get; set; }
+
+    [JsonPropertyName("total")]
+    public int Total { get; set; }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -599,6 +689,9 @@ public class CustomerPeriodStatsResponse
 
 public class BusinessAnalyticsResponse
 {
+    [JsonPropertyName("period")]
+    public string Period { get; set; } = "30d";
+
     [JsonPropertyName("hourlyActivity")]
     public List<HourlyActivityPoint> HourlyActivity { get; set; } = [];
 
@@ -631,6 +724,88 @@ public class BusinessAnalyticsResponse
 
     [JsonPropertyName("topCustomers")]
     public List<TopCustomerItem> TopCustomers { get; set; } = [];
+
+    // ── New analytics sections (P0 executive / P1 revenue, traffic, recommendations) ──
+
+    [JsonPropertyName("overview")]
+    public ExecutiveOverviewResponse Overview { get; set; } = new();
+
+    [JsonPropertyName("revenue")]
+    public BusinessRevenueResponse Revenue { get; set; } = new();
+
+    [JsonPropertyName("traffic")]
+    public BusinessTrafficResponse Traffic { get; set; } = new();
+
+    [JsonPropertyName("recommendations")]
+    public List<BusinessRecommendation> Recommendations { get; set; } = [];
+}
+
+public class ExecutiveOverviewResponse
+{
+    [JsonPropertyName("totalEnrolledCustomers")] public int TotalEnrolledCustomers { get; set; }
+    [JsonPropertyName("newCustomers")] public int NewCustomers { get; set; }
+    [JsonPropertyName("returningCustomers")] public int ReturningCustomers { get; set; }
+    [JsonPropertyName("totalStamps")] public int TotalStamps { get; set; }
+    [JsonPropertyName("stampsThisWeek")] public int StampsThisWeek { get; set; }
+    [JsonPropertyName("avgStampsPerCustomer")] public double AvgStampsPerCustomer { get; set; }
+    [JsonPropertyName("rewardPayoutKes")] public decimal RewardPayoutKes { get; set; }
+    [JsonPropertyName("redemptionRate")] public double RedemptionRate { get; set; }
+    [JsonPropertyName("netEngagementValueKes")] public decimal NetEngagementValueKes { get; set; }
+    [JsonPropertyName("rewardReadyCustomers")] public int RewardReadyCustomers { get; set; }
+    [JsonPropertyName("dormantCustomers")] public int DormantCustomers { get; set; }
+    [JsonPropertyName("churnedCustomers")] public int ChurnedCustomers { get; set; }
+}
+
+public class BusinessRevenueResponse
+{
+    [JsonPropertyName("rewardPayoutKes")] public decimal RewardPayoutKes { get; set; }
+    [JsonPropertyName("rewardPayoutTrend")] public List<RewardPayoutPoint> RewardPayoutTrend { get; set; } = [];
+    [JsonPropertyName("accruedLiabilityKes")] public decimal AccruedLiabilityKes { get; set; }
+    [JsonPropertyName("payoutSuccessRate")] public double PayoutSuccessRate { get; set; }
+    [JsonPropertyName("rewardsEarnedKes")] public decimal RewardsEarnedKes { get; set; }
+    [JsonPropertyName("rewardsPaidKes")] public decimal RewardsPaidKes { get; set; }
+    [JsonPropertyName("pendingPayoutKes")] public decimal PendingPayoutKes { get; set; }
+    [JsonPropertyName("avgPayoutLatencyDays")] public double? AvgPayoutLatencyDays { get; set; }
+    [JsonPropertyName("failedPayouts")] public int FailedPayouts { get; set; }
+}
+
+public class RewardPayoutPoint
+{
+    [JsonPropertyName("date")] public string Date { get; set; } = string.Empty;
+    [JsonPropertyName("value")] public decimal Value { get; set; }
+}
+
+public class BusinessTrafficResponse
+{
+    [JsonPropertyName("peakHours")] public List<PeakHourItem> PeakHours { get; set; } = [];
+    [JsonPropertyName("busiestDayOfWeek")] public string? BusiestDayOfWeek { get; set; }
+    [JsonPropertyName("busiestDayStamps")] public int BusiestDayStamps { get; set; }
+    [JsonPropertyName("underutilizedHours")] public List<UnderutilizedHourItem> UnderutilizedHours { get; set; } = [];
+    [JsonPropertyName("visitCadenceDays")] public double? VisitCadenceDays { get; set; }
+}
+
+public class PeakHourItem
+{
+    [JsonPropertyName("hour")] public int Hour { get; set; }
+    [JsonPropertyName("stampCount")] public int StampCount { get; set; }
+}
+
+public class UnderutilizedHourItem
+{
+    [JsonPropertyName("hour")] public int Hour { get; set; }
+    [JsonPropertyName("stampCount")] public int StampCount { get; set; }
+    [JsonPropertyName("label")] public string Label { get; set; } = string.Empty;
+}
+
+public class BusinessRecommendation
+{
+    [JsonPropertyName("type")] public string Type { get; set; } = string.Empty;
+    [JsonPropertyName("priority")] public string Priority { get; set; } = "low";
+    [JsonPropertyName("title")] public string Title { get; set; } = string.Empty;
+    [JsonPropertyName("description")] public string Description { get; set; } = string.Empty;
+    [JsonPropertyName("action")] public string Action { get; set; } = string.Empty;
+    [JsonPropertyName("actionUrl")] public string? ActionUrl { get; set; }
+    [JsonPropertyName("entityId")] public string? EntityId { get; set; }
 }
 
 public class HourlyActivityPoint
@@ -697,6 +872,28 @@ public class ProgramPerformanceItem
 
     [JsonPropertyName("completionRate")]
     public double CompletionRate { get; set; }
+
+    [JsonPropertyName("rewardPayoutKes")]
+    public decimal RewardPayoutKes { get; set; }
+
+    [JsonPropertyName("rewardsPaidKes")]
+    public decimal RewardsPaidKes { get; set; }
+
+    [JsonPropertyName("rewardsPendingKes")]
+    public decimal RewardsPendingKes { get; set; }
+
+    /// <summary>Completion activity per day over the period (date → completion count).</summary>
+    [JsonPropertyName("completionTrend")]
+    public List<CompletionTrendPoint> CompletionTrend { get; set; } = [];
+}
+
+public class CompletionTrendPoint
+{
+    [JsonPropertyName("date")]
+    public string Date { get; set; } = string.Empty;
+
+    [JsonPropertyName("value")]
+    public int Value { get; set; }
 }
 
 public class GrowthPoint
@@ -739,6 +936,25 @@ public class StaffPerformanceItem
 
     [JsonPropertyName("customersServed")]
     public int CustomersServed { get; set; }
+
+    [JsonPropertyName("stampsToday")]
+    public int StampsToday { get; set; }
+
+    [JsonPropertyName("stampsLast7Days")]
+    public int StampsLast7Days { get; set; }
+
+    [JsonPropertyName("stampsLast30Days")]
+    public int StampsLast30Days { get; set; }
+
+    [JsonPropertyName("stampsAllTime")]
+    public int StampsAllTime { get; set; }
+
+    /// <summary>Stamps issued per distinct active day (working-hours data is not yet available).</summary>
+    [JsonPropertyName("stampsPerActiveDay")]
+    public double StampsPerActiveDay { get; set; }
+
+    [JsonPropertyName("personalBest")]
+    public int PersonalBest { get; set; }
 }
 
 public class FunnelData
@@ -754,6 +970,13 @@ public class FunnelData
 
     [JsonPropertyName("redeemed")]
     public int Redeemed { get; set; }
+
+    [JsonPropertyName("repeatRedeemer")]
+    public int RepeatRedeemer { get; set; }
+
+    /// <summary>Stage 3 (completed a card) over stage 1 (enrolled) as a percentage.</summary>
+    [JsonPropertyName("completionRate")]
+    public double CompletionRate { get; set; }
 }
 
 public class TopCustomerItem
@@ -772,4 +995,214 @@ public class TopCustomerItem
 
     [JsonPropertyName("lastVisit")]
     public DateTime? LastVisit { get; set; }
+}
+
+public class InsightResponse
+{
+    [JsonPropertyName("id")]
+    public Guid Id { get; set; }
+
+    [JsonPropertyName("audience")]
+    public string Audience { get; set; } = string.Empty;
+
+    [JsonPropertyName("category")]
+    public string Category { get; set; } = string.Empty;
+
+    [JsonPropertyName("metric")]
+    public string Metric { get; set; } = string.Empty;
+
+    [JsonPropertyName("severity")]
+    public string Severity { get; set; } = string.Empty;
+
+    [JsonPropertyName("confidence")]
+    public string Confidence { get; set; } = string.Empty;
+
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = string.Empty;
+
+    [JsonPropertyName("recommendation")]
+    public string Recommendation { get; set; } = string.Empty;
+
+    [JsonPropertyName("dataJson")]
+    public string DataJson { get; set; } = "{}";
+
+    [JsonPropertyName("generatedAt")]
+    public DateTime GeneratedAt { get; set; }
+
+    [JsonPropertyName("expiresAt")]
+    public DateTime ExpiresAt { get; set; }
+
+    [JsonPropertyName("dismissed")]
+    public bool Dismissed { get; set; }
+}
+
+public class CustomerSegmentResponse
+{
+    [JsonPropertyName("customerId")]
+    public Guid CustomerId { get; set; }
+
+    [JsonPropertyName("segment")]
+    public string Segment { get; set; } = string.Empty;
+
+    [JsonPropertyName("score")]
+    public int Score { get; set; }
+
+    [JsonPropertyName("computedAt")]
+    public DateTime ComputedAt { get; set; }
+
+    [JsonPropertyName("lastStampAt")]
+    public DateTime? LastStampAt { get; set; }
+}
+
+public class NotificationAnalyticsResponse
+{
+    [JsonPropertyName("periodDays")]
+    public int PeriodDays { get; set; }
+
+    [JsonPropertyName("total")]
+    public int Total { get; set; }
+
+    [JsonPropertyName("sent")]
+    public int Sent { get; set; }
+
+    [JsonPropertyName("failed")]
+    public int Failed { get; set; }
+
+    [JsonPropertyName("delivered")]
+    public int Delivered { get; set; }
+
+    [JsonPropertyName("opened")]
+    public int Opened { get; set; }
+}
+
+public class StaffUtilizationResponse
+{
+    [JsonPropertyName("staffUserId")]
+    public Guid StaffUserId { get; set; }
+
+    [JsonPropertyName("staffName")]
+    public string StaffName { get; set; } = string.Empty;
+
+    [JsonPropertyName("businessId")]
+    public Guid BusinessId { get; set; }
+
+    [JsonPropertyName("workingHours")]
+    public int WorkingHours { get; set; }
+
+    [JsonPropertyName("stamps")]
+    public int Stamps { get; set; }
+
+    [JsonPropertyName("stampsPerHour")]
+    public double StampsPerHour { get; set; }
+}
+
+public class StaffShiftResponse
+{
+    [JsonPropertyName("staffUserId")]
+    public Guid StaffUserId { get; set; }
+
+    [JsonPropertyName("businessId")]
+    public Guid BusinessId { get; set; }
+
+    [JsonPropertyName("date")]
+    public DateOnly Date { get; set; }
+
+    [JsonPropertyName("startHour")]
+    public int StartHour { get; set; }
+
+    [JsonPropertyName("endHour")]
+    public int EndHour { get; set; }
+
+    [JsonPropertyName("isWorking")]
+    public bool IsWorking { get; set; }
+}
+
+public class UpsertStaffShiftRequest
+{
+    [JsonPropertyName("date")]
+    public DateOnly Date { get; set; }
+
+    [JsonPropertyName("startHour")]
+    public int StartHour { get; set; }
+
+    [JsonPropertyName("endHour")]
+    public int EndHour { get; set; }
+
+    [JsonPropertyName("isWorking")]
+    public bool IsWorking { get; set; } = true;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PERIOD-OVER-PERIOD COMPARISON (NEW)
+// ═══════════════════════════════════════════════════════════════
+
+public class BusinessAnalyticsComparisonResponse
+{
+    [JsonPropertyName("period")]
+    public string Period { get; set; } = "30d";
+
+    [JsonPropertyName("previousPeriod")]
+    public string PreviousPeriod { get; set; } = "30d";
+
+    [JsonPropertyName("windows")]
+    public ComparisonWindowInfo? Windows { get; set; }
+
+    /// <summary>Full ordered list of per-metric comparisons.</summary>
+    [JsonPropertyName("metrics")]
+    public List<MetricComparisonResult> Metrics { get; set; } = [];
+
+    /// <summary>Convenience accessor for the headline overview metrics.</summary>
+    [JsonPropertyName("summary")]
+    public BusinessComparisonSummary Summary { get; set; } = new();
+}
+
+public class ComparisonWindowInfo
+{
+    [JsonPropertyName("currentStart")]
+    public DateTime CurrentStart { get; set; }
+
+    [JsonPropertyName("currentEnd")]
+    public DateTime CurrentEnd { get; set; }
+
+    [JsonPropertyName("previousStart")]
+    public DateTime PreviousStart { get; set; }
+
+    [JsonPropertyName("previousEnd")]
+    public DateTime PreviousEnd { get; set; }
+}
+
+public class MetricComparisonResult
+{
+    [JsonPropertyName("metric")]
+    public string Metric { get; set; } = string.Empty;
+
+    [JsonPropertyName("previousValue")]
+    public double PreviousValue { get; set; }
+
+    [JsonPropertyName("currentValue")]
+    public double CurrentValue { get; set; }
+
+    /// <summary>Percentage change; null when not meaningful (previous == 0).</summary>
+    [JsonPropertyName("changePct")]
+    public double? ChangePct { get; set; }
+
+    /// <summary>up | down | flat — never Infinity/NaN.</summary>
+    [JsonPropertyName("trend")]
+    public string Trend { get; set; } = "flat";
+}
+
+public class BusinessComparisonSummary
+{
+    [JsonPropertyName("stamps")]
+    public MetricComparisonResult Stamps { get; set; } = new();
+
+    /// <summary>Active customers (LastStampAt within window) — surfaced as "customers".</summary>
+    [JsonPropertyName("customers")]
+    public MetricComparisonResult Customers { get; set; } = new();
+
+    [JsonPropertyName("payoutKes")]
+    public MetricComparisonResult PayoutKes { get; set; } = new();
 }

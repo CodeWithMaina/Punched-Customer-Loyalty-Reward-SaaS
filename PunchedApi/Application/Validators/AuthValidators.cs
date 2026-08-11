@@ -27,6 +27,14 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
             .NotEmpty().WithMessage("Full name is required.")
             .MinimumLength(1).WithMessage("Full name must be at least 1 character.")
             .MaximumLength(100).WithMessage("Full name must not exceed 100 characters.");
+
+        RuleFor(x => x.SourceProvider)
+            .Must(v => string.IsNullOrWhiteSpace(v) || new[] { "google", "apple", "referral", "organic", "other" }
+                .Contains(v.Trim().ToLowerInvariant()))
+            .WithMessage("Source provider must be one of: google, apple, referral, organic, other.");
+
+        RuleFor(x => x.SourceCampaign)
+            .MaximumLength(100).WithMessage("Source campaign must not exceed 100 characters.");
     }
 }
 

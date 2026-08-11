@@ -26,6 +26,19 @@ public class ApplicationDbContext : DbContext
     public DbSet<ReferralProgram> ReferralPrograms => Set<ReferralProgram>();
     public DbSet<ReferralLink> ReferralLinks => Set<ReferralLink>();
     public DbSet<Referral> Referrals => Set<Referral>();
+    public DbSet<BusinessDailyAnalytics> BusinessDailyAnalytics => Set<BusinessDailyAnalytics>();
+    public DbSet<StaffDailyAnalytics> StaffDailyAnalytics => Set<StaffDailyAnalytics>();
+    public DbSet<StaffShift> StaffShifts => Set<StaffShift>();
+    public DbSet<NotificationLog> NotificationLogs => Set<NotificationLog>();
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<ApiEventLog> ApiEventLogs => Set<ApiEventLog>();
+    public DbSet<LoyaltyProgramHistory> LoyaltyProgramHistory => Set<LoyaltyProgramHistory>();
+    public DbSet<CustomerSegment> CustomerSegments => Set<CustomerSegment>();
+    public DbSet<Insight> Insights => Set<Insight>();
+    public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<AppointmentStatusHistory> AppointmentStatusHistory => Set<AppointmentStatusHistory>();
+    public DbSet<ServiceCatalogItem> ServiceCatalogItems => Set<ServiceCatalogItem>();
+    public DbSet<StaffServiceAssignment> StaffServiceAssignments => Set<StaffServiceAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,5 +46,9 @@ public class ApplicationDbContext : DbContext
 
         // Apply all Fluent API configurations from the Configurations folder
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        // Global filters ensure soft-deleted records are excluded from normal app flows.
+        modelBuilder.Entity<User>().HasQueryFilter(u => !u.IsDeleted);
+        modelBuilder.Entity<Business>().HasQueryFilter(b => !b.IsDeleted);
     }
 }

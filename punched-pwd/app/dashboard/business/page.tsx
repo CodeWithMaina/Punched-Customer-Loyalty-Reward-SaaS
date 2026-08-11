@@ -5,16 +5,18 @@ import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
 import { loyaltyApi } from "@/lib/api/loyalty";
+import * as Fmt from "@/lib/format";
 import type {
   Business,
   BusinessCustomer,
   BusinessDashboardResponse,
   BusinessAnalyticsResponse,
+  BusinessAnalyticsComparisonResponse,
   LoyaltyProgram,
   StaffMember,
 } from "@/types";
 import {
-  Loader2, Store, ScanLine, Award, Plus, Stamp, Users, UserCheck,
+    Loader2, Store, ScanLine, Award, AlertCircle, Plus, Stamp, Users, UserCheck,
   TrendingUp, TrendingDown, Gift, BarChart3, Crown,
   ChevronRight, ArrowRight, Clock, Zap, Target, Activity,
 } from "lucide-react";
@@ -95,9 +97,10 @@ function SectionTitle({ icon: Icon, label, href }: { icon: React.ElementType; la
 export default function BusinessOverviewPage() {
   useRoleGuard("Business");
   const [business, setBusiness] = useState<Business | null>(null);
-  const [customers, setCustomers] = useState<BusinessCustomer[]>([]);
+    const [customers, setCustomers] = useState<BusinessCustomer[]>([]);
   const [dashboard, setDashboard] = useState<BusinessDashboardResponse | null>(null);
   const [analytics, setAnalytics] = useState<BusinessAnalyticsResponse | null>(null);
+  const [compare, setCompare] = useState<BusinessAnalyticsComparisonResponse | null>(null);
   const [programs, setPrograms] = useState<LoyaltyProgram[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -136,13 +139,17 @@ export default function BusinessOverviewPage() {
     });
   }, [isLoading, notFound]);
 
-  // Phase 3: Load analytics (heaviest call) — also handles period changes
+    // Phase 3: Load analytics (heaviest call) — also handles period changes
   useEffect(() => {
     if (isLoading || notFound) return;
     setAnalyticsLoading(true);
-    businessesApi.getAnalytics(period)
-      .then((res) => {
-        if (res.success && res.data) setAnalytics(res.data);
+    Promise.all([
+      businessesApi.getAnalytics(period),
+      businessesApi.getAnalyticsCompare(period).catch(() => null),
+    ])
+      .then(([aRes, cRes]) => {
+        if (aRes?.success && aRes.data) setAnalytics(aRes.data);
+        if (cRes?.success && cRes.data) setCompare(cRes.data);
       })
       .finally(() => setAnalyticsLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -232,8 +239,55 @@ export default function BusinessOverviewPage() {
       </div>
 
       <div className={`transition-opacity ${analyticsLoading ? "opacity-50" : "opacity-100"}`}>
-        {analytics && (
+                {analytics && (
           <div className="px-5 space-y-5">
+            {/* ── 0. Executive Overview & Period-over-Period Comparison ── */}
+            {analytics.overview && (
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
+                                <SectionTitle icon={Activity} label="Overview & Comparison" />
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  {compare && (
+                    <>
+                      <MetricCard
+                        label="Stamps" value={Fmt.formatNumber(compare.summary.stamps.currentValue)}
+                        sub={`vs ${Fmt.formatNumber(compare.summary.stamps.previousValue)} — ${Fmt.formatTrend(compare.summary.stamps.changePct, compare.summary.stamps.trend)}`}
+                        trend={compare.summary.stamps.trend === "up" ? "up" : compare.summary.stamps.trend === "down" ? "down" : "neutral"}
+                      />
+                      <MetricCard
+                        label="Active Customers" value={Fmt.formatNumber(compare.summary.customers.currentValue)}
+                        sub={`vs ${Fmt.formatNumber(compare.summary.customers.previousValue)} — ${Fmt.formatTrend(compare.summary.customers.changePct, compare.summary.customers.trend)}`}
+                        trend={compare.summary.customers.trend === "up" ? "up" : compare.summary.customers.trend === "down" ? "down" : "neutral"}
+                      />
+                      <MetricCard
+                        label="Reward Payout" value={Fmt.formatKes(compare.summary.payoutKes.currentValue)}
+                        sub={`vs ${Fmt.formatKes(compare.summary.payoutKes.previousValue)} — ${Fmt.formatTrend(compare.summary.payoutKes.changePct, compare.summary.payoutKes.trend)}`}
+                        trend={compare.summary.payoutKes.trend === "up" ? "down" : compare.summary.payoutKes.trend === "down" ? "up" : "neutral"}
+                        warn={compare.summary.payoutKes.trend === "up"}
+                      />
+                      <MetricCard
+                        label="Redemption Rate" value={Fmt.formatPercent(analytics.overview.redemptionRate)}
+                        sub={`${Fmt.formatNumber(analytics.overview.rewardReadyCustomers)} reward-ready`}
+                        accent={analytics.overview.redemptionRate > 0}
+                      />
+                    </>
+                  )}
+                  {!compare && (
+                    <>
+                      <MetricCard label="Total Stamps" value={Fmt.formatNumber(analytics.overview.totalStamps)} accent />
+                      <MetricCard label="New Customers" value={Fmt.formatNumber(analytics.overview.newCustomers)} sub={`${Fmt.formatNumber(analytics.overview.returningCustomers)} returning`} />
+                      <MetricCard label="Redemption Rate" value={Fmt.formatPercent(analytics.overview.redemptionRate)} accent={analytics.overview.redemptionRate > 0} />
+                      <MetricCard label="Reward Payout" value={Fmt.formatKes(analytics.overview.rewardPayoutKes)} warn={analytics.overview.rewardPayoutKes > 0} sub={`${Fmt.formatNumber(analytics.overview.rewardReadyCustomers)} ready`} />
+                    </>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+                  <div><p className="text-xs text-[var(--text-tertiary)]">Stamps this week</p><p className="text-sm font-bold text-brand">{Fmt.formatNumber(analytics.overview.stampsThisWeek)}</p></div>
+                  <div><p className="text-xs text-[var(--text-tertiary)]">Avg/stamp per customer</p><p className="text-sm font-bold text-[var(--text-primary)]">{Fmt.formatDecimal(analytics.overview.avgStampsPerCustomer)}</p></div>
+                  <div><p className="text-xs text-[var(--text-tertiary)]">Net Eng. Value</p><p className="text-sm font-bold text-brand">{Fmt.formatKes(analytics.overview.netEngagementValueKes)}</p></div>
+                </div>
+              </div>
+            )}
+
             {/* ── 1. Business Hours Performance (Line Chart) ── */}
             <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
               <SectionTitle icon={Clock} label="Peak Hours" />
@@ -537,6 +591,88 @@ export default function BusinessOverviewPage() {
                       </div>
                       <ChevronRight className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
                     </Link>
+                  ))}
+                </div>
+                          </div>
+            )}
+
+            {/* ── 11. Revenue & Payout Pipeline ─────────────────── */}
+            {analytics.revenue && (
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
+                <SectionTitle icon={Gift} label="Revenue & Payout" href="/dashboard/business/redemptions" />
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <MetricCard label="Reward Payout (period)" value={Fmt.formatKes(analytics.revenue.rewardPayoutKes)} accent />
+                  <MetricCard label="Rewards Paid" value={Fmt.formatKes(analytics.revenue.rewardsPaidKes)} />
+                  <MetricCard label="Pending Payout" value={Fmt.formatKes(analytics.revenue.pendingPayoutKes)} warn={analytics.revenue.pendingPayoutKes > 0} />
+                  <MetricCard label="Accrued Liability" value={Fmt.formatKes(analytics.revenue.accruedLiabilityKes)} sub={`${analytics.revenue.failedPayouts} failed`} />
+                </div>
+                {analytics.revenue.payoutSuccessRate > 0 && (
+                  <div className="mt-3 flex items-center justify-between bg-brand-surface rounded-xl px-3 py-2.5">
+                    <span className="text-xs font-semibold text-brand">Payout success rate</span>
+                    <span className="text-sm font-bold text-brand">{Fmt.formatPercent(analytics.revenue.payoutSuccessRate)}%</span>
+                  </div>
+                )}
+                {analytics.revenue.avgPayoutLatencyDays != null && (
+                  <p className="text-[10px] text-[var(--text-tertiary)] mt-2">Avg payout latency: {Fmt.formatDecimal(analytics.revenue.avgPayoutLatencyDays)} days</p>
+                )}
+              </div>
+            )}
+
+                  {/* ── 12. Traffic Insights ─────────────────────────── */}
+            {analytics.traffic && (
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
+                <SectionTitle icon={Zap} label="Traffic Insights" />
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <MetricCard label="Busiest Day" value={analytics.traffic.busiestDayOfWeek ?? "—"} accent sub={`${analytics.traffic.busiestDayStamps} stamps`} />
+                  <MetricCard label="Visit Cadence" value={analytics.traffic.visitCadenceDays != null ? `${Fmt.formatDecimal(analytics.traffic.visitCadenceDays)}d` : "—"} accent sub="avg between visits" />
+                </div>
+                {analytics.traffic.peakHours.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest mb-1.5">Peak Hours</p>
+                    <ResponsiveContainer width="100%" height={112}>
+                      <BarChart data={analytics.traffic.peakHours.sort((a, b) => a.hour - b.hour)} layout="vertical" margin={{ left: 28 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                        <YAxis type="category" dataKey="hour" tickFormatter={(h: any) => Fmt.formatHour(h)} tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid #e5e7eb" }} labelFormatter={(h: any) => Fmt.formatHour(h)} />
+                        <Bar dataKey="stampCount" fill="var(--brand)" radius={[0, 4, 4, 0]} name="Stamps" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                {analytics.traffic.underutilizedHours.length > 0 && (
+                  <div className="mt-3 rounded-xl bg-[var(--surface-raised)] p-2.5">
+                    <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest mb-1.5">Quiet Windows</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {analytics.traffic.underutilizedHours.slice(0, 4).map((u) => (
+                        <span key={u.hour} className="text-[10px] text-[var(--text-secondary)] bg-[var(--border-light)] px-2 py-0.5 rounded-full">
+                          {Fmt.formatHour(u.hour)} {u.label} · {u.stampCount} stamps
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── 13. Actionable Recommendations ───────────────── */}
+            {analytics.recommendations && analytics.recommendations.length > 0 && (
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
+                <SectionTitle icon={AlertCircle} label="Recommendations" href="/dashboard/business/insights" />
+                <div className="mt-3 space-y-2.5">
+                  {analytics.recommendations.map((r) => (
+                    <div key={r.type} className="bg-[var(--surface-raised)] rounded-xl p-3 flex items-start gap-2.5">
+                      <span className={`mt-0.5 text-xs font-bold uppercase tracking-widest ${
+                        r.priority === "high" ? "text-rose-500" : r.priority === "medium" ? "text-amber-500" : "text-sky-500"
+                      }`}>{r.priority}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">{r.title}</p>
+                        <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{r.description}</p>
+                      </div>
+                      {r.actionUrl && (
+                        <Link href={r.actionUrl} className="text-xs font-semibold text-brand flex-shrink-0">{r.action}</Link>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

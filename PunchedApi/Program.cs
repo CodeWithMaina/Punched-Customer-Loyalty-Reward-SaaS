@@ -17,6 +17,8 @@ using PunchedApi.Application.Validators;
 using PunchedApi.Domain.Entities;
 using PunchedApi.Domain.Interfaces;
 using PunchedApi.Infrastructure.Data;
+using PunchedApi.Infrastructure.Data.Seeding;
+using PunchedApi.Infrastructure.Data.Seeding.Steps;
 using PunchedApi.Infrastructure.Repositories;
 using PunchedApi.Infrastructure.Services;
 using Serilog;
@@ -52,6 +54,8 @@ try
     // ── JWT Settings ────────────────────────────────────────
     var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName);
     builder.Services.Configure<JwtSettings>(jwtSettings);
+    builder.Services.Configure<SeedOptions>(
+        builder.Configuration.GetSection(SeedOptions.SectionName));
 
     builder.Services.AddAuthentication(options =>
     {
@@ -119,12 +123,36 @@ try
     builder.Services.AddScoped<IRedemptionService, RedemptionService>();
     builder.Services.AddScoped<IReferralService, ReferralService>();
     builder.Services.AddScoped<IAdminService, AdminService>();
+    builder.Services.AddScoped<IAnalyticsAggregationService, AnalyticsAggregationService>();
+    builder.Services.AddScoped<ISegmentationService, SegmentationService>();
+    builder.Services.AddScoped<IInsightService, InsightService>();
+    builder.Services.AddScoped<IPayoutService, PayoutService>();
+    builder.Services.AddScoped<IRewardPayoutGateway, FakeMpesaPayoutGateway>();
+
+    // ── Seed framework ─────────────────────────────────────
+    builder.Services.AddSingleton<ISeedRandom, SeedRandom>();
+    builder.Services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
+    builder.Services.AddScoped<IDatabaseCliRunner, DatabaseCliRunner>();
+    builder.Services.AddScoped<IAdminBootstrapper, AdminBootstrapper>();
+    builder.Services.AddScoped<ISeedStep, DatabasePreparationSeedStep>();
+    builder.Services.AddScoped<ISeedStep, IdentitySeedStep>();
+    builder.Services.AddScoped<ISeedStep, BusinessSeedStep>();
+    builder.Services.AddScoped<ISeedStep, StaffLinkSeedStep>();
+    builder.Services.AddScoped<ISeedStep, LoyaltyProgramSeedStep>();
+    builder.Services.AddScoped<ISeedStep, ReferralProgramSeedStep>();
+    builder.Services.AddScoped<ISeedStep, LoyaltyActivitySeedStep>();
+    builder.Services.AddScoped<ISeedStep, ReferralSeedStep>();
+    builder.Services.AddScoped<ISeedStep, SessionSeedStep>();
+    builder.Services.AddScoped<ISeedStep, UnsupportedDomainsSeedStep>();
+    builder.Services.AddScoped<ISeedStep, ValidationAndReportSeedStep>();
 
     // SSE broker: singleton so all requests share the same in-process channels
     builder.Services.AddSingleton<ISseService, SseService>();
 
     // Periodic cleanup of expired tokens, QR tokens, and stale verification codes
     builder.Services.AddHostedService<CleanupService>();
+    builder.Services.AddHostedService<PayoutWorker>();
+    builder.Services.AddHostedService<AnalyticsWorker>();
 
     // ── AutoMapper ──────────────────────────────────────────
     builder.Services.AddAutoMapper(typeof(MappingProfile));
@@ -217,17 +245,27 @@ try
         options.Level = CompressionLevel.Fastest);
 
     // ── Output Caching ──────────────────────────────────────
+    // IMPORTANT (tenant security): these endpoints resolve the business from the
+    // authenticated user's JWT claims, NOT from the URL. ASP.NET Core OutputCache
+    // keys responses by path + query string only, so without varying on the
+    // Authorization header two different business owners hitting the same
+    // `/v1/businesses/me/dashboard` URL would receive each other's cached data
+    // (a cross-tenant leak). Varying by `Authorization` guarantees each user's
+    // cached response is keyed to their token. The BusinessId itself is never read
+    // from a client-supplied query parameter.
     builder.Services.AddOutputCache(options =>
     {
-        // Short cache for analytics endpoints (30s)
+        // Short cache for analytics endpoints (30s) — vary by token + period/range.
         options.AddPolicy("analytics", builder =>
             builder.Expire(TimeSpan.FromSeconds(30))
-                   .SetVaryByQuery("period")
+                   .SetVaryByHeader("Authorization")
+                   .SetVaryByQuery("period", "start", "end", "prev")
                    .Tag("analytics"));
 
-        // Very short cache for dashboard metrics (10s)
+        // Very short cache for dashboard metrics (10s) — vary by token.
         options.AddPolicy("dashboard", builder =>
             builder.Expire(TimeSpan.FromSeconds(10))
+                   .SetVaryByHeader("Authorization")
                    .Tag("dashboard"));
     });
 
@@ -271,6 +309,16 @@ try
     // ═══════════════════════════════════════════════════════════
     var app = builder.Build();
 
+    if (args.Length > 0)
+    {
+        using var cliScope = app.Services.CreateScope();
+        var cliRunner = cliScope.ServiceProvider.GetRequiredService<IDatabaseCliRunner>();
+        if (await cliRunner.TryRunAsync(args))
+        {
+            return;
+        }
+    }
+
     // ── Apply pending database migrations on startup ────────
     using (var scope = app.Services.CreateScope())
     {
@@ -278,41 +326,15 @@ try
         await dbContext.Database.MigrateAsync();
         Log.Information("Database migrations applied successfully.");
 
-        // ── Seed default Admin user ─────────────────────────
-        if (!await dbContext.UserAuths.AnyAsync(u => u.Email == "admin@gmail.com"))
-        {
-            var adminId = Guid.NewGuid();
-            var now = DateTime.UtcNow;
-
-            dbContext.UserAuths.Add(new UserAuth
-            {
-                Id = adminId,
-                Email = "admin@gmail.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("@Admin1234", 12),
-                IsVerified = true,
-                CreatedAt = now,
-            });
-
-            dbContext.Users.Add(new User
-            {
-                Id = adminId,
-                Email = "admin@gmail.com",
-                FullName = "Admin Main",
-                PhoneNumber = "+2547000000123",
-                AvatarUrl = "https://www.freepik.com/free-photos-vectors/people-profile",
-                DateOfBirth = new DateOnly(1994, 1, 15),
-                Gender = "Male",
-                Role = UserRole.Admin,
-                CreatedAt = now,
-            });
-
-            await dbContext.SaveChangesAsync();
-            Log.Information("Default admin user seeded: admin@gmail.com");
-        }
+        var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
+        await seeder.RunAsync();
+        var adminBootstrapper = scope.ServiceProvider.GetRequiredService<IAdminBootstrapper>();
+        await adminBootstrapper.EnsureDefaultAdminAsync();
     }
 
     // ── Middleware Pipeline ──────────────────────────────────
     app.UseMiddleware<ExceptionMiddleware>();
+    app.UseMiddleware<ApiEventLoggingMiddleware>();
 
     app.UseResponseCompression();
 

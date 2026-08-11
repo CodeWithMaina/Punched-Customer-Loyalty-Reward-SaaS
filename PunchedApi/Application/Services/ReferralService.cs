@@ -462,8 +462,9 @@ public class ReferralService : IReferralService
                         Id = Guid.NewGuid(),
                         CardId = referrerCard.Id,
                         BusinessId = businessId,
+                        PerformedByRole = "System",
                         RewardValue = program.RewardValue,
-                        Status = "completed",
+                        Status = "pending",
                         RedeemedAt = DateTime.UtcNow,
                         CreatedAt = DateTime.UtcNow
                     };

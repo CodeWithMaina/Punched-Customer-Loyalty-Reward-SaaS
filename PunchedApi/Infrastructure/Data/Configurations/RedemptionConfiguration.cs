@@ -25,6 +25,13 @@ public class RedemptionConfiguration : IEntityTypeConfiguration<Redemption>
             .IsRequired()
             .HasColumnName("business_id");
 
+        builder.Property(e => e.PerformedByUserId)
+            .HasColumnName("user_id");
+
+        builder.Property(e => e.PerformedByRole)
+            .HasMaxLength(20)
+            .HasColumnName("performed_by_role");
+
         builder.Property(e => e.RewardValue)
             .HasPrecision(10, 2)
             .HasColumnName("reward_value");
@@ -45,6 +52,24 @@ public class RedemptionConfiguration : IEntityTypeConfiguration<Redemption>
         builder.Property(e => e.PaidAt)
             .HasColumnName("paid_at");
 
+        builder.Property(e => e.ProcessingStartedAt)
+            .HasColumnName("processing_started_at");
+
+        builder.Property(e => e.RetryCount)
+            .HasColumnName("retry_count")
+            .HasDefaultValue(0);
+
+        builder.Property(e => e.NextRetryAt)
+            .HasColumnName("next_retry_at");
+
+        builder.Property(e => e.ProcessingWorkerId)
+            .HasColumnName("processing_worker_id")
+            .HasMaxLength(100);
+
+        builder.Property(e => e.FailureReason)
+            .HasColumnName("failure_reason")
+            .HasMaxLength(500);
+
         builder.Property(e => e.CreatedAt)
             .HasColumnName("created_at");
 
@@ -56,8 +81,12 @@ public class RedemptionConfiguration : IEntityTypeConfiguration<Redemption>
 
         // Indexes
         builder.HasIndex(e => e.Status);
+        builder.HasIndex(e => e.PerformedByUserId)
+            .HasDatabaseName("IX_redemptions_UserId");
         builder.HasIndex(e => new { e.CardId, e.RedeemedAt });
         builder.HasIndex(e => new { e.BusinessId, e.RedeemedAt });
+        builder.HasIndex(e => new { e.BusinessId, e.PerformedByUserId, e.RedeemedAt });
+        builder.HasIndex(e => new { e.Status, e.NextRetryAt });
 
         // Relationships
         builder.HasOne(e => e.Card)
@@ -69,5 +98,10 @@ public class RedemptionConfiguration : IEntityTypeConfiguration<Redemption>
             .WithMany(b => b.Redemptions)
             .HasForeignKey(e => e.BusinessId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(e => e.PerformedByUser)
+            .WithMany(u => u.Redemptions)
+            .HasForeignKey(e => e.PerformedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

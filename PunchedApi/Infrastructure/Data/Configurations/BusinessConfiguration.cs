@@ -55,6 +55,13 @@ public class BusinessConfiguration : IEntityTypeConfiguration<Business>
         builder.Property(e => e.OwnerId)
             .HasColumnName("owner_id");
 
+        builder.Property(e => e.IsDeleted)
+            .HasColumnName("is_deleted")
+            .HasDefaultValue(false);
+
+        builder.Property(e => e.DeletedAt)
+            .HasColumnName("deleted_at");
+
         builder.Property(e => e.CreatedAt)
             .HasColumnName("created_at");
 
@@ -62,6 +69,7 @@ public class BusinessConfiguration : IEntityTypeConfiguration<Business>
         builder.HasIndex(e => new { e.Name, e.Location });
         builder.HasIndex(e => e.Category);
         builder.HasIndex(e => e.OwnerId);
+        builder.HasIndex(e => new { e.OwnerId, e.IsDeleted });
 
         // Owner relationship (optional)
         builder.HasOne(e => e.Owner)

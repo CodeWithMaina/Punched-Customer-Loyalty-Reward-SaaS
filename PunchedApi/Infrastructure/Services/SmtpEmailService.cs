@@ -1,9 +1,12 @@
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using PunchedApi.Application.Settings;
+using PunchedApi.Domain.Entities;
 using PunchedApi.Domain.Interfaces;
+using PunchedApi.Infrastructure.Data;
 
 namespace PunchedApi.Infrastructure.Services;
 
@@ -11,15 +14,17 @@ public class SmtpEmailService : IEmailService
 {
     private readonly EmailSettings _settings;
     private readonly ILogger<SmtpEmailService> _logger;
+  private readonly IServiceScopeFactory _scopeFactory;
 
-    public SmtpEmailService(IOptions<EmailSettings> settings, ILogger<SmtpEmailService> logger)
+  public SmtpEmailService(IOptions<EmailSettings> settings, ILogger<SmtpEmailService> logger, IServiceScopeFactory scopeFactory)
     {
         _settings = settings.Value;
         _logger = logger;
+    _scopeFactory = scopeFactory;
     }
 
     public Task<bool> SendVerificationCodeAsync(string email, string code)
-        => SendAsync(email, "Your Punched verification code", $"""
+      => SendAsync(email, "Your Punched verification code", "verification_code", null, $"""
             <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
               <h2 style="color:#1a1a1a">Verify your email</h2>
               <p style="color:#444;font-size:15px">Use the code below to verify your Punched account. It expires in 10 minutes.</p>
@@ -29,7 +34,7 @@ public class SmtpEmailService : IEmailService
             """);
 
     public Task<bool> SendPasswordResetCodeAsync(string email, string code)
-        => SendAsync(email, "Reset your Punched password", $"""
+      => SendAsync(email, "Reset your Punched password", "password_reset_code", null, $"""
             <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
               <h2 style="color:#1a1a1a">Reset your password</h2>
               <p style="color:#444;font-size:15px">You requested a password reset for your Punched account. Use the code below — it expires in 10 minutes.</p>
@@ -39,7 +44,7 @@ public class SmtpEmailService : IEmailService
             """);
 
     public Task<bool> SendWelcomeAsync(string email, string name)
-        => SendAsync(email, "Welcome to Punched! 🎉", $"""
+      => SendAsync(email, "Welcome to Punched! 🎉", "welcome", null, $"""
             <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
               <h2 style="color:#1a1a1a">Welcome aboard, {name}!</h2>
               <p style="color:#444;font-size:15px">Your Punched account is verified and ready to go.</p>
@@ -54,7 +59,7 @@ public class SmtpEmailService : IEmailService
     public Task<bool> SendStampNotificationAsync(string email, string businessName, int stampNumber, int stampsRequired)
     {
         var remaining = stampsRequired - stampNumber;
-        return SendAsync(email, $"You got a stamp at {businessName}! ✅", $"""
+        return SendAsync(email, $"You got a stamp at {businessName}! ✅", "stamp_notification", businessName, $"""
             <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
               <h2 style="color:#1a1a1a">Stamp #{stampNumber} collected!</h2>
               <p style="color:#444;font-size:15px">You just earned a stamp at <strong>{businessName}</strong>.</p>
@@ -68,7 +73,7 @@ public class SmtpEmailService : IEmailService
     }
 
     public Task<bool> SendRewardReadyAsync(string email, string businessName, string rewardDescription)
-        => SendAsync(email, $"🎉 Reward ready at {businessName}!", $"""
+      => SendAsync(email, $"🎉 Reward ready at {businessName}!", "reward_ready", businessName, $"""
             <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
               <h2 style="color:#1a1a1a">You've earned a reward! 🎉</h2>
               <p style="color:#444;font-size:15px">Congratulations! You've collected enough stamps at <strong>{businessName}</strong>.</p>
@@ -83,7 +88,7 @@ public class SmtpEmailService : IEmailService
             </div>
             """);
 
-    private async Task<bool> SendAsync(string email, string subject, string htmlBody)
+    private async Task<bool> SendAsync(string email, string subject, string templateType, string? businessName, string htmlBody)
     {
         try
         {
@@ -106,12 +111,59 @@ public class SmtpEmailService : IEmailService
             await client.DisconnectAsync(quit: true);
 
             _logger.LogInformation("Email sent to {Email}: {Subject}", email, subject);
+            await PersistAsync(email, businessName, "email", templateType, "sent", null);
             return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send email to {Email}: {Subject}", email, subject);
+            await PersistAsync(email, businessName, "email", templateType, "failed", ex.Message);
             return false;
         }
     }
+
+        private async Task PersistAsync(string email, string? businessName, string channel, string templateType, string status, string? error)
+        {
+          try
+          {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var user = await db.Users
+              .IgnoreQueryFilters()
+              .FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null)
+              return;
+
+            Guid? businessId = null;
+            if (!string.IsNullOrWhiteSpace(businessName))
+            {
+              businessId = await db.Businesses
+                .IgnoreQueryFilters()
+                .Where(b => b.Name == businessName)
+                .Select(b => (Guid?)b.Id)
+                .FirstOrDefaultAsync();
+            }
+
+            db.NotificationLogs.Add(new NotificationLog
+            {
+              Id = Guid.NewGuid(),
+              UserId = user.Id,
+              BusinessId = businessId,
+              Channel = channel,
+              TemplateType = templateType,
+              Status = status,
+              SentAt = DateTime.UtcNow,
+              CreatedAt = DateTime.UtcNow,
+              Error = error
+            });
+
+            await db.SaveChangesAsync();
+          }
+          catch (Exception ex)
+          {
+            _logger.LogWarning(ex, "Failed to persist notification log for {Email}", email);
+          }
+        }
 }

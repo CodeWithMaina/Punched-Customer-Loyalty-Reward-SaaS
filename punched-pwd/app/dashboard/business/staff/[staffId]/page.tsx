@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
-import type { AnalyticsPeriod, StaffMemberAnalyticsResponse } from "@/types";
+import type { AnalyticsPeriod, StaffActivityFeedResponse, StaffMemberAnalyticsResponse } from "@/types";
 import {
   Loader2, Mail, User, Shield, ChevronLeft, ScanLine,
   Stamp, Users, Flame, Trophy, Clock3, CalendarDays, TrendingUp,
@@ -40,6 +40,7 @@ export default function StaffDetailPage() {
   const { staffId } = useParams<{ staffId: string }>();
 
   const [analytics, setAnalytics] = useState<StaffMemberAnalyticsResponse | null>(null);
+  const [activityFeed, setActivityFeed] = useState<StaffActivityFeedResponse | null>(null);
   const [period, setPeriod] = useState<AnalyticsPeriod>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isPeriodLoading, setIsPeriodLoading] = useState(false);
@@ -51,6 +52,11 @@ export default function StaffDetailPage() {
         if (res.success && res.data) setAnalytics(res.data);
       })
       .finally(() => setIsLoading(false));
+
+    businessesApi.getStaffMemberActivity(staffId, { activityType: "all", page: 1, pageSize: 50 })
+      .then((res) => {
+        if (res.success && res.data) setActivityFeed(res.data);
+      });
   }, [staffId]);
 
   useEffect(() => {
@@ -106,6 +112,7 @@ export default function StaffDetailPage() {
   }
 
   const { stampsIssued, customersServed, totalStampsAllTime, totalCustomersAllTime, recentActivity } = analytics;
+  const timeline = activityFeed?.activity ?? recentActivity;
 
   const heroValue = period === "all" ? totalStampsAllTime : stampsIssued;
   const heroSubLabel =
@@ -266,26 +273,30 @@ export default function StaffDetailPage() {
         </div>
       )}
 
-      {/* ── Recent stamps ────────────────────────────────────── */}
+      {/* ── Recent activity ───────────────────────────────────── */}
       <div className="px-5 mb-5">
         <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest mb-3">
-          Recent Stamps
+          Recent Activity
         </p>
-        {recentActivity.length === 0 ? (
+        {timeline.length === 0 ? (
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-8 text-center">
             <Stamp className="h-8 w-8 text-[var(--text-muted)] mx-auto mb-2" />
-            <p className="text-sm text-[var(--text-tertiary)]">No stamps recorded yet</p>
+            <p className="text-sm text-[var(--text-tertiary)]">No activity recorded yet</p>
           </div>
         ) : (
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden divide-y divide-[var(--border-light)]">
-            {recentActivity.slice(0, 10).map((item, i) => (
+            {timeline.slice(0, 10).map((item, i) => (
               <div key={i} className="flex items-center gap-3 px-4 py-3.5">
                 <div className="h-9 w-9 rounded-full bg-brand-surface flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-bold text-brand">{item.customerName.charAt(0).toUpperCase()}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{item.customerName}</p>
-                  <p className="text-xs text-[var(--text-tertiary)]">Stamp #{item.stampNumber}</p>
+                  <p className="text-xs text-[var(--text-tertiary)]">
+                    {item.activityType === "redemption"
+                      ? `Redemption${item.rewardValue ? ` • KES ${item.rewardValue}` : ""}`
+                      : `Stamp #${item.stampNumber}`}
+                  </p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-[10px] text-[var(--text-tertiary)]">{timeAgo(item.stampedAt)}</p>

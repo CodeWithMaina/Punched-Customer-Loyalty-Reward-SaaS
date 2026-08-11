@@ -16,6 +16,7 @@ public class StampService : IStampService
     private readonly ISseService _sseService;
     private readonly IReferralService _referralService;
     private readonly IEmailService _emailService;
+    private readonly IAnalyticsAggregationService _analyticsAggregationService;
     private readonly ILogger<StampService> _logger;
 
     public StampService(
@@ -24,6 +25,7 @@ public class StampService : IStampService
         ISseService sseService,
         IReferralService referralService,
         IEmailService emailService,
+        IAnalyticsAggregationService analyticsAggregationService,
         ILogger<StampService> logger)
     {
         _unitOfWork = unitOfWork;
@@ -31,6 +33,7 @@ public class StampService : IStampService
         _sseService = sseService;
         _referralService = referralService;
         _emailService = emailService;
+        _analyticsAggregationService = analyticsAggregationService;
         _logger = logger;
     }
 
@@ -38,12 +41,40 @@ public class StampService : IStampService
     {
         try
         {
+            var actor = await _unitOfWork.Users.GetByIdAsync(staffOrBusinessUserId);
+            if (actor == null)
+                return ApiResponse<StampAwardedResponse>.Fail("UNAUTHORIZED", "Authenticated user not found.");
+
+            Guid? scopedBusinessId = null;
+            if (actor.Role == UserRole.Staff)
+            {
+                if (actor.StaffBusinessId == null)
+                    return ApiResponse<StampAwardedResponse>.Fail("NOT_LINKED", "Staff user is not linked to a business.");
+
+                scopedBusinessId = actor.StaffBusinessId.Value;
+            }
+            else if (actor.Role == UserRole.Business)
+            {
+                var ownedBusiness = await _unitOfWork.Businesses.FirstOrDefaultAsync(b => b.OwnerId == actor.Id);
+                if (ownedBusiness == null)
+                    return ApiResponse<StampAwardedResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+                scopedBusinessId = ownedBusiness.Id;
+            }
+            else
+            {
+                return ApiResponse<StampAwardedResponse>.Fail("UNAUTHORIZED", "Only business owners or staff can award stamps.");
+            }
+
+            if (request.BusinessId != scopedBusinessId.Value)
+                return ApiResponse<StampAwardedResponse>.Fail("FORBIDDEN_SCOPE", "You are not authorized to award stamps for this business.");
+
             // Hash the presented token for DB lookup
             var tokenHash = HashToken(request.Token);
 
             // Find QR token — scoped to the business to prevent cross-business stamp attacks
             var qrToken = await _unitOfWork.QrTokens.FirstOrDefaultAsync(
-                t => t.TokenHash == tokenHash && t.BusinessId == request.BusinessId);
+                t => t.TokenHash == tokenHash && t.BusinessId == scopedBusinessId.Value);
 
             if (qrToken == null)
                 return ApiResponse<StampAwardedResponse>.Fail("INVALID_TOKEN", "QR code is invalid.");
@@ -59,7 +90,7 @@ public class StampService : IStampService
                 .Include(c => c.Program)
                 .Include(c => c.Customer)
                 .Include(c => c.Business)
-                .FirstOrDefaultAsync(c => c.CustomerId == qrToken.CustomerId && c.BusinessId == request.BusinessId);
+                .FirstOrDefaultAsync(c => c.CustomerId == qrToken.CustomerId && c.BusinessId == scopedBusinessId.Value);
 
             if (card == null)
                 return ApiResponse<StampAwardedResponse>.Fail("NOT_ENROLLED", "Customer is not enrolled in this business's loyalty program.");
@@ -94,9 +125,11 @@ public class StampService : IStampService
                 {
                     Id = Guid.NewGuid(),
                     CardId = card.Id,
-                    BusinessId = request.BusinessId,
+                    BusinessId = scopedBusinessId.Value,
+                    PerformedByUserId = staffOrBusinessUserId,
+                    PerformedByRole = actor.Role.ToString(),
                     RewardValue = card.Program.RewardValue,
-                    Status = "completed",
+                    Status = "pending",
                     RedeemedAt = now,
                     CreatedAt = now
                 };
@@ -120,10 +153,15 @@ public class StampService : IStampService
 
             await _unitOfWork.SaveChangesAsync();
 
+            await _analyticsAggregationService.RecomputeTodayForBusinessAsync(scopedBusinessId.Value);
+            await _analyticsAggregationService.RecomputeStaffDayAsync(
+                scopedBusinessId.Value,
+                DateOnly.FromDateTime(DateTime.UtcNow));
+
             // If this is the customer's first stamp at this business, process referral qualification
             if (card.LifetimeStamps == 1)
             {
-                await _referralService.ProcessFirstStampReferralAsync(card.CustomerId, request.BusinessId);
+                await _referralService.ProcessFirstStampReferralAsync(card.CustomerId, scopedBusinessId.Value);
             }
 
             // Push SSE event to customer's live connection

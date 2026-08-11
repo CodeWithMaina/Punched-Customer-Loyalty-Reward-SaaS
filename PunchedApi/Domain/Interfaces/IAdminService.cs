@@ -21,6 +21,8 @@ public interface IAdminService
 
     // ── Smart Insights ──────────────────────────────────────
     Task<ApiResponse<AdminInsightsResponse>> GetInsightsAsync();
+    Task<ApiResponse<List<InsightResponse>>> GetPersistentInsightsAsync(bool includeDismissed = false);
+    Task<ApiResponse<MessageResponse>> DismissInsightAsync(Guid adminUserId, Guid insightId);
 
     // ── User Management ─────────────────────────────────────
     Task<ApiResponse<PaginatedResponse<AdminUserResponse>>> GetUsersAsync(
@@ -38,4 +40,7 @@ public interface IAdminService
     // ── Reward / Stamp Management ───────────────────────────
     Task<ApiResponse<PaginatedResponse<RedemptionResponse>>> GetRedemptionsAsync(
         string? search, int page, int pageSize);
+
+    // ── Platform Health ─────────────────────────────────────
+    Task<ApiResponse<AdminApiHealthResponse>> GetApiHealthAsync(int days = 7);
 }

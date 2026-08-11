@@ -97,6 +97,12 @@ public class AuthService : IAuthService
                 Email = normalizedEmail,
                 FullName = request.FullName.Trim(),
                 Role = role,
+                SourceProvider = string.IsNullOrWhiteSpace(request.SourceProvider)
+                    ? null
+                    : request.SourceProvider.Trim().ToLowerInvariant(),
+                SourceCampaign = string.IsNullOrWhiteSpace(request.SourceCampaign)
+                    ? null
+                    : request.SourceCampaign.Trim(),
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -202,6 +208,13 @@ public class AuthService : IAuthService
                     "PROFILE_NOT_FOUND",
                     "User profile not found.");
             }
+
+                    if (user.IsDeleted)
+                    {
+                    return ApiResponse<AuthResponse>.Fail(
+                        "ACCOUNT_DISABLED",
+                        "This account has been disabled.");
+                    }
 
             // Generate tokens
             var accessToken = _jwtService.GenerateAccessToken(userAuth, user);
@@ -323,6 +336,13 @@ public class AuthService : IAuthService
                     "User profile not found.");
             }
 
+                    if (user.IsDeleted)
+                    {
+                    return ApiResponse<AuthResponse>.Fail(
+                        "ACCOUNT_DISABLED",
+                        "This account has been disabled.");
+                    }
+
             // Generate tokens
             var accessToken = _jwtService.GenerateAccessToken(userAuth, user);
             var refreshTokenValue = _jwtService.GenerateRefreshToken();
@@ -407,6 +427,13 @@ public class AuthService : IAuthService
                 return ApiResponse<TokenResponse>.Fail(
                     "PROFILE_NOT_FOUND",
                     "User profile not found.");
+            }
+
+            if (user.IsDeleted)
+            {
+                return ApiResponse<TokenResponse>.Fail(
+                    "ACCOUNT_DISABLED",
+                    "This account has been disabled.");
             }
 
             // Revoke old token
@@ -715,6 +742,10 @@ public class AuthService : IAuthService
 
         if (userAuth == null)
             return ApiResponse<MessageResponse>.Fail("NOT_FOUND", "User not found.");
+
+        var user = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Email == userAuth.Email);
+        if (user == null || user.IsDeleted)
+            return ApiResponse<MessageResponse>.Fail("ACCOUNT_DISABLED", "This account has been disabled.");
 
         // Verify current password
         if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, userAuth.PasswordHash))

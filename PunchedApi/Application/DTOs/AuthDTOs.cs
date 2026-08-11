@@ -73,6 +73,12 @@ public class RegisterRequest
     /// <summary>Role of the registering user. Defaults to Customer if not provided.</summary>
     [JsonPropertyName("role")]
     public UserRole Role { get; set; } = UserRole.Customer;
+
+    [JsonPropertyName("sourceProvider")]
+    public string? SourceProvider { get; set; }
+
+    [JsonPropertyName("sourceCampaign")]
+    public string? SourceCampaign { get; set; }
 }
 
 /// <summary>

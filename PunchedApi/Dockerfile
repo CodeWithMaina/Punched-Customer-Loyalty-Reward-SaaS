@@ -22,6 +22,7 @@ WORKDIR /app
 RUN addgroup -S punched && adduser -S punched -G punched
 
 COPY --from=build /app/publish .
+RUN chown -R punched:punched /app
 
 # Health check against the lightweight /health endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

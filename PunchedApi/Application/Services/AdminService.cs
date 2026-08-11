@@ -11,12 +11,18 @@ public class AdminService : IAdminService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ApplicationDbContext _context;
+    private readonly IInsightService _insightService;
     private readonly ILogger<AdminService> _logger;
 
-    public AdminService(IUnitOfWork unitOfWork, ApplicationDbContext context, ILogger<AdminService> logger)
+    public AdminService(
+        IUnitOfWork unitOfWork,
+        ApplicationDbContext context,
+        IInsightService insightService,
+        ILogger<AdminService> logger)
     {
         _unitOfWork = unitOfWork;
         _context = context;
+        _insightService = insightService;
         _logger = logger;
     }
 
@@ -32,21 +38,21 @@ public class AdminService : IAdminService
             var todayStart = now.Date;
             var weekAgo = now.AddDays(-7);
 
-            var totalCustomers = await _context.Users.CountAsync(u => u.Role == UserRole.Customer);
-            var totalBusinesses = await _context.Businesses.CountAsync();
-            var totalStaff = await _context.Users.CountAsync(u => u.Role == UserRole.Staff);
+            var totalCustomers = await _context.Users.IgnoreQueryFilters().CountAsync(u => u.Role == UserRole.Customer);
+            var totalBusinesses = await _context.Businesses.IgnoreQueryFilters().CountAsync();
+            var totalStaff = await _context.Users.IgnoreQueryFilters().CountAsync(u => u.Role == UserRole.Staff);
             var totalStamps = await _context.Stamps.CountAsync();
             var totalRedemptions = await _context.Redemptions.CountAsync();
             var totalCards = await _context.LoyaltyCards.CountAsync();
             var totalReferrals = await _context.Referrals.CountAsync();
 
-            var newCustomersToday = await _context.Users.CountAsync(u => u.Role == UserRole.Customer && u.CreatedAt >= todayStart);
-            var newBusinessesToday = await _context.Businesses.CountAsync(b => b.CreatedAt >= todayStart);
+            var newCustomersToday = await _context.Users.IgnoreQueryFilters().CountAsync(u => u.Role == UserRole.Customer && u.CreatedAt >= todayStart);
+            var newBusinessesToday = await _context.Businesses.IgnoreQueryFilters().CountAsync(b => b.CreatedAt >= todayStart);
             var stampsToday = await _context.Stamps.CountAsync(s => s.CreatedAt >= todayStart);
             var redemptionsToday = await _context.Redemptions.CountAsync(r => r.CreatedAt >= todayStart);
 
-            var newCustomers7d = await _context.Users.CountAsync(u => u.Role == UserRole.Customer && u.CreatedAt >= weekAgo);
-            var newBusinesses7d = await _context.Businesses.CountAsync(b => b.CreatedAt >= weekAgo);
+            var newCustomers7d = await _context.Users.IgnoreQueryFilters().CountAsync(u => u.Role == UserRole.Customer && u.CreatedAt >= weekAgo);
+            var newBusinesses7d = await _context.Businesses.IgnoreQueryFilters().CountAsync(b => b.CreatedAt >= weekAgo);
             var stamps7d = await _context.Stamps.CountAsync(s => s.CreatedAt >= weekAgo);
             var redemptions7d = await _context.Redemptions.CountAsync(r => r.CreatedAt >= weekAgo);
 
@@ -479,6 +485,36 @@ public class AdminService : IAdminService
         }
     }
 
+    public async Task<ApiResponse<List<InsightResponse>>> GetPersistentInsightsAsync(bool includeDismissed = false)
+    {
+        var insights = await _insightService.GetAdminInsightsAsync(includeDismissed);
+        return ApiResponse<List<InsightResponse>>.Ok(insights.Select(i => new InsightResponse
+        {
+            Id = i.Id,
+            Audience = i.Audience,
+            Category = i.Category,
+            Metric = i.Metric,
+            Severity = i.Severity,
+            Confidence = i.Confidence,
+            Title = i.Title,
+            Message = i.Message,
+            Recommendation = i.Recommendation,
+            DataJson = i.DataJson,
+            GeneratedAt = i.GeneratedAt,
+            ExpiresAt = i.ExpiresAt,
+            Dismissed = i.Dismissed
+        }).ToList());
+    }
+
+    public async Task<ApiResponse<MessageResponse>> DismissInsightAsync(Guid adminUserId, Guid insightId)
+    {
+        var dismissed = await _insightService.DismissInsightAsync(insightId, adminUserId, null);
+        if (!dismissed)
+            return ApiResponse<MessageResponse>.Fail("NOT_FOUND", "Insight not found.");
+
+        return ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "Insight dismissed." });
+    }
+
     // ═════════════════════════════════════════════════════════
     //  USER MANAGEMENT
     // ═════════════════════════════════════════════════════════
@@ -611,18 +647,34 @@ public class AdminService : IAdminService
             if (user.Role == UserRole.Admin)
                 return ApiResponse<MessageResponse>.Fail("FORBIDDEN", "Cannot delete an admin user.");
 
-            // Remove user auth
-            var auth = await _context.UserAuths.FirstOrDefaultAsync(a => a.Email == user.Email);
-            if (auth != null) _unitOfWork.UserAuths.Delete(auth);
+            if (user.IsDeleted)
+                return ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "User already deleted." });
 
-            // Remove refresh tokens
+            // Revoke user auth access and sessions
+            var auth = await _context.UserAuths.FirstOrDefaultAsync(a => a.Email == user.Email);
+            if (auth != null)
+            {
+                auth.IsVerified = false;
+                auth.VerificationCode = null;
+                auth.VerificationCodeExpiresAt = null;
+                _unitOfWork.UserAuths.Update(auth);
+            }
+
+            // Revoke refresh tokens
             if (auth != null)
             {
                 var tokens = await _context.RefreshTokens.Where(t => t.UserAuthId == auth.Id).ToListAsync();
-                foreach (var t in tokens) _unitOfWork.RefreshTokens.Delete(t);
+                foreach (var t in tokens)
+                {
+                    t.IsRevoked = true;
+                    t.RevokedAt = DateTime.UtcNow;
+                    _unitOfWork.RefreshTokens.Update(t);
+                }
             }
 
-            _unitOfWork.Users.Delete(user);
+            user.IsDeleted = true;
+            user.DeletedAt = DateTime.UtcNow;
+            _unitOfWork.Users.Update(user);
             await _unitOfWork.SaveChangesAsync();
 
             return ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "User deleted." });
@@ -735,7 +787,12 @@ public class AdminService : IAdminService
             if (business == null)
                 return ApiResponse<MessageResponse>.Fail("NOT_FOUND", "Business not found.");
 
-            _unitOfWork.Businesses.Delete(business);
+            if (business.IsDeleted)
+                return ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "Business already deleted." });
+
+            business.IsDeleted = true;
+            business.DeletedAt = DateTime.UtcNow;
+            _unitOfWork.Businesses.Update(business);
             await _unitOfWork.SaveChangesAsync();
 
             return ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "Business deleted." });
@@ -794,5 +851,29 @@ public class AdminService : IAdminService
             _logger.LogError(ex, "Error listing redemptions for admin");
             return ApiResponse<PaginatedResponse<RedemptionResponse>>.Fail("LIST_FAILED", "Failed to list redemptions.");
         }
+    }
+
+    public async Task<ApiResponse<AdminApiHealthResponse>> GetApiHealthAsync(int days = 7)
+    {
+        var periodDays = Math.Clamp(days, 1, 90);
+        var since = DateTime.UtcNow.AddDays(-periodDays);
+
+        var q = _context.ApiEventLogs.Where(x => x.CreatedAt >= since);
+
+        var total = await q.CountAsync();
+        var error5xx = await q.CountAsync(x => x.StatusCode >= 500);
+        var error4xx = await q.CountAsync(x => x.StatusCode >= 400 && x.StatusCode < 500);
+        var avgDuration = await q.Select(x => (double?)x.DurationMs).AverageAsync() ?? 0d;
+        var errorRate = total > 0 ? ((double)(error4xx + error5xx) / total) * 100d : 0d;
+
+        return ApiResponse<AdminApiHealthResponse>.Ok(new AdminApiHealthResponse
+        {
+            PeriodDays = periodDays,
+            TotalRequests = total,
+            Error5xx = error5xx,
+            Error4xx = error4xx,
+            ErrorRatePct = Math.Round(errorRate, 2),
+            AvgDurationMs = Math.Round(avgDuration, 2)
+        });
     }
 }
