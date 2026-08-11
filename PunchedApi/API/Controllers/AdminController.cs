@@ -85,6 +85,27 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("insights/persistent")]
+    [ProducesResponseType(typeof(ApiResponse<List<InsightResponse>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPersistentInsights([FromQuery] bool includeDismissed = false)
+    {
+        var result = await _adminService.GetPersistentInsightsAsync(includeDismissed);
+        return Ok(result);
+    }
+
+    [HttpPost("insights/{insightId:guid}/dismiss")]
+    [ProducesResponseType(typeof(ApiResponse<MessageResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> DismissInsight(Guid insightId)
+    {
+        var userIdClaim = User.FindFirst("userId")?.Value;
+        if (!Guid.TryParse(userIdClaim, out var adminUserId))
+            return Unauthorized();
+
+        var result = await _adminService.DismissInsightAsync(adminUserId, insightId);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
     // ── User Management ─────────────────────────────────────
 
     [HttpGet("users")]
@@ -182,6 +203,14 @@ public class AdminController : ControllerBase
         pageSize = Math.Clamp(pageSize, 1, 50);
         page = Math.Max(page, 1);
         var result = await _adminService.GetRedemptionsAsync(search, page, pageSize);
+        return Ok(result);
+    }
+
+    [HttpGet("analytics/api-health")]
+    [ProducesResponseType(typeof(ApiResponse<AdminApiHealthResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetApiHealth([FromQuery] int days = 7)
+    {
+        var result = await _adminService.GetApiHealthAsync(days);
         return Ok(result);
     }
 }

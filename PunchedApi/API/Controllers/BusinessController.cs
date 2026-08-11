@@ -176,6 +176,122 @@ public class BusinessController : ControllerBase
     }
 
     /// <summary>
+    /// Period-over-period comparison. The business is always derived from the authenticated
+    /// user's claims — no client-supplied BusinessId is accepted.
+    /// Supports 1d/7d/30d/90d/365d and custom(?start=&amp;end=).
+    /// </summary>
+    [HttpGet("me/analytics/compare")]
+    [Authorize(Roles = "Business")]
+    [OutputCache(PolicyName = "analytics")]
+    [ProducesResponseType(typeof(ApiResponse<BusinessAnalyticsComparisonResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAnalyticsComparison(
+        [FromQuery] string period = "30d",
+        [FromQuery] string? prev = null,
+        [FromQuery] DateOnly? start = null,
+        [FromQuery] DateOnly? end = null)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _businessService.GetBusinessAnalyticsComparisonAsync(userId.Value, period, prev, start, end);
+        if (!result.Success && result.Error?.Code is "NOT_FOUND") return NotFound(result);
+        if (!result.Success) return BadRequest(result);
+        return Ok(result);
+    }
+
+    [HttpGet("me/insights")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<List<InsightResponse>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetBusinessInsights([FromQuery] bool includeDismissed = false)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _businessService.GetBusinessInsightsAsync(userId.Value, includeDismissed);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    [HttpPost("me/insights/{insightId:guid}/dismiss")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<MessageResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> DismissBusinessInsight(Guid insightId)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _businessService.DismissBusinessInsightAsync(userId.Value, userId.Value, insightId);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    [HttpGet("me/segments")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<List<CustomerSegmentResponse>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCustomerSegments([FromQuery] string? segment = null)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _businessService.GetBusinessCustomerSegmentsAsync(userId.Value, segment);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    [HttpGet("me/notifications/analytics")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<NotificationAnalyticsResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetNotificationAnalytics([FromQuery] int days = 30)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _businessService.GetNotificationAnalyticsAsync(userId.Value, days);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    [HttpGet("me/staff/utilization")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<List<StaffUtilizationResponse>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStaffUtilization([FromQuery] DateOnly? from = null, [FromQuery] DateOnly? to = null)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _businessService.GetStaffUtilizationAsync(userId.Value, from, to);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    [HttpGet("me/staff/{staffId:guid}/shifts")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<List<StaffShiftResponse>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStaffShifts(Guid staffId, [FromQuery] DateOnly? from = null, [FromQuery] DateOnly? to = null)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _businessService.GetStaffShiftsAsync(userId.Value, staffId, from, to);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    [HttpPut("me/staff/{staffId:guid}/shifts")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<MessageResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpsertStaffShift(Guid staffId, [FromBody] UpsertStaffShiftRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _businessService.UpsertStaffShiftAsync(userId.Value, staffId, request);
+        if (!result.Success) return BadRequest(result);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Link a staff user to this business. Staff can then scan QR codes.
     /// </summary>
     [HttpPost("me/staff/{staffUserId:guid}")]
@@ -235,6 +351,43 @@ public class BusinessController : ControllerBase
     }
 
     /// <summary>
+    /// Owner endpoint: get full activity timeline for a specific staff member.
+    /// Filters: activityType=all|stamp|redemption, customerId, from, to, status, page, pageSize.
+    /// </summary>
+    [HttpGet("me/staff/{staffId:guid}/activity")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<StaffActivityFeedResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetStaffMemberActivity(
+        Guid staffId,
+        [FromQuery] string? activityType,
+        [FromQuery] Guid? customerId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var request = new StaffActivityFilterRequest
+        {
+            ActivityType = activityType,
+            CustomerId = customerId,
+            From = from,
+            To = to,
+            Status = status,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        var result = await _businessService.GetStaffActivityForOwnerAsync(userId.Value, staffId, request);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Get period-filtered stamp stats for a single customer (owner view).
     /// Supports period=today|7d|30d|all (default: 7d).
     /// </summary>
@@ -283,6 +436,42 @@ public class BusinessController : ControllerBase
         if (userId == null) return Unauthorized();
 
         var result = await _businessService.GetStaffAnalyticsAsync(userId.Value);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Staff endpoint: get the authenticated staff member's own activity timeline.
+    /// Any staff identity is derived from the authenticated token.
+    /// </summary>
+    [HttpGet("staff/activity")]
+    [Authorize(Roles = "Staff")]
+    [ProducesResponseType(typeof(ApiResponse<StaffActivityFeedResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMyStaffActivity(
+        [FromQuery] string? activityType,
+        [FromQuery] Guid? customerId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var request = new StaffActivityFilterRequest
+        {
+            ActivityType = activityType,
+            CustomerId = customerId,
+            From = from,
+            To = to,
+            Status = status,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        var result = await _businessService.GetMyStaffActivityAsync(userId.Value, request);
         if (!result.Success) return NotFound(result);
         return Ok(result);
     }

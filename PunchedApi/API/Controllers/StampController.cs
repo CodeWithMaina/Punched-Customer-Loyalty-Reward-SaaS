@@ -44,6 +44,9 @@ public class StampController : ControllerBase
             {
                 "INVALID_TOKEN" or "TOKEN_USED" or "TOKEN_EXPIRED" => BadRequest(result),
                 "NOT_ENROLLED" => NotFound(result),
+                "FORBIDDEN_SCOPE" => StatusCode(StatusCodes.Status403Forbidden, result),
+                "NOT_LINKED" => StatusCode(StatusCodes.Status403Forbidden, result),
+                "UNAUTHORIZED" => Unauthorized(result),
                 _ => BadRequest(result)
             };
         }
