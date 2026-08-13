@@ -1,5 +1,42 @@
+# Docker context ignore - punched-pwd (Next.js PWA)
+
+# VCS / CI
+.git
+.github
+
+# Dependencies & build artefacts (regenerated at build time)
 node_modules/
 .next/
+.next/
+.cache/
+.swc/
+dist/
+out/
+
+# Next.js / Node generated (never commit / ship)
+next-env.d.ts
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Environment - never copy real env into images; pass build args instead
+.env
+.env.*
+!.env.example
+.env.local
+.env.*.local
 .env*.local
-npm-debug.log*
-.git
+
+# Dev scratch / docs
+*.md
+*.md
+docs/
+notes.md
+
+# Coverage / logs / IDE / OS
+coverage/
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+

@@ -5,11 +5,10 @@ import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { useAuthStore } from "@/store/authStore";
 import { usersApi } from "@/lib/api/users";
-import { authApi } from "@/lib/api/auth";
 import type { UpdateProfileRequest } from "@/types";
 import toast from "react-hot-toast";
 import {
-  ArrowLeft, Loader2, Save, User, Phone, Mail, Link2, Lock, Eye, EyeOff,
+  ArrowLeft, Loader2, Save, User, Phone, Mail, Link2,
 } from "lucide-react";
 
 function Field({ label, icon, value, onChange, placeholder, type = "text", required, readOnly }: {
@@ -32,9 +31,6 @@ export default function OwnerProfilePage() {
   const { user, setUser } = useAuthStore();
   const [form, setForm] = useState({ fullName: "", phoneNumber: "", avatarUrl: "" });
   const [isSaving, setIsSaving] = useState(false);
-  const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
-  const [showPw, setShowPw] = useState({ current: false, newPw: false, confirm: false });
-  const [isSavingPw, setIsSavingPw] = useState(false);
 
   useEffect(() => {
     if (user) setForm({ fullName: user.fullName ?? "", phoneNumber: user.phone ?? "", avatarUrl: user.avatarUrl ?? "" });
@@ -52,24 +48,6 @@ export default function OwnerProfilePage() {
       else toast.error(res.error?.message ?? "Failed to update.");
     } catch { toast.error("Unexpected error."); } finally { setIsSaving(false); }
   }
-
-  async function savePassword(e: React.FormEvent) {
-    e.preventDefault();
-    if (pwForm.newPassword !== pwForm.confirmPassword) { toast.error("Passwords do not match."); return; }
-    if (pwForm.newPassword.length < 8) { toast.error("Password must be at least 8 characters."); return; }
-    setIsSavingPw(true);
-    try {
-      const res = await authApi.changePassword({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword });
-      if (res.success) { toast.success("Password changed!"); setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" }); }
-      else toast.error(res.error?.message ?? "Failed to change password.");
-    } catch { toast.error("Unexpected error."); } finally { setIsSavingPw(false); }
-  }
-
-  const pwFields = [
-    { key: "current" as const, fieldKey: "currentPassword" as const, label: "Current Password" },
-    { key: "newPw" as const, fieldKey: "newPassword" as const, label: "New Password" },
-    { key: "confirm" as const, fieldKey: "confirmPassword" as const, label: "Confirm New Password" },
-  ];
 
   return (
     <div className="max-w-lg mx-auto pb-12">
@@ -116,34 +94,6 @@ export default function OwnerProfilePage() {
             className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover text-white font-semibold py-3.5 rounded-2xl transition-colors disabled:opacity-50">
             {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
             {isSaving ? "Saving..." : "Save Profile"}
-          </button>
-        </form>
-
-        {/* Change password form */}
-        <form onSubmit={savePassword} className="space-y-4">
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4 space-y-4">
-            <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">Change Password</p>
-            {pwFields.map(({ key, fieldKey, label }) => (
-              <div key={key} className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]">
-                  <Lock className="h-3.5 w-3.5" />{label}
-                </label>
-                <div className="relative">
-                  <input type={showPw[key] ? "text" : "password"} required value={pwForm[fieldKey]}
-                    onChange={(e) => setPwForm((f) => ({ ...f, [fieldKey]: e.target.value }))}
-                    className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-brand" placeholder="••••••••" />
-                  <button type="button" onClick={() => setShowPw((p) => ({ ...p, [key]: !p[key] }))}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
-                    {showPw[key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button type="submit" disabled={isSavingPw}
-            className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover text-white font-semibold py-3.5 rounded-2xl transition-colors disabled:opacity-50">
-            {isSavingPw ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-5 w-5" />}
-            {isSavingPw ? "Saving..." : "Change Password"}
           </button>
         </form>
       </div>

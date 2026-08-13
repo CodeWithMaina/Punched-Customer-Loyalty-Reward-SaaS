@@ -62,6 +62,9 @@ public class BusinessConfiguration : IEntityTypeConfiguration<Business>
         builder.Property(e => e.DeletedAt)
             .HasColumnName("deleted_at");
 
+        builder.Property(e => e.DefaultDailyGoal)
+            .HasColumnName("default_daily_goal");
+
         builder.Property(e => e.CreatedAt)
             .HasColumnName("created_at");
 

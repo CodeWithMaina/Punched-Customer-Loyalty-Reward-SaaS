@@ -1,7 +1,63 @@
+# Docker context ignore - PunchedApi (.NET 8 API)
+# Governs what `COPY . ./` in PunchedApi/Dockerfile can reach.
+# appsettings.json IS required (base config) -> it stays.
+
+# Build outputs
 bin/
 obj/
+
+# NuGet / IDE / editor user files
 *.user
 *.suo
+*.swp
+*.swo
+*.userosscache
+*.sln.doc
+*.vspscc
+*.vssscc
 .vs/
+.vscode/
+.idea/
+
+# Next.js generated (not used here, but harmless to guard)
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment & secrets - NEVER copy real env/config into images
+.env
+.env.*
+!.env.example
+.env.local
+.env.*.local
+*.pfx
+*.key
+*.pem
+*.p12
+*.crt
+*.cer
+
+# .NET environment override that may hold real secrets -> keep local
 appsettings.Development.json
+appsettings.Production.json
+appsettings.Staging.json
+appsettings.*.json.user
+# (appsettings.json stays tracked & is copied into the image)
+
+# Dev scratch / docs / tests
 notes.md
+*.md
+SEEDING.md
+docs/
+tests/
+test/
+TestResults/
+coverage/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+

@@ -12,6 +12,7 @@ public sealed class DatabaseSeeder : IDatabaseSeeder
     private readonly IWebHostEnvironment _environment;
     private readonly ISeedRandom _random;
     private readonly IEnumerable<ISeedStep> _steps;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DatabaseSeeder> _logger;
 
     public DatabaseSeeder(
@@ -20,6 +21,7 @@ public sealed class DatabaseSeeder : IDatabaseSeeder
         IWebHostEnvironment environment,
         ISeedRandom random,
         IEnumerable<ISeedStep> steps,
+        IServiceProvider serviceProvider,
         ILogger<DatabaseSeeder> logger)
     {
         _db = db;
@@ -27,6 +29,7 @@ public sealed class DatabaseSeeder : IDatabaseSeeder
         _environment = environment;
         _random = random;
         _steps = steps;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -79,6 +82,7 @@ public sealed class DatabaseSeeder : IDatabaseSeeder
             Report = report,
             ReportOutputPath = reportPath,
             Scenario = scenario,
+            ServiceProvider = _serviceProvider,
         };
 
         var watch = Stopwatch.StartNew();

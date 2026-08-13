@@ -37,6 +37,9 @@ export const loyaltyApi = {
       20_000
     ),
 
+  getProgramById: (id: string) =>
+    apiClient.get<ApiResponse<LoyaltyProgram>>(`/programs/me/${id}`).then((r) => r.data),
+
   // Business: create a new loyalty program
   createProgram: (data: CreateLoyaltyProgramRequest) =>
     apiClient.post<ApiResponse<LoyaltyProgram>>("/programs/me", data).then((r) => r.data),

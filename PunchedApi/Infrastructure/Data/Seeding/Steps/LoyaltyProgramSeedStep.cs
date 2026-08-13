@@ -49,9 +49,33 @@ public sealed class LoyaltyProgramSeedStep : ISeedStep
                     ? businessDef.RewardExpirationHours
                     : businessDef.RewardExpirationHours + 24;
 
+                // Vary the welcome-stamp bonus per business to exercise the
+                // configurable default-enrollment-stamps feature in seed data.
+                program.DefaultEnrollmentStamps = isActive
+                    ? Math.Clamp(business.Id.GetHashCode() % 3 + 1, 0, 3)
+                    : 0;
+
                 if (isActive)
                 {
                     context.ActiveProgramsByBusiness[business.Id] = program;
+                }
+
+                // Create initial program history entry for backfill/analytics accuracy
+                var existingHistory = await context.Db.LoyaltyProgramHistory
+                    .FirstOrDefaultAsync(h => h.LoyaltyProgramId == program.Id, cancellationToken);
+
+                if (existingHistory == null)
+                {
+                    context.Db.LoyaltyProgramHistory.Add(new Domain.Entities.LoyaltyProgramHistory
+                    {
+                        Id = DeterministicSeed.GuidFor("program_history", $"{program.Id}:v1"),
+                        LoyaltyProgramId = program.Id,
+                        StampsRequired = program.StampsRequired,
+                        RewardValue = program.RewardValue,
+                        RewardDescription = program.RewardDescription,
+                        EffectiveFrom = program.CreatedAt,
+                        CreatedAt = program.CreatedAt
+                    });
                 }
             }
         }

@@ -6,6 +6,7 @@ public interface ILoyaltyService
 {
     // Business program management
     Task<ApiResponse<List<LoyaltyProgramResponse>>> GetBusinessProgramsAsync(Guid ownerId);
+    Task<ApiResponse<LoyaltyProgramResponse>> GetBusinessProgramAsync(Guid ownerId, Guid programId);
     Task<ApiResponse<LoyaltyProgramResponse>> CreateProgramAsync(Guid ownerId, CreateLoyaltyProgramRequest request);
     Task<ApiResponse<LoyaltyProgramResponse>> UpdateProgramAsync(Guid ownerId, Guid programId, UpdateLoyaltyProgramRequest request);
     Task<ApiResponse<bool>> DeleteProgramAsync(Guid ownerId, Guid programId);
@@ -18,4 +19,7 @@ public interface ILoyaltyService
     Task<ApiResponse<LoyaltyCardResponse>> EnrollAsync(Guid customerId, EnrollCardRequest request);
     Task<ApiResponse<List<LoyaltyCardResponse>>> GetMyCardsAsync(Guid customerId);
     Task<ApiResponse<LoyaltyCardResponse>> GetCardByIdAsync(Guid customerId, Guid cardId);
+
+    // Backfill utilities
+    Task BackfillProgramHistoryAsync(CancellationToken cancellationToken = default);
 }

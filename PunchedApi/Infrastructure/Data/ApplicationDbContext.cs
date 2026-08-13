@@ -39,6 +39,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<AppointmentStatusHistory> AppointmentStatusHistory => Set<AppointmentStatusHistory>();
     public DbSet<ServiceCatalogItem> ServiceCatalogItems => Set<ServiceCatalogItem>();
     public DbSet<StaffServiceAssignment> StaffServiceAssignments => Set<StaffServiceAssignment>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

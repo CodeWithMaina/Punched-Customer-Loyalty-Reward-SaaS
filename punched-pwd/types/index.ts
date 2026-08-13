@@ -99,6 +99,7 @@ export interface Business {
   description?: string;
   logoUrl?: string;
   ownerId?: string;
+  defaultDailyGoal?: number;
   loyaltyProgram?: LoyaltyProgram;
   loyaltyPrograms: LoyaltyProgram[];
   hasReferralProgram: boolean;
@@ -138,6 +139,7 @@ export interface LoyaltyProgram {
   rewardValue: number;
   rewardDescription: string;
   rewardExpirationHours: number;
+  defaultEnrollmentStamps: number;
   createdAt: string;
 }
 
@@ -146,6 +148,7 @@ export interface CreateLoyaltyProgramRequest {
   stampsRequired: number;
   rewardValue: number;
   rewardDescription: string;
+  defaultEnrollmentStamps: number;
 }
 
 export interface UpdateLoyaltyProgramRequest {
@@ -154,12 +157,14 @@ export interface UpdateLoyaltyProgramRequest {
   stampsRequired?: number;
   rewardValue?: number;
   rewardDescription?: string;
+  defaultEnrollmentStamps?: number;
 }
 
 export interface UpsertLoyaltyProgramRequest {
   stampsRequired: number;
   rewardValue: number;
   rewardDescription: string;
+  defaultEnrollmentStamps: number;
 }
 
 // -- Loyalty card types -----------------------------------------------
@@ -242,6 +247,14 @@ export interface BusinessCustomer {
   totalRedemptions: number;
   enrolledAt: string;
   lastStampAt?: string;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 // -- Redemption types ------------------------------------------------
@@ -368,6 +381,36 @@ export interface BusinessDashboardResponse {
   stampsToday: number;
   totalRedemptions: number;
   rewardReadyCards: number;
+  staffMini?: StaffMini[];
+}
+
+/** Lightweight staff summary shown on the owner dashboard "Your team" strip. */
+export interface StaffMini {
+  userId: string;
+  fullName: string;
+  avatarUrl?: string;
+  stampsToday: number;
+  dailyGoal: number;
+  isOnShift: boolean;
+}
+
+/** Recent stamp entry in the business activity feed. */
+export interface StampDto {
+  id: string;
+  customerName: string;
+  rewardDescription?: string;
+  timestamp: string;
+  source: "scan" | "enrollment" | string;
+}
+
+/** In-app notification for staff. */
+export interface NotificationDto {
+  id: string;
+  type: "GoalReached" | "RewardReady" | string;
+  businessId?: string;
+  stampsCount: number;
+  isRead: boolean;
+  createdAt: string;
 }
 
 // -- Staff types -----------------------------------------------------
@@ -383,6 +426,8 @@ export interface StaffMember {
   email: string;
   avatarUrl?: string;
   stampsIssued: number;
+  dailyGoalOverride?: number;
+  dailyGoal?: number;
 }
 
 export interface StaffActivityItem {
@@ -441,6 +486,7 @@ export interface StaffMemberAnalyticsResponse {
   customersServed: number;
   totalStampsAllTime: number;
   totalCustomersAllTime: number;
+  dailyGoal?: number;
   recentActivity: StaffActivityItem[];
 }
 
@@ -461,6 +507,7 @@ export interface StaffAnalyticsResponse {
   totalStamps: number;
   totalCustomers: number;
   rewardReadyCount: number;
+  dailyGoal?: number;
   recentActivity: StaffActivityItem[];
 }
 

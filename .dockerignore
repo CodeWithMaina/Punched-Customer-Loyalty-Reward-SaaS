@@ -1,0 +1,73 @@
+# Docker context ignore - root build safety net
+# (docker-compose builds each service from its own sub-folder context,
+#  so PunchedApi/.dockerignore and punched-pwd/.dockerignore are the ones
+#  that actually gate the builds - these are kept in sync below.)
+
+# VCS / CI
+.git
+.gitignore
+.gitattributes
+.github
+.gitlab/
+
+# CI / PR
+.github/
+
+# Build outputs & dependencies
+**/bin/
+**/obj/
+node_modules/
+.next/
+.cache/
+dist/
+out/
+
+# Node / Next.js generated (auto-regenerated at build time)
+next-env.d.ts
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Env / secrets (keep templates)
+.env
+.env.*
+!.env.example
+!.env.development.example
+.env.local
+.env.*.local
+.env*.local
+*.pfx
+*.key
+*.pem
+*.p12
+
+# .NET environment overrides may hold real secrets
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Staging.json
+appsettings.*.json.user
+
+# Dev scratch / docs (not needed in any image)
+notes.md
+docs/
+docs/**
+
+# Tests (not needed in runtime images)
+tests/
+test/
+PunchedApi.Tests/
+
+# Logs / IDE / OS
+*.log
+logs/
+.vs/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Docker files (don't ship the builder files into images)
+Dockerfile
+docker-compose*.yml
+docker-compose*.yaml

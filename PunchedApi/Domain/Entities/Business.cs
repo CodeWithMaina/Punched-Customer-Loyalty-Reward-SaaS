@@ -76,6 +76,13 @@ public class Business : BaseEntity
     /// </summary>
     public DateTime? DeletedAt { get; set; }
 
+    /// <summary>
+    /// Default daily stamp goal (per staff member) used when a staff member has
+    /// no personal override. Null means no business default has been configured.
+    /// </summary>
+    [Range(1, 1000)]
+    public int? DefaultDailyGoal { get; set; }
+
     // ── Navigation ──────────────────────────────────────────
     /// <summary>
     /// All loyalty programs for this business.

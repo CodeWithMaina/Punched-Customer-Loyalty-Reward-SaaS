@@ -45,6 +45,13 @@ public class LoyaltyProgramConfiguration : IEntityTypeConfiguration<LoyaltyProgr
             .HasMaxLength(200)
             .HasColumnName("reward_description");
 
+        builder.Property(e => e.DefaultEnrollmentStamps)
+            .HasColumnName("default_enrollment_stamps")
+            .HasDefaultValue(0);
+
+        builder.Property(e => e.RewardExpirationHours)
+            .HasColumnName("reward_expiration_hours");
+
         builder.Property(e => e.CreatedAt)
             .HasColumnName("created_at");
 

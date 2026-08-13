@@ -1,0 +1,130 @@
+# =============================================================================
+# Root .gitignore - Punched-Customer-Loyalty-Reward-SaaS
+# Applies repo-wide: the .NET API (PunchedApi / PunchedApi.Tests) and the
+# Next.js PWA (punched-pwd). Sub-projects also keep their own .gitignore for
+# project-specific extras, but this file is the safety net for "git add .".
+# =============================================================================
+
+# --- .NET (API + tests) ---
+**/bin/
+**/obj/
+*.dll
+*.exe
+*.pdb
+*.deps.json
+*.runtimeconfig.json
+*.runtimeconfig.dev.json
+*.AssemblyInfo.cs
+*.AssemblyInfoInputs.cache
+*.GeneratedMSBuildEditorConfig.editorconfig
+*.genruntimeconfig.cache
+*.GlobalUsings.g.cs
+*.MvcApplicationPartsAssemblyInfo.cs
+*.FileListAbsolute.txt
+*.Up2Date
+*.swa.cache.json
+staticwebassets.build.json
+staticwebassets.build.json.cache
+staticwebassets.build.endpoints.json
+rpswa.dswa.cache.json
+rjsmcshtml.dswa.cache.json
+rjsmrazor.dswa.cache.json
+swae.build.ex.cache
+project.assets.json
+
+# NuGet / packages
+packages/
+~/.nuget/packages/
+
+# Test results & coverage
+TestResults/
+*.testResults.xml
+test-results/
+coverage/
+*.coveragexml
+*.runsettings
+
+# --- Next.js / Node (punched-pwd) ---
+node_modules/
+.next/
+.cache/
+.swc/
+out/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+debug.log*
+
+# Node / Next.js generated (auto-regenerated, must NOT be committed)
+next-env.d.ts
+*.tsbuildinfo
+
+# --- Environment & Secrets - real files stay local, keep templates ---
+# Local env files may hold live credentials -> never commit them.
+.env
+.env.*
+!.env.example
+!.env.development.example
+.env.local
+.env.*.local
+
+# .NET environment overrides may hold real DB/JWT secrets -> keep local.
+# (appsettings.json and appsettings.<env>.json.example stay tracked as templates)
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Staging.json
+appsettings.*.json.user
+
+# Certificates, keys, tokens, secrets
+*.pfx
+*.key
+*.pem
+*.p12
+*.crt
+*.cer
+*.keystore
+*.jks
+secret.*
+secrets/
+*.secret
+credentials.json
+credentials.*.json
+
+# --- IDE / Editor ---
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.doc
+*.vspscc
+*.vssscc
+*.swp
+*.swo
+*.swn
+*~
+
+# --- OS ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.Network Shares
+$RECYCLE.BIN/
+Thumbs.db
+ehthumbs.db
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Docker / runtime ---
+.docker/
+docker-compose.override.yml
+docker-compose.local.yml
+*.pid

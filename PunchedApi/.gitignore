@@ -8,6 +8,7 @@ obj/
 *.pdb
 *.deps.json
 *.runtimeconfig.json
+*.runtimeconfig.dev.json
 *.assets.cache
 *.AssemblyInfo.cs
 *.AssemblyInfoInputs.cache
@@ -27,12 +28,50 @@ rjsmrazor.dswa.cache.json
 swae.build.ex.cache
 project.assets.json
 
-# IDE
+# NuGet / packages
+packages/
+
+# Test results & coverage
+TestResults/
+coverage/
+
+# IDE / Editor
+.vs/
 .vscode/
 .idea/
+*.suo
+*.user
 *.swp
 *.swo
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# --- Environment & Secrets ---
+# Local env files may hold live credentials -> keep local. Templates stay.
+.env
+.env.*
+!.env.example
+!.env.development.example
+.env.local
+.env.*.local
+
+# .NET environment overrides may hold real DB/JWT secrets -> keep local.
+# (appsettings.json stays tracked as the safe base template)
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Staging.json
+appsettings.*.json.user
+
+# Certificates / keys
+*.pfx
+*.key
+*.pem
+*.p12
+*.crt
+*.cer

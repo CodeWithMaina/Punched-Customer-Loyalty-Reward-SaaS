@@ -119,6 +119,7 @@ try
     builder.Services.AddScoped<IBusinessService, BusinessService>();
     builder.Services.AddScoped<ILoyaltyService, LoyaltyService>();
     builder.Services.AddScoped<IStampService, StampService>();
+    builder.Services.AddScoped<INotificationsService, NotificationsService>();
     builder.Services.AddScoped<IQrService, QrService>();
     builder.Services.AddScoped<IRedemptionService, RedemptionService>();
     builder.Services.AddScoped<IReferralService, ReferralService>();
@@ -141,6 +142,7 @@ try
     builder.Services.AddScoped<ISeedStep, LoyaltyProgramSeedStep>();
     builder.Services.AddScoped<ISeedStep, ReferralProgramSeedStep>();
     builder.Services.AddScoped<ISeedStep, LoyaltyActivitySeedStep>();
+    builder.Services.AddScoped<ISeedStep, AnalyticsBackfillSeedStep>();
     builder.Services.AddScoped<ISeedStep, ReferralSeedStep>();
     builder.Services.AddScoped<ISeedStep, SessionSeedStep>();
     builder.Services.AddScoped<ISeedStep, UnsupportedDomainsSeedStep>();

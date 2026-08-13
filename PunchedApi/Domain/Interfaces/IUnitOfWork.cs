@@ -44,6 +44,9 @@ public interface IUnitOfWork : IDisposable
     /// <summary>Repository for Referral entities.</summary>
     IRepository<Referral> Referrals { get; }
 
+    /// <summary>Repository for Notification entities.</summary>
+    IRepository<Notification> Notifications { get; }
+
     /// <summary>
     /// Commits all pending changes to the database.
     /// </summary>

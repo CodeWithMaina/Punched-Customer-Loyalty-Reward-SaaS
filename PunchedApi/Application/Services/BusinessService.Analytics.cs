@@ -43,7 +43,7 @@ public partial class BusinessService
     private async Task<ExtendedAnalyticsResult> BuildExtendedAnalyticsAsync(
         Guid businessId, DateTime now, DateTime periodStart, LoyaltyProgram? activeProgram,
         List<LoyaltyProgram> programs, int totalPeriodStamps, Dictionary<int, int> stampsByHour,
-        int redemptionCount, IReadOnlyList<CardInsight> cards,
+        IReadOnlyDictionary<DateTime, int> dailyStamps, int redemptionCount, IReadOnlyList<CardInsight> cards,
         Dictionary<Guid, string> staffUsers,
         Dictionary<Guid, (int StampsIssued, int CustomersServed)> staffPeriodStats)
     {
@@ -51,7 +51,7 @@ public partial class BusinessService
 
         var (revenue, overview, traffic) = await BuildRevenueTrafficAsync(
             businessId, now, periodStart, activeProgram, programs,
-            totalPeriodStamps, stampsByHour, redemptionCount, cards);
+            totalPeriodStamps, stampsByHour, dailyStamps, redemptionCount, cards);
 
         var (programPerformance, staffPerformance, recommendations) = await BuildProgramStaffAsync(
             businessId, now, periodStart, activeProgram, programs, days,
@@ -68,15 +68,48 @@ public partial class BusinessService
         };
     }
 
-    private async Task<double?> ComputeVisitCadenceAsync(Guid businessId, DateTime periodStart)
+    internal async Task<double?> ComputeVisitCadenceAsync(Guid businessId, DateTime periodStart)
     {
-        const string sql =
-            "SELECT AVG(EXTRACT(EPOCH FROM (s.stamped_at - LAG(s.stamped_at) OVER (PARTITION BY s.card_id ORDER BY s.stamped_at))) / 86400.0) AS value " +
-            "FROM stamps s " +
-            "WHERE s.card_id IN (SELECT c.id FROM loyalty_cards c WHERE c.business_id = @bid) AND s.stamped_at >= @start";
+        const string sql = """
+            WITH period_stamps AS MATERIALIZED (
+                SELECT s.id, s.card_id, s.stamped_at
+                FROM stamps s
+                INNER JOIN loyalty_cards c ON c.id = s.card_id
+                WHERE c.business_id = @bid
+                  AND s.stamped_at >= @start
+            ),
+            cadence_input AS (
+                SELECT id, card_id, stamped_at
+                FROM period_stamps
+                UNION ALL
+                SELECT previous.id, previous.card_id, previous.stamped_at
+                FROM (SELECT DISTINCT card_id FROM period_stamps) active_cards
+                CROSS JOIN LATERAL (
+                    SELECT s.id, s.card_id, s.stamped_at
+                    FROM stamps s
+                    WHERE s.card_id = active_cards.card_id
+                      AND s.stamped_at < @start
+                    ORDER BY s.stamped_at DESC, s.id DESC
+                    LIMIT 1
+                ) previous
+            ),
+            intervals AS (
+                SELECT
+                    stamped_at,
+                    stamped_at - LAG(stamped_at) OVER (
+                        PARTITION BY card_id
+                        ORDER BY stamped_at, id
+                    ) AS visit_interval
+                FROM cadence_input
+            )
+            SELECT AVG(EXTRACT(EPOCH FROM visit_interval) / 86400.0) AS "Value"
+            FROM intervals
+            WHERE stamped_at >= @start
+              AND visit_interval IS NOT NULL
+            """;
         var cadence = await _context.Database.SqlQueryRaw<double?>(
                 sql, new NpgsqlParameter("bid", businessId), new NpgsqlParameter("start", periodStart))
-            .FirstOrDefaultAsync();
+            .SingleAsync();
         return cadence.HasValue ? Math.Round(cadence.Value, 2) : null;
     }
 

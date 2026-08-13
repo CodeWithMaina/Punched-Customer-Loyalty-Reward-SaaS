@@ -28,6 +28,11 @@ public sealed class SegmentationService : ISegmentationService
         }
     }
 
+    public async Task BackfillAllBusinessesAsync(CancellationToken cancellationToken = default)
+    {
+        await RecomputeAllBusinessesAsync(cancellationToken);
+    }
+
     public async Task RecomputeBusinessSegmentsAsync(Guid businessId, CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
@@ -43,9 +48,10 @@ public sealed class SegmentationService : ISegmentationService
             })
             .ToListAsync(cancellationToken);
 
-        await _context.CustomerSegments
+        var existingSegments = await _context.CustomerSegments
             .Where(x => x.BusinessId == businessId)
-            .ExecuteDeleteAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
+        _context.CustomerSegments.RemoveRange(existingSegments);
 
         if (cards.Count == 0)
         {

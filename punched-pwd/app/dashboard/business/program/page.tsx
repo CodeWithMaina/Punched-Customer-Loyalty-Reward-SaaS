@@ -14,6 +14,7 @@ export default function LoyaltyProgramPage() {
     stampsRequired: 10,
     rewardValue: 500,
     rewardDescription: "",
+    defaultEnrollmentStamps: 0,
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -30,6 +31,7 @@ export default function LoyaltyProgramPage() {
             stampsRequired: p.stampsRequired,
             rewardValue: p.rewardValue,
             rewardDescription: p.rewardDescription,
+            defaultEnrollmentStamps: p.defaultEnrollmentStamps ?? 0,
           });
         }
         setIsLoading(false);
@@ -92,6 +94,22 @@ export default function LoyaltyProgramPage() {
             className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
           />
           <p className="text-xs text-[var(--text-tertiary)]">Customers need this many stamps to earn a reward</p>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+            Welcome Stamps on Enrollment
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            required
+            value={form.defaultEnrollmentStamps}
+            onChange={(e) => setForm((f) => ({ ...f, defaultEnrollmentStamps: Math.max(0, parseInt(e.target.value) || 0) }))}
+            className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+          />
+          <p className="text-xs text-[var(--text-tertiary)]">Stamps a new customer automatically receives when they join (e.g. 1)</p>
         </div>
 
         <div className="space-y-1">

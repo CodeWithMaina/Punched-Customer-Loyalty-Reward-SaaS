@@ -61,6 +61,20 @@ public class UpdateBusinessRequest
     public string? MpesaNumber { get; set; }
 }
 
+/// <summary>Sets the business-level default daily-stamp goal for staff.</summary>
+public class UpdateBusinessDailyGoalRequest
+{
+    [JsonPropertyName("dailyGoal")]
+    public int? DailyGoal { get; set; }
+}
+
+/// <summary>Sets (or clears, when null) a staff member's personal daily-stamp goal override.</summary>
+public class SetStaffDailyGoalRequest
+{
+    [JsonPropertyName("dailyGoal")]
+    public int? DailyGoal { get; set; }
+}
+
 public class BusinessResponse
 {
     [JsonPropertyName("id")]
@@ -89,6 +103,9 @@ public class BusinessResponse
 
     [JsonPropertyName("ownerId")]
     public Guid? OwnerId { get; set; }
+
+    [JsonPropertyName("defaultDailyGoal")]
+    public int? DefaultDailyGoal { get; set; }
 
     [JsonPropertyName("loyaltyProgram")]
     public LoyaltyProgramResponse? LoyaltyProgram { get; set; }
@@ -120,6 +137,10 @@ public class CreateLoyaltyProgramRequest
 
     [JsonPropertyName("rewardDescription")]
     public string RewardDescription { get; set; } = string.Empty;
+
+    /// <summary>Welcome stamps granted automatically to a new customer on enrollment (0-100).</summary>
+    [JsonPropertyName("defaultEnrollmentStamps")]
+    public int DefaultEnrollmentStamps { get; set; }
 }
 
 public class UpdateLoyaltyProgramRequest
@@ -138,6 +159,10 @@ public class UpdateLoyaltyProgramRequest
 
     [JsonPropertyName("rewardDescription")]
     public string? RewardDescription { get; set; }
+
+    /// <summary>Welcome stamps granted automatically to a new customer on enrollment (0-100).</summary>
+    [JsonPropertyName("defaultEnrollmentStamps")]
+    public int? DefaultEnrollmentStamps { get; set; }
 }
 
 /// <summary>Legacy upsert kept for backward-compatibility.</summary>
@@ -155,6 +180,10 @@ public class UpsertLoyaltyProgramRequest
     /// <summary>Hours customer has to claim after reaching stamp goal. 0 = no expiry.</summary>
     [JsonPropertyName("rewardExpirationHours")]
     public int RewardExpirationHours { get; set; } = 48;
+
+    /// <summary>Welcome stamps granted automatically to a new customer on enrollment (0-100).</summary>
+    [JsonPropertyName("defaultEnrollmentStamps")]
+    public int DefaultEnrollmentStamps { get; set; }
 }
 
 public class LoyaltyProgramResponse
@@ -182,6 +211,10 @@ public class LoyaltyProgramResponse
 
     [JsonPropertyName("rewardExpirationHours")]
     public int RewardExpirationHours { get; set; }
+
+    /// <summary>Welcome stamps granted automatically to a new customer on enrollment (0-100).</summary>
+    [JsonPropertyName("defaultEnrollmentStamps")]
+    public int DefaultEnrollmentStamps { get; set; }
 
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; }
@@ -457,8 +490,89 @@ public class BusinessDashboardResponse
     [JsonPropertyName("totalRedemptions")]
     public int TotalRedemptions { get; set; }
 
-    [JsonPropertyName("rewardReadyCards")]
+        [JsonPropertyName("rewardReadyCards")]
     public int RewardReadyCards { get; set; }
+
+    [JsonPropertyName("staffMini")]
+    public List<StaffMiniDto> StaffMini { get; set; } = new();
+}
+
+/// <summary>
+/// Lightweight staff summary used on the owner business dashboard.
+/// </summary>
+public class StaffMiniDto
+{
+    [JsonPropertyName("userId")]
+    public Guid UserId { get; set; }
+
+    [JsonPropertyName("fullName")]
+    public string FullName { get; set; } = string.Empty;
+
+    [JsonPropertyName("avatarUrl")]
+    public string? AvatarUrl { get; set; }
+
+    [JsonPropertyName("stampsToday")]
+    public int StampsToday { get; set; }
+
+    [JsonPropertyName("dailyGoal")]
+    public int DailyGoal { get; set; }
+
+    [JsonPropertyName("isOnShift")]
+    public bool IsOnShift { get; set; }
+}
+
+/// <summary>
+/// Recent stamp entry for the business activity feed.
+/// </summary>
+public class StampDto
+{
+    [JsonPropertyName("id")]
+    public Guid Id { get; set; }
+
+    [JsonPropertyName("customerName")]
+    public string CustomerName { get; set; } = string.Empty;
+
+    [JsonPropertyName("rewardDescription")]
+    public string? RewardDescription { get; set; }
+
+    [JsonPropertyName("timestamp")]
+    public DateTime Timestamp { get; set; }
+
+    [JsonPropertyName("source")]
+    public string Source { get; set; } = StampSource.Scan;
+}
+
+/// <summary>
+/// In-app notification for staff.
+/// </summary>
+public class NotificationDto
+{
+    [JsonPropertyName("id")]
+    public Guid Id { get; set; }
+
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [JsonPropertyName("businessId")]
+    public Guid? BusinessId { get; set; }
+
+    [JsonPropertyName("stampsCount")]
+    public int StampsCount { get; set; }
+
+    [JsonPropertyName("isRead")]
+    public bool IsRead { get; set; }
+
+    [JsonPropertyName("createdAt")]
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>
+/// Request for marking a notification (or all) as read.
+/// </summary>
+public class MarkNotificationReadRequest
+{
+    [JsonPropertyName("notificationId")]
+    public Guid? NotificationId { get; set; }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -490,6 +604,14 @@ public class StaffMemberResponse
 
     [JsonPropertyName("stampsIssued")]
     public int StampsIssued { get; set; }
+
+    /// <summary>Personal daily-stamp goal override (null = fall back to business default).</summary>
+    [JsonPropertyName("dailyGoalOverride")]
+    public int? DailyGoalOverride { get; set; }
+
+    /// <summary>Effective daily-stamp goal (override, else business default, else null).</summary>
+    [JsonPropertyName("dailyGoal")]
+    public int? DailyGoal { get; set; }
 }
 
 public class StaffAnalyticsResponse
@@ -520,6 +642,10 @@ public class StaffAnalyticsResponse
 
     [JsonPropertyName("rewardReadyCount")]
     public int RewardReadyCount { get; set; }
+
+    /// <summary>Effective daily-stamp goal (staff override, else business default).</summary>
+    [JsonPropertyName("dailyGoal")]
+    public int? DailyGoal { get; set; }
 
     [JsonPropertyName("recentActivity")]
     public List<StaffActivityItem> RecentActivity { get; set; } = [];
@@ -659,6 +785,10 @@ public class StaffMemberAnalyticsResponse
 
     [JsonPropertyName("totalCustomersAllTime")]
     public int TotalCustomersAllTime { get; set; }
+
+    /// <summary>Effective daily-stamp goal (staff override, else business default).</summary>
+    [JsonPropertyName("dailyGoal")]
+    public int? DailyGoal { get; set; }
 
     [JsonPropertyName("recentActivity")]
     public List<StaffActivityItem> RecentActivity { get; set; } = [];

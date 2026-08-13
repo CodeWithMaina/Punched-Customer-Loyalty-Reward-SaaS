@@ -24,7 +24,7 @@ function NumField({ label, hint, value, onChange, min, max }: {
   );
 }
 
-const blank: CreateLoyaltyProgramRequest = { name: "", stampsRequired: 10, rewardValue: 500, rewardDescription: "" };
+const blank: CreateLoyaltyProgramRequest = { name: "", stampsRequired: 10, rewardValue: 500, rewardDescription: "", defaultEnrollmentStamps: 0 };
 
 export default function ProgramsPage() {
   useRoleGuard("Business");
@@ -46,7 +46,7 @@ export default function ProgramsPage() {
   useEffect(load, []);
 
   function startEdit(p: LoyaltyProgram) {
-    setEditForms((prev) => ({ ...prev, [p.id]: { name: p.name, isActive: p.isActive, stampsRequired: p.stampsRequired, rewardValue: p.rewardValue, rewardDescription: p.rewardDescription } }));
+    setEditForms((prev) => ({ ...prev, [p.id]: { name: p.name, isActive: p.isActive, stampsRequired: p.stampsRequired, rewardValue: p.rewardValue, rewardDescription: p.rewardDescription, defaultEnrollmentStamps: p.defaultEnrollmentStamps ?? 0 } }));
     setEditingId(p.id);
     setShowCreate(false);
   }
@@ -125,6 +125,9 @@ export default function ProgramsPage() {
                   </div>
                   <NumField label="Stamps required" value={editForms[p.id]?.stampsRequired ?? p.stampsRequired}
                     onChange={(v) => setEditForms((f) => ({ ...f, [p.id]: { ...f[p.id], stampsRequired: v } }))} min={1} max={100} />
+                  <NumField label="Welcome stamps on enrollment" hint="Stamps a new customer receives when they join"
+                    value={editForms[p.id]?.defaultEnrollmentStamps ?? p.defaultEnrollmentStamps ?? 0}
+                    onChange={(v) => setEditForms((f) => ({ ...f, [p.id]: { ...f[p.id], defaultEnrollmentStamps: Math.max(0, v) } }))} min={0} max={100} />
                   <NumField label="Reward value (KES)" value={editForms[p.id]?.rewardValue ?? p.rewardValue}
                     onChange={(v) => setEditForms((f) => ({ ...f, [p.id]: { ...f[p.id], rewardValue: v } }))} min={1} />
                   <div className="space-y-1.5">
@@ -182,6 +185,9 @@ export default function ProgramsPage() {
                 </div>
                 <NumField label="Stamps required" value={createForm.stampsRequired}
                   onChange={(v) => setCreateForm((f) => ({ ...f, stampsRequired: v }))} min={1} max={100} />
+                <NumField label="Welcome stamps on enrollment" hint="Stamps a new customer receives when they join"
+                  value={createForm.defaultEnrollmentStamps}
+                  onChange={(v) => setCreateForm((f) => ({ ...f, defaultEnrollmentStamps: Math.max(0, v) }))} min={0} max={100} />
                 <NumField label="Reward value (KES)" value={createForm.rewardValue}
                   onChange={(v) => setCreateForm((f) => ({ ...f, rewardValue: v }))} min={1} />
                 <div className="space-y-1.5">

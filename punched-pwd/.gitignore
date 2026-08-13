@@ -1,12 +1,19 @@
 # Dependencies
 node_modules/
 
-# Next.js
+# Next.js / build artefacts (auto-generated, never commit)
 .next/
 next-env.d.ts
 tsconfig.tsbuildinfo
+*.tsbuildinfo
 
-# IDE
+# Build caches
+.cache/
+.swc/
+.nyc_output/
+coverage/
+
+# IDE / Editor
 .vscode/
 .idea/
 *.swp
@@ -16,10 +23,16 @@ tsconfig.tsbuildinfo
 .DS_Store
 Thumbs.db
 
-# Environment
+# Environment - keep templates, skip real values
 .env
+.env.*
+!.env.example
+!.env.development.example
 .env.local
 .env.*.local
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

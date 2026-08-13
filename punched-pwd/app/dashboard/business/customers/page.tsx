@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { businessesApi } from "@/lib/api/businesses";
 import type { BusinessCustomer } from "@/types";
 import {
   Loader2,
   Search,
   ChevronRight,
+  ChevronLeft,
   Trophy,
   Download,
   X,
@@ -67,97 +70,70 @@ function downloadCsv(customers: BusinessCustomer[], stampsRequired: number) {
 
 export default function BusinessCustomersPage() {
   useRoleGuard("Business");
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [data, setData] = useState<BusinessCustomer[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<FilterKey>("all");
-  const [sort, setSort] = useState<SortKey>("recent");
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState(searchParams.get("search") ?? "");
+  const [filter, setFilter] = useState<FilterKey>((searchParams.get("status") as FilterKey) ?? "all");
+  const [sort, setSort] = useState<SortKey>((searchParams.get("sortBy") as SortKey) ?? "recent");
+  const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const debouncedQuery = useDebouncedValue(query);
 
   const [stampsRequired, setStampsRequired] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      businessesApi.getMyCustomers(),
-      businessesApi.getMine(),
-    ])
-      .then(([cust, biz]) => {
-        if (cust.success && cust.data) setData(cust.data);
-
-        const req =
-          (biz.data as any)?.loyaltyPrograms?.[0]?.stampsRequired ??
-          (biz.data as any)?.loyaltyProgram?.stampsRequired ??
-          0;
-
-        setStampsRequired(req);
-      })
-      .finally(() => setLoading(false));
+    businessesApi.getMine().then((biz) => {
+      const req = (biz.data as any)?.loyaltyProgram?.stampsRequired ?? 0;
+      setStampsRequired(req);
+    });
   }, []);
 
-  // Counts for filter pills (search-aware, filter-agnostic)
-  const counts = useMemo(() => {
-    const sevenDaysAgo = Date.now() - 7 * 86400000;
-    const searched = query.trim()
-      ? data.filter((c) => {
-          const q = query.toLowerCase();
-          return (
-            c.fullName.toLowerCase().includes(q) ||
-            c.email.toLowerCase().includes(q) ||
-            (c.phoneNumber ?? "").includes(q)
-          );
-        })
-      : data;
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQuery, filter, sort]);
 
-    return {
-      all: searched.length,
-      active: searched.filter(
-        (c) => c.lastStampAt && new Date(c.lastStampAt).getTime() > sevenDaysAgo
-      ).length,
-      ready: stampsRequired > 0
-        ? searched.filter((c) => c.totalStamps >= stampsRequired).length
-        : 0,
-    };
-  }, [data, query, stampsRequired]);
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (debouncedQuery) params.set("search", debouncedQuery);
+    if (filter !== "all") params.set("status", filter);
+    if (sort !== "recent") params.set("sortBy", sort);
+    if (page > 1) params.set("page", String(page));
+    router.replace(`/dashboard/business/customers${params.size ? `?${params}` : ""}`, { scroll: false });
 
-  const processed = useMemo(() => {
-    const sevenDaysAgo = Date.now() - 7 * 86400000;
-
-    let list = [...data];
-
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      list = list.filter(
-        (c) =>
-          c.fullName.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q) ||
-          (c.phoneNumber ?? "").includes(q)
-      );
-    }
-
-    if (filter === "active") {
-      list = list.filter(
-        (c) => c.lastStampAt && new Date(c.lastStampAt).getTime() > sevenDaysAgo
-      );
-    }
-
-    if (filter === "ready") {
-      list = list.filter(
-        (c) => stampsRequired > 0 && c.totalStamps >= stampsRequired
-      );
-    }
-
-    list.sort((a, b) => {
-      if (sort === "stamps") return b.totalStamps - a.totalStamps;
-      if (sort === "alpha") return a.fullName.localeCompare(b.fullName);
-      const aT = a.lastStampAt ? new Date(a.lastStampAt).getTime() : 0;
-      const bT = b.lastStampAt ? new Date(b.lastStampAt).getTime() : 0;
-      return bT - aT;
+    let active = true;
+    setLoading(true);
+    setError(null);
+    businessesApi.getMyCustomers({
+      search: debouncedQuery || undefined,
+      status: filter === "all" ? undefined : filter,
+      sortBy: sort === "alpha" ? "name" : sort,
+      sortDirection: sort === "alpha" ? "asc" : "desc",
+      page,
+      pageSize: 25,
+    }).then((response) => {
+      if (!active) return;
+      if (!response.success || !response.data) {
+        setError(response.error?.message ?? "Could not load customers.");
+        setData([]);
+        return;
+      }
+      setData(response.data.items);
+      setTotalCount(response.data.totalCount);
+      setTotalPages(response.data.totalPages);
+    }).catch(() => {
+      if (active) setError("Could not load customers. Please try again.");
+    }).finally(() => {
+      if (active) setLoading(false);
     });
 
-    return list;
-  }, [data, query, filter, sort, stampsRequired]);
+    return () => { active = false; };
+  }, [debouncedQuery, filter, page, router, sort]);
 
   return (
     <div className="max-w-xl mx-auto pb-10">
@@ -166,13 +142,13 @@ export default function BusinessCustomersPage() {
       <div className="px-5 pt-6 pb-3 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-[var(--text-primary)]">Customers</h1>
-          <p className="text-xs text-[var(--text-tertiary)]">{data.length} total</p>
+          <p className="text-xs text-[var(--text-tertiary)]">{totalCount} total</p>
         </div>
         <button
-          onClick={() => downloadCsv(processed, stampsRequired)}
-          disabled={processed.length === 0}
+          onClick={() => downloadCsv(data, stampsRequired)}
+          disabled={data.length === 0}
           title="Export as CSV"
-          className="flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand-surface px-3 py-2 rounded-xl hover:bg-brand-light transition-colors disabled:opacity-40"
+          className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand bg-brand-surface px-3 py-2 rounded-xl hover:bg-brand-light transition-colors disabled:opacity-40"
         >
           <Download className="h-3.5 w-3.5" />
           Export
@@ -227,7 +203,7 @@ export default function BusinessCustomersPage() {
               </span>
             )}
             <span className="ml-auto text-[11px] text-[var(--text-tertiary)] whitespace-nowrap">
-              {processed.length} result{processed.length !== 1 ? "s" : ""}
+              {totalCount} result{totalCount !== 1 ? "s" : ""}
             </span>
           </div>
         )}
@@ -259,7 +235,12 @@ export default function BusinessCustomersPage() {
         <div className="flex justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-[var(--text-tertiary)]" />
         </div>
-      ) : processed.length === 0 ? (
+      ) : error ? (
+        <div className="mx-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card py-14 text-center">
+          <p className="text-sm font-semibold text-[var(--text-secondary)] mb-3">{error}</p>
+          <button onClick={() => setPage((current) => current)} className="text-xs font-semibold text-brand">Retry</button>
+        </div>
+      ) : data.length === 0 ? (
         <div className="mx-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card py-14 text-center">
           <p className="text-2xl mb-2">🔍</p>
           <p className="text-sm font-semibold text-[var(--text-secondary)] mb-1">No customers found</p>
@@ -279,7 +260,7 @@ export default function BusinessCustomersPage() {
         </div>
       ) : (
         <div className="mx-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden divide-y divide-[var(--border-light)]">
-          {processed.map((c) => {
+          {data.map((c) => {
             const ready = stampsRequired > 0 && c.totalStamps >= stampsRequired;
 
             return (
@@ -328,6 +309,26 @@ export default function BusinessCustomersPage() {
               </Link>
             );
           })}
+        </div>
+      )}
+
+      {!loading && !error && totalPages > 1 && (
+        <div className="mx-5 mt-4 flex items-center justify-between gap-3">
+          <button
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            disabled={page === 1}
+            className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] disabled:opacity-40"
+          >
+            <ChevronLeft className="h-4 w-4" /> Previous
+          </button>
+          <span className="text-xs text-[var(--text-tertiary)]">Page {page} of {totalPages}</span>
+          <button
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            disabled={page === totalPages}
+            className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] disabled:opacity-40"
+          >
+            Next <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       )}
     </div>

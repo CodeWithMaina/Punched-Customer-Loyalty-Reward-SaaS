@@ -35,6 +35,19 @@ public class LoyaltyProgramController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Get one loyalty program owned by the authenticated business.</summary>
+    [HttpGet("me/{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<LoyaltyProgramResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetProgram(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+        var result = await _loyaltyService.GetBusinessProgramAsync(userId.Value, id);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
     /// <summary>Create a new loyalty program for the authenticated business.</summary>
     [HttpPost("me")]
     [ProducesResponseType(typeof(ApiResponse<LoyaltyProgramResponse>), StatusCodes.Status201Created)]

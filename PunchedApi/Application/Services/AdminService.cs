@@ -9,20 +9,29 @@ namespace PunchedApi.Application.Services;
 
 public class AdminService : IAdminService
 {
-    private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWork _unitOfWork;
     private readonly ApplicationDbContext _context;
     private readonly IInsightService _insightService;
+    private readonly IAnalyticsAggregationService _analyticsAggregator;
+    private readonly ISegmentationService _segmentationService;
+    private readonly ILoyaltyService _loyaltyService;
     private readonly ILogger<AdminService> _logger;
 
     public AdminService(
         IUnitOfWork unitOfWork,
         ApplicationDbContext context,
         IInsightService insightService,
+        IAnalyticsAggregationService analyticsAggregator,
+        ISegmentationService segmentationService,
+        ILoyaltyService loyaltyService,
         ILogger<AdminService> logger)
     {
         _unitOfWork = unitOfWork;
         _context = context;
         _insightService = insightService;
+        _analyticsAggregator = analyticsAggregator;
+        _segmentationService = segmentationService;
+        _loyaltyService = loyaltyService;
         _logger = logger;
     }
 
@@ -55,6 +64,7 @@ public class AdminService : IAdminService
             var newBusinesses7d = await _context.Businesses.IgnoreQueryFilters().CountAsync(b => b.CreatedAt >= weekAgo);
             var stamps7d = await _context.Stamps.CountAsync(s => s.CreatedAt >= weekAgo);
             var redemptions7d = await _context.Redemptions.CountAsync(r => r.CreatedAt >= weekAgo);
+            var churnedBusinesses = await _context.Businesses.IgnoreQueryFilters().CountAsync(b => b.IsDeleted);
 
             return ApiResponse<AdminDashboardResponse>.Ok(new AdminDashboardResponse
             {
@@ -73,6 +83,7 @@ public class AdminService : IAdminService
                 NewBusinesses7d = newBusinesses7d,
                 Stamps7d = stamps7d,
                 Redemptions7d = redemptions7d,
+                ChurnedBusinesses = churnedBusinesses,
             });
         }
         catch (Exception ex)
@@ -866,7 +877,7 @@ public class AdminService : IAdminService
         var avgDuration = await q.Select(x => (double?)x.DurationMs).AverageAsync() ?? 0d;
         var errorRate = total > 0 ? ((double)(error4xx + error5xx) / total) * 100d : 0d;
 
-        return ApiResponse<AdminApiHealthResponse>.Ok(new AdminApiHealthResponse
+                return ApiResponse<AdminApiHealthResponse>.Ok(new AdminApiHealthResponse
         {
             PeriodDays = periodDays,
             TotalRequests = total,
@@ -875,5 +886,44 @@ public class AdminService : IAdminService
             ErrorRatePct = Math.Round(errorRate, 2),
             AvgDurationMs = Math.Round(avgDuration, 2)
         });
+    }
+
+    // ═════════════════════════════════════════════════════════
+    //  BACKFILL
+    // ═════════════════════════════════════════════════════════
+
+    public async Task<ApiResponse<MessageResponse>> BackfillAnalyticsAsync(DateOnly from, DateOnly to)
+    {
+        if (to < from)
+            return ApiResponse<MessageResponse>.Fail("INVALID_RANGE", "'to' must be greater than or equal to 'from'.");
+
+        var cancellationToken = new CancellationTokenSource(TimeSpan.FromMinutes(15)).Token;
+        var businesses = await _context.Businesses.IgnoreQueryFilters().ToListAsync(cancellationToken);
+        var processed = 0;
+
+        foreach (var business in businesses)
+        {
+            await _analyticsAggregator.BackfillBusinessAsync(business.Id, from, to, cancellationToken);
+            processed++;
+        }
+
+        return ApiResponse<MessageResponse>.Ok(new MessageResponse
+        {
+                        Message = $"Analytics backfill started for {processed} business(es) from {from:yyyy-MM-dd} to {to:yyyy-MM-dd}."
+        });
+    }
+
+    public async Task<ApiResponse<MessageResponse>> BackfillSegmentsAsync()
+    {
+        var cancellationToken = new CancellationTokenSource(TimeSpan.FromMinutes(15)).Token;
+        await _segmentationService.BackfillAllBusinessesAsync(cancellationToken);
+        return ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "Segmentation backfill started for all businesses." });
+    }
+
+    public async Task<ApiResponse<MessageResponse>> BackfillProgramHistoryAsync()
+    {
+        var cancellationToken = new CancellationTokenSource(TimeSpan.FromMinutes(15)).Token;
+        await _loyaltyService.BackfillProgramHistoryAsync(cancellationToken);
+        return ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "Program history backfill started for all businesses." });
     }
 }

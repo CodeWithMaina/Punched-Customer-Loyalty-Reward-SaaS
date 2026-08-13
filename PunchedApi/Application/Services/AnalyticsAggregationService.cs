@@ -30,6 +30,18 @@ public sealed class AnalyticsAggregationService : IAnalyticsAggregationService
         }
     }
 
+    public async Task BackfillAllBusinessesAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+    {
+        var businessIds = await _context.Businesses
+            .Select(b => b.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var businessId in businessIds)
+        {
+            await BackfillBusinessAsync(businessId, from, to, cancellationToken);
+        }
+    }
+
     public async Task RecomputeBusinessDayAsync(Guid businessId, DateOnly day, CancellationToken cancellationToken = default)
     {
         var (startUtc, endUtc) = GetUtcRange(day);
@@ -96,9 +108,10 @@ public sealed class AnalyticsAggregationService : IAnalyticsAggregationService
     {
         var (startUtc, endUtc) = GetUtcRange(day);
 
-        await _context.StaffDailyAnalytics
+        var existingRows = await _context.StaffDailyAnalytics
             .Where(x => x.BusinessId == businessId && x.Date == day)
-            .ExecuteDeleteAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
+        _context.StaffDailyAnalytics.RemoveRange(existingRows);
 
         var grouped = await _context.Stamps
             .Where(s => s.Card.BusinessId == businessId && s.AwardedByUserId != null && s.StampedAt >= startUtc && s.StampedAt < endUtc)
@@ -111,17 +124,28 @@ public sealed class AnalyticsAggregationService : IAnalyticsAggregationService
             })
             .ToListAsync(cancellationToken);
 
+        var newCustomersByStaff = await _context.Stamps
+            .Where(s => s.Card.BusinessId == businessId && s.AwardedByUserId != null)
+            .GroupBy(s => new { StaffUserId = s.AwardedByUserId!.Value, s.Card.CustomerId })
+            .Select(g => new
+            {
+                g.Key.StaffUserId,
+                FirstStampedAt = g.Min(s => s.StampedAt)
+            })
+            .Where(x => x.FirstStampedAt >= startUtc && x.FirstStampedAt < endUtc)
+            .GroupBy(x => x.StaffUserId)
+            .Select(g => new { StaffUserId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.StaffUserId, x => x.Count, cancellationToken);
+
+        var rewardReadyByStaff = await _context.Redemptions
+            .Where(r => r.BusinessId == businessId && r.PerformedByUserId != null &&
+                        r.RedeemedAt >= startUtc && r.RedeemedAt < endUtc)
+            .GroupBy(r => r.PerformedByUserId!.Value)
+            .Select(g => new { StaffUserId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.StaffUserId, x => x.Count, cancellationToken);
+
         foreach (var stat in grouped)
         {
-            var newCustomers = await _context.Stamps
-                .Where(s => s.Card.BusinessId == businessId && s.AwardedByUserId == stat.StaffUserId)
-                .GroupBy(s => s.Card.CustomerId)
-                .CountAsync(g => g.Min(x => x.StampedAt) >= startUtc && g.Min(x => x.StampedAt) < endUtc, cancellationToken);
-
-            var rewardReadyCreated = await _context.Redemptions
-                .Where(r => r.BusinessId == businessId && r.PerformedByUserId == stat.StaffUserId && r.RedeemedAt >= startUtc && r.RedeemedAt < endUtc)
-                .CountAsync(cancellationToken);
-
             await _context.StaffDailyAnalytics.AddAsync(new StaffDailyAnalytics
             {
                 StaffUserId = stat.StaffUserId,
@@ -129,8 +153,8 @@ public sealed class AnalyticsAggregationService : IAnalyticsAggregationService
                 Date = day,
                 Stamps = stat.Stamps,
                 DistinctCustomers = stat.DistinctCustomers,
-                NewCustomers = newCustomers,
-                RewardReadyCreated = rewardReadyCreated,
+                NewCustomers = newCustomersByStaff.GetValueOrDefault(stat.StaffUserId),
+                RewardReadyCreated = rewardReadyByStaff.GetValueOrDefault(stat.StaffUserId),
                 UpdatedAt = DateTime.UtcNow
             }, cancellationToken);
         }

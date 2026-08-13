@@ -55,6 +55,9 @@ public class AdminDashboardResponse
 
     [JsonPropertyName("redemptions7d")]
     public int Redemptions7d { get; set; }
+
+    [JsonPropertyName("churnedBusinesses")]
+    public int ChurnedBusinesses { get; set; }
 }
 
 // ── Growth / Time-series ────────────────────────────────────

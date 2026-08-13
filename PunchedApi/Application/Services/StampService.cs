@@ -16,7 +16,8 @@ public class StampService : IStampService
     private readonly ISseService _sseService;
     private readonly IReferralService _referralService;
     private readonly IEmailService _emailService;
-    private readonly IAnalyticsAggregationService _analyticsAggregationService;
+        private readonly IAnalyticsAggregationService _analyticsAggregationService;
+    private readonly INotificationsService _notificationsService;
     private readonly ILogger<StampService> _logger;
 
     public StampService(
@@ -26,6 +27,7 @@ public class StampService : IStampService
         IReferralService referralService,
         IEmailService emailService,
         IAnalyticsAggregationService analyticsAggregationService,
+        INotificationsService notificationsService,
         ILogger<StampService> logger)
     {
         _unitOfWork = unitOfWork;
@@ -34,6 +36,7 @@ public class StampService : IStampService
         _referralService = referralService;
         _emailService = emailService;
         _analyticsAggregationService = analyticsAggregationService;
+        _notificationsService = notificationsService;
         _logger = logger;
     }
 
@@ -138,7 +141,7 @@ public class StampService : IStampService
 
             _unitOfWork.LoyaltyCards.Update(card);
 
-            // Immutable stamp audit record
+                        // Immutable stamp audit record
             var stamp = new Stamp
             {
                 Id = Guid.NewGuid(),
@@ -147,16 +150,43 @@ public class StampService : IStampService
                 StampedAt = now,
                 QrTokenId = qrToken.Id,
                 AwardedByUserId = staffOrBusinessUserId,
+                Source = StampSource.Scan,
                 CreatedAt = now
             };
             await _unitOfWork.Stamps.AddAsync(stamp);
 
-            await _unitOfWork.SaveChangesAsync();
+                        await _unitOfWork.SaveChangesAsync();
 
             await _analyticsAggregationService.RecomputeTodayForBusinessAsync(scopedBusinessId.Value);
             await _analyticsAggregationService.RecomputeStaffDayAsync(
                 scopedBusinessId.Value,
                 DateOnly.FromDateTime(DateTime.UtcNow));
+
+            // If the awarding user is a staff member and they've reached their daily goal,
+            // fire a GoalReached in-app notification.
+            if (actor.Role == UserRole.Staff && actor.StaffBusinessId.HasValue)
+            {
+                var dailyGoal = actor.DailyGoalOverride
+                    ?? (await _context.Businesses
+                        .AsNoTracking()
+                        .Where(b => b.Id == actor.StaffBusinessId.Value)
+                        .Select(b => b.DefaultDailyGoal)
+                        .FirstOrDefaultAsync());
+
+                if (dailyGoal.HasValue)
+                {
+                    var stampsToday = await _context.Stamps
+                        .Where(s => s.AwardedByUserId == actor.Id
+                            && s.Source == StampSource.Scan
+                            && s.StampedAt.Date == now.Date)
+                        .CountAsync();
+
+                    if (stampsToday == dailyGoal.Value)
+                    {
+                        await _notificationsService.CreateGoalReachedAsync(actor.Id, scopedBusinessId.Value, stampsToday);
+                    }
+                }
+            }
 
             // If this is the customer's first stamp at this business, process referral qualification
             if (card.LifetimeStamps == 1)
@@ -218,6 +248,96 @@ public class StampService : IStampService
         {
             _logger.LogError(ex, "Error awarding stamp for business {BusinessId}", request.BusinessId);
             return ApiResponse<StampAwardedResponse>.Fail("AWARD_FAILED", "Failed to award stamp.");
+        }
+    }
+
+        public async Task<ApiResponse<Stamp>> CreateEnrollmentStampAsync(Guid cardId, int stampNumber)
+    {
+        var card = await _context.LoyaltyCards
+            .Include(c => c.Customer)
+            .Include(c => c.Business)
+            .Include(c => c.Program)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == cardId);
+
+        if (card == null)
+            return ApiResponse<Stamp>.Fail("CARD_NOT_FOUND", "Loyalty card not found.");
+
+        var now = DateTime.UtcNow;
+        var stamp = new Stamp
+        {
+            Id = Guid.NewGuid(),
+            CardId = cardId,
+            StampNumber = (short)stampNumber,
+            StampedAt = now,
+            QrTokenId = null,
+            AwardedByUserId = null,
+            Source = StampSource.Enrollment,
+            CreatedAt = now
+        };
+        await _unitOfWork.Stamps.AddAsync(stamp);
+        await _unitOfWork.SaveChangesAsync();
+
+        return ApiResponse<Stamp>.Ok(stamp);
+    }
+
+    public async Task<ApiResponse<Stamp>> CreateScanStampAsync(Guid cardId, int stampNumber, Guid staffUserId)
+    {
+        var card = await _context.LoyaltyCards
+            .Include(c => c.Customer)
+            .Include(c => c.Business)
+            .Include(c => c.Program)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == cardId);
+
+        if (card == null)
+            return ApiResponse<Stamp>.Fail("CARD_NOT_FOUND", "Loyalty card not found.");
+
+        var now = DateTime.UtcNow;
+        var stamp = new Stamp
+        {
+            Id = Guid.NewGuid(),
+            CardId = cardId, StampNumber = (short)stampNumber,
+            StampedAt = now,
+            QrTokenId = null,
+            AwardedByUserId = staffUserId,
+            Source = StampSource.Scan,
+            CreatedAt = now
+        };
+        await _unitOfWork.Stamps.AddAsync(stamp);
+        await _unitOfWork.SaveChangesAsync();
+
+        return ApiResponse<Stamp>.Ok(stamp);
+    }
+
+    public async Task<ApiResponse<List<StampDto>>> GetRecentStampsAsync(Guid businessId, Guid? staffUserId, int limit = 20)
+    {
+        try
+        {
+            var stamps = await _context.Stamps
+                .Include(s => s.Card).ThenInclude(c => c.Customer)
+                .Include(s => s.Card).ThenInclude(c => c.Program)
+                .Include(s => s.Card).ThenInclude(c => c.Business)
+                .Where(s => s.Card.BusinessId == businessId)
+                .Where(s => !staffUserId.HasValue || s.AwardedByUserId == staffUserId.Value)
+                .OrderByDescending(s => s.StampedAt)
+                .Take(limit)
+                .Select(s => new StampDto
+                {
+                    Id = s.Id,
+                    CustomerName = s.Card.Customer.FullName,
+                    Timestamp = s.StampedAt,
+                    Source = s.Source ?? StampSource.Scan,
+                    RewardDescription = s.Card.Program != null ? s.Card.Program.RewardDescription : null
+                })
+                .ToListAsync();
+
+            return ApiResponse<List<StampDto>>.Ok(stamps);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting recent stamps for business {BusinessId}", businessId);
+            return ApiResponse<List<StampDto>>.Fail("ACTIVITY_FAILED", "Failed to load activity feed.");
         }
     }
 

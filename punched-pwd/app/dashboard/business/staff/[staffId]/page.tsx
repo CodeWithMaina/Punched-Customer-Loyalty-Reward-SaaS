@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
-import type { AnalyticsPeriod, StaffActivityFeedResponse, StaffMemberAnalyticsResponse } from "@/types";
+import type { AnalyticsPeriod, StaffMemberAnalyticsResponse, StampDto } from "@/types";
 import {
-  Loader2, Mail, User, Shield, ChevronLeft, ScanLine,
+  Loader2, Mail, User, Shield, ChevronLeft, ScanLine, RefreshCw,
   Stamp, Users, Flame, Trophy, Clock3, CalendarDays, TrendingUp,
   BarChart3,
 } from "lucide-react";
@@ -33,17 +33,29 @@ const PERIODS: { label: string; value: AnalyticsPeriod }[] = [
   { label: "All", value: "all" },
 ];
 
-const DAILY_GOAL = 25;
-
 export default function StaffDetailPage() {
   useRoleGuard("Business");
   const { staffId } = useParams<{ staffId: string }>();
 
   const [analytics, setAnalytics] = useState<StaffMemberAnalyticsResponse | null>(null);
-  const [activityFeed, setActivityFeed] = useState<StaffActivityFeedResponse | null>(null);
+  const [recentStamps, setRecentStamps] = useState<StampDto[]>([]);
+  const [isStampsLoading, setIsStampsLoading] = useState(true);
   const [period, setPeriod] = useState<AnalyticsPeriod>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isPeriodLoading, setIsPeriodLoading] = useState(false);
+
+  const loadRecentStamps = useCallback(async () => {
+    try {
+            const bizRes = await businessesApi.getMine();
+      if (!bizRes.success || !bizRes.data) return;
+      const stampsRes = await businessesApi.getRecentStamps(bizRes.data.id, staffId, 20);
+      if (stampsRes.success && stampsRes.data) setRecentStamps(stampsRes.data);
+    } catch {
+      /* keep existing list on transient errors */
+    } finally {
+      setIsStampsLoading(false);
+    }
+  }, [staffId]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -53,11 +65,14 @@ export default function StaffDetailPage() {
       })
       .finally(() => setIsLoading(false));
 
-    businessesApi.getStaffMemberActivity(staffId, { activityType: "all", page: 1, pageSize: 50 })
-      .then((res) => {
-        if (res.success && res.data) setActivityFeed(res.data);
-      });
-  }, [staffId]);
+    loadRecentStamps();
+  }, [staffId, loadRecentStamps]);
+
+  // Lightweight polling refresh every 45s.
+  useEffect(() => {
+    const t = setInterval(loadRecentStamps, 45_000);
+    return () => clearInterval(t);
+  }, [loadRecentStamps]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -111,8 +126,7 @@ export default function StaffDetailPage() {
     );
   }
 
-  const { stampsIssued, customersServed, totalStampsAllTime, totalCustomersAllTime, recentActivity } = analytics;
-  const timeline = activityFeed?.activity ?? recentActivity;
+  const { stampsIssued, customersServed, totalStampsAllTime, totalCustomersAllTime } = analytics;
 
   const heroValue = period === "all" ? totalStampsAllTime : stampsIssued;
   const heroSubLabel =
@@ -120,8 +134,9 @@ export default function StaffDetailPage() {
     period === "today" ? "stamps issued today" :
     period === "7d" ? "stamps issued – last 7 days" :
     "stamps issued – last 30 days";
-  const dailyProgress = period === "today" ? Math.min((stampsIssued / DAILY_GOAL) * 100, 100) : 100;
-  const goalReached = period === "today" && stampsIssued >= DAILY_GOAL;
+  const dailyGoal = analytics.dailyGoal ?? 25;
+  const dailyProgress = period === "today" ? Math.min((stampsIssued / dailyGoal) * 100, 100) : 100;
+  const goalReached = period === "today" && stampsIssued >= dailyGoal;
 
   // Insights
   const avgPerDay = period === "7d" ? Math.round(stampsIssued / 7) :
@@ -171,14 +186,14 @@ export default function StaffDetailPage() {
         {period === "today" && (
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <p className="text-white/70 text-xs">Daily goal: {DAILY_GOAL} stamps</p>
+              <p className="text-white/70 text-xs">Daily goal: {dailyGoal} stamps</p>
               <p className="text-white text-xs font-bold">{Math.round(dailyProgress)}%</p>
             </div>
             <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
               <div className="h-full bg-[var(--surface)] rounded-full transition-all duration-700" style={{ width: `${dailyProgress}%` }} />
             </div>
             <p className="text-white/70 text-xs mt-2">
-              {goalReached ? "Goal reached! Great work" : `${DAILY_GOAL - stampsIssued} more to hit today's goal`}
+              {goalReached ? "Goal reached! Great work" : `${dailyGoal - stampsIssued} more to hit today's goal`}
             </p>
           </div>
         )}
@@ -273,34 +288,71 @@ export default function StaffDetailPage() {
         </div>
       )}
 
-      {/* ── Recent activity ───────────────────────────────────── */}
+            {/* ── Recent activity (fetched from the activity-feed endpoint) ── */}
       <div className="px-5 mb-5">
-        <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest mb-3">
-          Recent Activity
-        </p>
-        {timeline.length === 0 ? (
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
+            Recent Activity
+          </p>
+          <button
+            type="button"
+            aria-label="Refresh activity"
+            onClick={loadRecentStamps}
+            disabled={isStampsLoading}
+            className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-light)] disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw className={`h-4 w-4 ${isStampsLoading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+
+        {isStampsLoading && recentStamps.length === 0 ? (
+          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden divide-y divide-[var(--border-light)]">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+                <div className="h-9 w-9 rounded-full bg-[var(--border-light)] animate-pulse flex-shrink-0" />
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="h-3.5 w-3/5 rounded bg-[var(--border-light)] animate-pulse" />
+                  <div className="h-3 w-1/3 rounded bg-[var(--border-light)] animate-pulse" />
+                </div>
+                <div className="h-3 w-8 rounded bg-[var(--border-light)] animate-pulse flex-shrink-0" />
+              </div>
+            ))}
+          </div>
+        ) : recentStamps.length === 0 ? (
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-8 text-center">
             <Stamp className="h-8 w-8 text-[var(--text-muted)] mx-auto mb-2" />
             <p className="text-sm text-[var(--text-tertiary)]">No activity recorded yet</p>
           </div>
         ) : (
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden divide-y divide-[var(--border-light)]">
-            {timeline.slice(0, 10).map((item, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3.5">
-                <div className="h-9 w-9 rounded-full bg-brand-surface flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-brand">{item.customerName.charAt(0).toUpperCase()}</span>
+            {recentStamps.map((stamp) => (
+              <div key={stamp.id} className="flex items-center gap-3 px-4 py-3.5">
+                <div className="h-9 w-9 rounded-full bg-brand-surface flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <span className="text-sm font-bold text-brand">
+                    {stamp.customerName.charAt(0).toUpperCase()}
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{item.customerName}</p>
-                  <p className="text-xs text-[var(--text-tertiary)]">
-                    {item.activityType === "redemption"
-                      ? `Redemption${item.rewardValue ? ` • KES ${item.rewardValue}` : ""}`
-                      : `Stamp #${item.stampNumber}`}
-                  </p>
+                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{stamp.customerName}</p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        stamp.source === "enrollment"
+                          ? "bg-[var(--accent-light)] text-[var(--accent-text)]"
+                          : "bg-brand-surface text-brand"
+                      }`}
+                    >
+                      {stamp.source === "enrollment" ? "Welcome" : "Scan"}
+                    </span>
+                    {stamp.rewardDescription ? (
+                      <span className="text-[10px] text-[var(--text-tertiary)]">
+                        {stamp.rewardDescription}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-[10px] text-[var(--text-tertiary)]">{timeAgo(item.stampedAt)}</p>
-                  <div className="h-1.5 w-1.5 rounded-full bg-green-400 ml-auto mt-1" />
+                  <p className="text-[10px] text-[var(--text-tertiary)]">{timeAgo(stamp.timestamp)}</p>
                 </div>
               </div>
             ))}

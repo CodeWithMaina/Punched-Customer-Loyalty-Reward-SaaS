@@ -37,10 +37,15 @@ public interface IAdminService
     Task<ApiResponse<AdminBusinessSummary>> GetBusinessDetailAsync(Guid businessId);
     Task<ApiResponse<MessageResponse>> DeleteBusinessAsync(Guid businessId);
 
-    // ── Reward / Stamp Management ───────────────────────────
+        // ── Reward / Stamp Management ───────────────────────────
     Task<ApiResponse<PaginatedResponse<RedemptionResponse>>> GetRedemptionsAsync(
         string? search, int page, int pageSize);
 
     // ── Platform Health ─────────────────────────────────────
     Task<ApiResponse<AdminApiHealthResponse>> GetApiHealthAsync(int days = 7);
+
+    // ── Backfill ────────────────────────────────────────────
+    Task<ApiResponse<MessageResponse>> BackfillAnalyticsAsync(DateOnly from, DateOnly to);
+    Task<ApiResponse<MessageResponse>> BackfillSegmentsAsync();
+    Task<ApiResponse<MessageResponse>> BackfillProgramHistoryAsync();
 }

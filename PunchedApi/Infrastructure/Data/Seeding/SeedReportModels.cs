@@ -40,6 +40,7 @@ public sealed class SeedExecutionContext
     public required string ReportOutputPath { get; init; }
     public required SeedReport Report { get; init; }
     public required SeedScenario Scenario { get; init; }
+    public required IServiceProvider ServiceProvider { get; init; }
 
     public Dictionary<string, User> UsersByKey { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, Business> BusinessesByKey { get; } = new(StringComparer.Ordinal);

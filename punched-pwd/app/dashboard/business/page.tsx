@@ -1,797 +1,1082 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
 import { loyaltyApi } from "@/lib/api/loyalty";
-import * as Fmt from "@/lib/format";
 import type {
   Business,
   BusinessCustomer,
   BusinessDashboardResponse,
-  BusinessAnalyticsResponse,
-  BusinessAnalyticsComparisonResponse,
   LoyaltyProgram,
   StaffMember,
+  StaffMini,
 } from "@/types";
 import {
-    Loader2, Store, ScanLine, Award, AlertCircle, Plus, Stamp, Users, UserCheck,
-  TrendingUp, TrendingDown, Gift, BarChart3, Crown,
-  ChevronRight, ArrowRight, Clock, Zap, Target, Activity,
+  Loader2,
+  Store,
+  ScanLine,
+  AlertCircle,
+  Plus,
+  Users,
+  UserCheck,
+  Gift,
+  BarChart3,
+  ChevronRight,
+  Sparkles,
+  Flame,
+  TrendingUp,
+  CircleCheck,
 } from "lucide-react";
 import {
-  LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from "recharts";
+  MomentumRing,
+  RankedListItem,
+} from "@/components/business/DashboardPrimitives";
 
-// ── Constants ────────────────────────────────────────────────
-
-const PERIOD_OPTIONS = [
-  { label: "7D", value: "7d" },
-  { label: "30D", value: "30d" },
-  { label: "90D", value: "90d" },
-];
-
-const PIE_COLORS = ["#2563EB", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#6B7280"];
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-// ── Sub-components ──────────────────────────────────────────
-
-function MetricCard({
-  label, value, sub, trend, accent, warn,
-}: {
-  label: string; value: number | string; sub?: string;
-  trend?: "up" | "down" | "neutral"; accent?: boolean; warn?: boolean;
-}) {
-  const textClass = warn ? "text-amber-500" : accent ? "text-brand" : "text-[var(--text-primary)]";
-  return (
-    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4 flex flex-col gap-1">
-      <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">{label}</p>
-      <div className="flex items-end gap-1.5">
-        <p className={`text-2xl font-bold leading-none ${textClass}`}>{value}</p>
-        {trend === "up" && <TrendingUp className="h-3.5 w-3.5 text-green-500 mb-0.5" />}
-        {trend === "down" && <TrendingDown className="h-3.5 w-3.5 text-red-400 mb-0.5" />}
-      </div>
-      {sub && <p className="text-[10px] text-[var(--text-tertiary)]">{sub}</p>}
-    </div>
-  );
-}
-
-function PeriodTabs({ period, onChange }: { period: string; onChange: (p: string) => void }) {
-  return (
-    <div className="flex gap-1 bg-[var(--border-light)] rounded-xl p-0.5">
-      {PERIOD_OPTIONS.map((p) => (
-        <button
-          key={p.value}
-          onClick={() => onChange(p.value)}
-          className={`flex-1 text-xs font-bold py-1.5 rounded-lg transition-all ${
-            period === p.value ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-card" : "text-[var(--text-secondary)] hover:text-[var(--text-secondary)]"
-          }`}
-        >
-          {p.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function SectionTitle({ icon: Icon, label, href }: { icon: React.ElementType; label: string; href?: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-brand" />
-        <p className="text-sm font-bold text-[var(--text-primary)]">{label}</p>
-      </div>
-      {href && (
-        <Link href={href} className="text-xs font-semibold text-brand flex items-center gap-0.5">
-          View <ArrowRight className="h-3 w-3" />
-        </Link>
-      )}
-    </div>
-  );
-}
-
-// ── Main page ───────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════
+   BUSINESS DASHBOARD
+   Mobile-first / PWA-native / overflow-safe / premium
+   ═══════════════════════════════════════════════════════════════ */
 
 export default function BusinessOverviewPage() {
   useRoleGuard("Business");
+
   const [business, setBusiness] = useState<Business | null>(null);
-    const [customers, setCustomers] = useState<BusinessCustomer[]>([]);
-  const [dashboard, setDashboard] = useState<BusinessDashboardResponse | null>(null);
-  const [analytics, setAnalytics] = useState<BusinessAnalyticsResponse | null>(null);
-  const [compare, setCompare] = useState<BusinessAnalyticsComparisonResponse | null>(null);
+  const [customers, setCustomers] = useState<BusinessCustomer[]>([]);
+  const [dashboard, setDashboard] =
+    useState<BusinessDashboardResponse | null>(null);
   const [programs, setPrograms] = useState<LoyaltyProgram[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [period, setPeriod] = useState("30d");
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const initialPeriodLoaded = useState(false);
 
-  // Phase 1: Load critical above-the-fold data first (business + dashboard metrics)
+  /*
+   * Phase 1:
+   * Load the minimum information required for the first viewport.
+   */
   useEffect(() => {
     Promise.all([
       businessesApi.getMine(),
       businessesApi.getDashboard().catch(() => null),
     ])
       .then(([bizRes, dashRes]) => {
-        if (bizRes.success && bizRes.data) setBusiness(bizRes.data);
-        else { setNotFound(true); return; }
-        if (dashRes?.success && dashRes.data) setDashboard(dashRes.data);
-        if (bizRes.data?.loyaltyPrograms) setPrograms(bizRes.data.loyaltyPrograms);
+        if (bizRes.success && bizRes.data) {
+          setBusiness(bizRes.data);
+
+          if (bizRes.data.loyaltyPrograms) {
+            setPrograms(bizRes.data.loyaltyPrograms);
+          }
+        } else {
+          setNotFound(true);
+          return;
+        }
+
+        if (dashRes?.success && dashRes.data) {
+          setDashboard(dashRes.data);
+        }
       })
       .catch(() => setNotFound(true))
       .finally(() => setIsLoading(false));
   }, []);
 
-  // Phase 2: Load secondary data (customers, programs, staff) after initial render
+  /*
+   * Phase 2:
+   * Secondary information can load after the dashboard shell exists.
+   */
   useEffect(() => {
     if (isLoading || notFound) return;
+
     Promise.all([
       businessesApi.getMyCustomers().catch(() => null),
       loyaltyApi.listPrograms().catch(() => null),
-      businessesApi.getMyStaff().catch(() => null),
+      businessesApi.getMyStaff({ sort: "stamps" }).catch(() => null),
     ]).then(([custRes, progRes, staffRes]) => {
-      if (custRes?.success && custRes.data) setCustomers(custRes.data);
-      if (progRes?.success && progRes.data) setPrograms(progRes.data);
-      if (staffRes?.success && staffRes.data) setStaff(staffRes.data);
+      if (custRes?.success && custRes.data) {
+        setCustomers(custRes.data.items);
+      }
+
+      if (progRes?.success && progRes.data) {
+        setPrograms(progRes.data);
+      }
+
+      if (staffRes?.success && staffRes.data) {
+        setStaff(staffRes.data);
+      }
     });
   }, [isLoading, notFound]);
 
-    // Phase 3: Load analytics (heaviest call) — also handles period changes
-  useEffect(() => {
-    if (isLoading || notFound) return;
-    setAnalyticsLoading(true);
-    Promise.all([
-      businessesApi.getAnalytics(period),
-      businessesApi.getAnalyticsCompare(period).catch(() => null),
-    ])
-      .then(([aRes, cRes]) => {
-        if (aRes?.success && aRes.data) setAnalytics(aRes.data);
-        if (cRes?.success && cRes.data) setCompare(cRes.data);
-      })
-      .finally(() => setAnalyticsLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, isLoading, notFound]);
+  /* ─────────────────────────────────────────────────────────────
+     Derived values
+     ──────────────────────────────────────────────────────────── */
 
-  // Derived data
-  const newThisWeek = useMemo(() =>
-    customers.filter((c) => Date.now() - new Date(c.enrolledAt).getTime() < 7 * 86400000).length,
-    [customers]
+  const newThisWeek = useMemo(
+    () =>
+      customers.filter(
+        (customer) =>
+          Date.now() - new Date(customer.enrolledAt).getTime() <
+          7 * 86400000,
+      ).length,
+    [customers],
   );
 
-  const heatmapGrid = useMemo(() => {
-    if (!analytics) return [];
-    const grid: number[][] = Array.from({ length: 7 }, () => Array(6).fill(0));
-    analytics.weeklyHeatmap.forEach(({ day, hour, value }) => {
-      const bucket = Math.floor(hour / 4);
-      if (day >= 0 && day < 7 && bucket >= 0 && bucket < 6) grid[day][bucket] += value;
-    });
-    return grid;
-  }, [analytics]);
+  const activeProgram = useMemo(
+    () => programs.find((program) => program.isActive),
+    [programs],
+  );
 
-  const heatmapMax = useMemo(() => Math.max(...heatmapGrid.flat(), 1), [heatmapGrid]);
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+
+    return "Good evening";
+  }, []);
+
+  /*
+   * Composite momentum score.
+   * Kept intentionally lightweight until a backend-computed
+   * momentum metric becomes available.
+   */
+  const momentum = useMemo(() => {
+    const stampsToday = dashboard?.stampsToday ?? 0;
+    const rewardReady = dashboard?.rewardReadyCards ?? 0;
+
+    let score = 20;
+
+    score += Math.min(40, stampsToday * 4);
+    score += Math.min(20, newThisWeek * 4);
+    score += rewardReady > 0 ? 20 : 0;
+
+    score = Math.max(0, Math.min(100, score));
+
+    const tier =
+      score >= 75
+        ? "Excellent"
+        : score >= 45
+          ? "Steady"
+          : "Building";
+
+    return {
+      score,
+      tier,
+    };
+  }, [dashboard, newThisWeek]);
+
+  const insights = useMemo(() => {
+    const items: {
+      icon: React.ElementType;
+      text: string;
+      href: string;
+      tone: "warn" | "info" | "positive";
+    }[] = [];
+
+    const rewardReady = dashboard?.rewardReadyCards ?? 0;
+
+    if (rewardReady > 0) {
+      items.push({
+        icon: Gift,
+        text: `${rewardReady} customer${
+          rewardReady === 1 ? "" : "s"
+        } ready to redeem a reward`,
+        href: "/dashboard/business/customers",
+        tone: "warn",
+      });
+    }
+
+    if (!activeProgram) {
+      items.push({
+        icon: AlertCircle,
+        text: "Set up a loyalty program to start rewarding customers",
+        href: "/dashboard/business/profile/programs",
+        tone: "info",
+      });
+    }
+
+    if (newThisWeek > 0) {
+      items.push({
+        icon: Sparkles,
+        text: `${newThisWeek} new customer${
+          newThisWeek === 1 ? "" : "s"
+        } joined this week`,
+        href: "/dashboard/business/customers",
+        tone: "positive",
+      });
+    }
+
+    if (staff.length === 0) {
+      items.push({
+        icon: UserCheck,
+        text: "No staff linked yet — add staff to help award stamps",
+        href: "/dashboard/business/staff",
+        tone: "info",
+      });
+    }
+
+    return items;
+  }, [dashboard, activeProgram, newThisWeek, staff]);
+
+  /* ─────────────────────────────────────────────────────────────
+     Loading
+     ──────────────────────────────────────────────────────────── */
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-brand" />
-      </div>
+      <main className="min-h-[60vh] w-full px-4">
+        <div className="mx-auto flex min-h-[60vh] w-full max-w-lg items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-surface">
+              <Loader2 className="h-5 w-5 animate-spin text-brand" />
+            </div>
+
+            <p className="text-xs font-medium text-[var(--text-tertiary)]">
+              Loading your dashboard...
+            </p>
+          </div>
+        </div>
+      </main>
     );
   }
 
-  if (notFound) return <CreateBusinessPrompt />;
-
-  const activeCards = dashboard?.activeCards ?? customers.length;
-  const stampsToday = dashboard?.stampsToday ?? 0;
-  const rewardReadyCards = dashboard?.rewardReadyCards ?? 0;
-  const totalRedemptions = dashboard?.totalRedemptions ?? 0;
-  const totalStampsIssued = dashboard?.totalStampsIssued ?? 0;
-  const activeProgram = programs.find((p) => p.isActive);
-  const stampsRequired = activeProgram?.stampsRequired ?? 0;
-
-  function heatColor(v: number) {
-    if (v === 0) return "bg-[var(--border-light)]";
-    const ratio = v / heatmapMax;
-    if (ratio < 0.2) return "bg-brand/20";
-    if (ratio < 0.4) return "bg-brand/40";
-    if (ratio < 0.6) return "bg-brand/60";
-    if (ratio < 0.8) return "bg-brand/80";
-    return "bg-brand";
+  if (notFound) {
+    return <CreateBusinessPrompt />;
   }
 
+  const activeCards =
+    dashboard?.activeCards ?? customers.length;
+
+  const stampsToday =
+    dashboard?.stampsToday ?? 0;
+
+  const rewardReadyCards =
+    dashboard?.rewardReadyCards ?? 0;
+
+  const totalRedemptions =
+    dashboard?.totalRedemptions ?? 0;
+
+  const totalStampsIssued =
+    dashboard?.totalStampsIssued ?? 0;
+
   return (
-    <div className="max-w-lg mx-auto pb-28">
-      {/* ── Business identity ──────────────────────────────── */}
-      <div className="px-5 pt-5 pb-4 flex items-center gap-3">
-        <div className="h-14 w-14 rounded-2xl bg-brand-surface border border-brand/10 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-card">
-          {business?.logoUrl ? (
-            <img src={business.logoUrl} alt={business.name} className="h-full w-full object-cover" />
-          ) : (
-            <Store className="h-7 w-7 text-brand" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-[var(--text-primary)] truncate leading-tight">{business?.name}</h1>
-          <p className="text-xs text-[var(--text-tertiary)] mt-0.5 truncate">{business?.category} · {business?.location}</p>
-        </div>
-        <Link
-          href="/dashboard/business/scan"
-          className="h-10 w-10 bg-brand hover:bg-brand-hover shadow-card rounded-xl flex items-center justify-center transition-all active:scale-95 flex-shrink-0"
-          aria-label="Scan QR"
-        >
-          <ScanLine className="h-5 w-5 text-white" />
-        </Link>
-      </div>
+    <main className="min-h-full w-full overflow-x-clip pb-28">
+      <div className="mx-auto w-full max-w-lg px-4 sm:max-w-xl lg:max-w-2xl">
+        {/* ═══════════════════════════════════════════════════════
+            HEADER
+            ═══════════════════════════════════════════════════════ */}
 
-      {/* ── Key metrics ────────────────────────────────────── */}
-      <div className="px-5 grid grid-cols-2 gap-3 mb-5">
-        <MetricCard label="Customers" value={activeCards} sub={newThisWeek > 0 ? `+${newThisWeek} this week` : undefined} trend={newThisWeek > 0 ? "up" : "neutral"} />
-        <MetricCard label="Stamps Today" value={stampsToday} accent={stampsToday > 0} />
-        <MetricCard label="Ready to Redeem" value={rewardReadyCards} warn={rewardReadyCards > 0} sub={rewardReadyCards > 0 ? "Customers waiting" : undefined} />
-        <MetricCard label="Total Redeemed" value={totalRedemptions} sub={totalStampsIssued > 0 ? `${totalStampsIssued} stamps issued` : undefined} />
-      </div>
-
-      {/* ── Period selector ────────────────────────────────── */}
-      <div className="px-5 mb-5">
-        <PeriodTabs period={period} onChange={setPeriod} />
-      </div>
-
-      <div className={`transition-opacity ${analyticsLoading ? "opacity-50" : "opacity-100"}`}>
-                {analytics && (
-          <div className="px-5 space-y-5">
-            {/* ── 0. Executive Overview & Period-over-Period Comparison ── */}
-            {analytics.overview && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                                <SectionTitle icon={Activity} label="Overview & Comparison" />
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  {compare && (
-                    <>
-                      <MetricCard
-                        label="Stamps" value={Fmt.formatNumber(compare.summary.stamps.currentValue)}
-                        sub={`vs ${Fmt.formatNumber(compare.summary.stamps.previousValue)} — ${Fmt.formatTrend(compare.summary.stamps.changePct, compare.summary.stamps.trend)}`}
-                        trend={compare.summary.stamps.trend === "up" ? "up" : compare.summary.stamps.trend === "down" ? "down" : "neutral"}
-                      />
-                      <MetricCard
-                        label="Active Customers" value={Fmt.formatNumber(compare.summary.customers.currentValue)}
-                        sub={`vs ${Fmt.formatNumber(compare.summary.customers.previousValue)} — ${Fmt.formatTrend(compare.summary.customers.changePct, compare.summary.customers.trend)}`}
-                        trend={compare.summary.customers.trend === "up" ? "up" : compare.summary.customers.trend === "down" ? "down" : "neutral"}
-                      />
-                      <MetricCard
-                        label="Reward Payout" value={Fmt.formatKes(compare.summary.payoutKes.currentValue)}
-                        sub={`vs ${Fmt.formatKes(compare.summary.payoutKes.previousValue)} — ${Fmt.formatTrend(compare.summary.payoutKes.changePct, compare.summary.payoutKes.trend)}`}
-                        trend={compare.summary.payoutKes.trend === "up" ? "down" : compare.summary.payoutKes.trend === "down" ? "up" : "neutral"}
-                        warn={compare.summary.payoutKes.trend === "up"}
-                      />
-                      <MetricCard
-                        label="Redemption Rate" value={Fmt.formatPercent(analytics.overview.redemptionRate)}
-                        sub={`${Fmt.formatNumber(analytics.overview.rewardReadyCustomers)} reward-ready`}
-                        accent={analytics.overview.redemptionRate > 0}
-                      />
-                    </>
-                  )}
-                  {!compare && (
-                    <>
-                      <MetricCard label="Total Stamps" value={Fmt.formatNumber(analytics.overview.totalStamps)} accent />
-                      <MetricCard label="New Customers" value={Fmt.formatNumber(analytics.overview.newCustomers)} sub={`${Fmt.formatNumber(analytics.overview.returningCustomers)} returning`} />
-                      <MetricCard label="Redemption Rate" value={Fmt.formatPercent(analytics.overview.redemptionRate)} accent={analytics.overview.redemptionRate > 0} />
-                      <MetricCard label="Reward Payout" value={Fmt.formatKes(analytics.overview.rewardPayoutKes)} warn={analytics.overview.rewardPayoutKes > 0} sub={`${Fmt.formatNumber(analytics.overview.rewardReadyCustomers)} ready`} />
-                    </>
-                  )}
-                </div>
-                <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-                  <div><p className="text-xs text-[var(--text-tertiary)]">Stamps this week</p><p className="text-sm font-bold text-brand">{Fmt.formatNumber(analytics.overview.stampsThisWeek)}</p></div>
-                  <div><p className="text-xs text-[var(--text-tertiary)]">Avg/stamp per customer</p><p className="text-sm font-bold text-[var(--text-primary)]">{Fmt.formatDecimal(analytics.overview.avgStampsPerCustomer)}</p></div>
-                  <div><p className="text-xs text-[var(--text-tertiary)]">Net Eng. Value</p><p className="text-sm font-bold text-brand">{Fmt.formatKes(analytics.overview.netEngagementValueKes)}</p></div>
-                </div>
-              </div>
+        <header className="flex w-full items-center gap-3 pb-4 pt-4 sm:pt-6">
+          {/* Business logo */}
+          {/* <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-brand/10 bg-brand-surface shadow-sm">
+            {business?.logoUrl ? (
+              <img
+                src={business.logoUrl}
+                alt={business.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <Store className="h-5 w-5 text-brand" />
             )}
+          </div> */}
 
-            {/* ── 1. Business Hours Performance (Line Chart) ── */}
-            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-              <SectionTitle icon={Clock} label="Peak Hours" />
-              <div className="h-44 mt-3">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={analytics.hourlyActivity}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                    <XAxis dataKey="hour" tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false}
-                      tickFormatter={(h: number) => h % 3 === 0 ? `${h}:00` : ""} />
-                    <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={25} allowDecimals={false} />
-                    <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid #e5e7eb" }}
-                      labelFormatter={(h: any) => `${h}:00 - ${Number(h) + 1}:00`} />
-                    <Line type="monotone" dataKey="stamps" stroke="var(--brand)" strokeWidth={2} dot={false} name="Stamps" />
-                    <Line type="monotone" dataKey="redemptions" stroke="#10B981" strokeWidth={2} dot={false} name="Redemptions" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="flex gap-4 mt-2 justify-center">
-                <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]"><span className="h-2 w-2 rounded-full bg-brand" />Stamps</span>
-                <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]"><span className="h-2 w-2 rounded-full bg-emerald-500" />Redemptions</span>
-              </div>
-            </div>
+          {/* Business identity */}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[11px] font-medium leading-none text-[var(--text-tertiary)]">
+              {greeting}
+            </p>
 
-            {/* ── 2. Weekly Heatmap ──────────────────────────── */}
-            {heatmapGrid.length > 0 && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                <SectionTitle icon={Activity} label="Weekly Heatmap" />
-                <div className="mt-3">
-                  <div className="flex gap-1 mb-1 pl-8">
-                    {["12am", "4am", "8am", "12pm", "4pm", "8pm"].map((t) => (
-                      <div key={t} className="flex-1 text-[9px] text-[var(--text-tertiary)] text-center">{t}</div>
-                    ))}
-                  </div>
-                  {heatmapGrid.map((row, di) => (
-                    <div key={di} className="flex items-center gap-1 mb-1">
-                      <span className="text-[9px] text-[var(--text-tertiary)] w-7 text-right shrink-0">{DAYS[di]}</span>
-                      {row.map((val, bi) => (
-                        <div
-                          key={bi}
-                          title={`${DAYS[di]} ${["12am", "4am", "8am", "12pm", "4pm", "8pm"][bi]}: ${val}`}
-                          className={`flex-1 h-5 rounded ${heatColor(val)} transition-all`}
-                        />
-                      ))}
-                    </div>
-                  ))}
-                  <div className="flex items-center gap-1 mt-2 justify-end">
-                    <span className="text-[9px] text-[var(--text-tertiary)]">Less</span>
-                    {["bg-[var(--border-light)]", "bg-brand/20", "bg-brand/40", "bg-brand/70", "bg-brand"].map((c) => (
-                      <div key={c} className={`h-3 w-3 rounded-sm ${c}`} />
-                    ))}
-                    <span className="text-[9px] text-[var(--text-tertiary)]">More</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── 3. Engagement Trends (Multi-Line) ──────────── */}
-            {analytics.engagementTrends.length > 1 && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                <SectionTitle icon={TrendingUp} label="Engagement Trends" />
-                <div className="h-44 mt-3">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={analytics.engagementTrends}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                      <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false}
-                        tickFormatter={(d: string) => new Date(d).toLocaleDateString("en", { day: "numeric", month: "short" })}
-                        interval={Math.max(0, Math.floor(analytics.engagementTrends.length / 6))} />
-                      <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={25} allowDecimals={false} />
-                      <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid #e5e7eb" }}
-                        labelFormatter={(d: any) => new Date(d).toLocaleDateString("en", { month: "short", day: "numeric" })} />
-                      <Area type="monotone" dataKey="stamps" stroke="var(--brand)" fill="var(--brand)" fillOpacity={0.1} strokeWidth={2} name="Stamps" />
-                      <Area type="monotone" dataKey="redemptions" stroke="#10B981" fill="#10B981" fillOpacity={0.1} strokeWidth={2} name="Redemptions" />
-                      <Area type="monotone" dataKey="enrollments" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.1} strokeWidth={2} name="Enrollments" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="flex gap-3 mt-2 justify-center flex-wrap">
-                  <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]"><span className="h-2 w-2 rounded-full bg-brand" />Stamps</span>
-                  <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]"><span className="h-2 w-2 rounded-full bg-emerald-500" />Redemptions</span>
-                  <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]"><span className="h-2 w-2 rounded-full bg-amber-500" />Enrollments</span>
-                </div>
-              </div>
-            )}
-
-            {/* ── 4. Customer Demographics (Gender Donut + Age Bars) ── */}
-            <div className="grid grid-cols-1 gap-3">
-              {analytics.genderBreakdown.length > 0 && (
-                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                  <SectionTitle icon={Users} label="Gender Distribution" />
-                  <div className="flex items-center gap-4 mt-3">
-                    <div className="h-28 w-28 flex-shrink-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={analytics.genderBreakdown}
-                            dataKey="count"
-                            nameKey="label"
-                            innerRadius={30}
-                            outerRadius={50}
-                            paddingAngle={3}
-                          >
-                            {analytics.genderBreakdown.map((_, i) => (
-                              <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid #e5e7eb" }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="flex-1 space-y-1.5">
-                      {analytics.genderBreakdown.map((g, i) => {
-                        const total = analytics.genderBreakdown.reduce((s, x) => s + x.count, 0);
-                        const pct = total > 0 ? Math.round((g.count / total) * 100) : 0;
-                        return (
-                          <div key={g.label} className="flex items-center gap-2">
-                            <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                            <span className="text-xs text-[var(--text-secondary)] flex-1">{g.label}</span>
-                            <span className="text-xs font-bold text-[var(--text-primary)]">{pct}%</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {analytics.ageBreakdown.length > 0 && (
-                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                  <SectionTitle icon={BarChart3} label="Age Distribution" />
-                  <div className="h-36 mt-3">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analytics.ageBreakdown.filter((a) => a.label !== "Unknown")} barCategoryGap="25%">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={25} allowDecimals={false} />
-                        <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid #e5e7eb" }} />
-                        <Bar dataKey="count" fill="var(--brand)" radius={[4, 4, 0, 0]} name="Customers" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ── 5. Conversion Funnel ───────────────────────── */}
-            {analytics.funnelData?.totalCustomers > 0 && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                <SectionTitle icon={Target} label="Conversion Funnel" />
-                <div className="mt-3 space-y-2">
-                  {[
-                    { label: "Total Customers", value: analytics.funnelData.totalCustomers, color: "bg-brand" },
-                    { label: "Stamped at least once", value: analytics.funnelData.stampedAtLeastOnce, color: "bg-blue-400" },
-                    { label: "Completed a card", value: analytics.funnelData.completedCard, color: "bg-emerald-500" },
-                    { label: "Redeemed reward", value: analytics.funnelData.redeemed, color: "bg-amber-500" },
-                  ].map(({ label, value, color }, idx) => {
-                    const pct = analytics.funnelData.totalCustomers > 0 ? Math.round((value / analytics.funnelData.totalCustomers) * 100) : 0;
-                    return (
-                      <div key={label}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-[var(--text-secondary)]">{label}</span>
-                          <span className="text-xs font-bold text-[var(--text-primary)]">{value} ({pct}%)</span>
-                        </div>
-                        <div className="h-3 bg-[var(--border-light)] rounded-full overflow-hidden">
-                          <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
-                        </div>
-                        {idx < 3 && (
-                          <div className="flex justify-center my-0.5">
-                            <svg className="h-3 w-3 text-[var(--text-muted)]" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* ── 6. Customer Growth (Area Chart) ────────────── */}
-            {analytics.customerGrowth.length > 1 && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                <SectionTitle icon={TrendingUp} label="Customer Growth" />
-                <div className="h-40 mt-3">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={analytics.customerGrowth}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                      <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false}
-                        tickFormatter={(d: string) => new Date(d).toLocaleDateString("en", { day: "numeric", month: "short" })}
-                        interval={Math.max(0, Math.floor(analytics.customerGrowth.length / 5))} />
-                      <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={30} allowDecimals={false} />
-                      <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid #e5e7eb" }}
-                        labelFormatter={(d: any) => new Date(d).toLocaleDateString("en", { month: "short", day: "numeric" })} />
-                      <Area type="monotone" dataKey="total" stroke="var(--brand)" fill="var(--brand)" fillOpacity={0.15} strokeWidth={2} name="Total" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {/* ── 7. Retention ───────────────────────────────── */}
-            {analytics.retentionData && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                <SectionTitle icon={Zap} label="Retention (30 days)" />
-                <div className="grid grid-cols-3 gap-2 mt-3">
-                  <div className="bg-green-50 rounded-xl p-3 text-center">
-                    <p className="text-lg font-bold text-green-700">{analytics.retentionData.returningCustomers}</p>
-                    <p className="text-[10px] text-green-600 font-semibold uppercase mt-0.5">Returning</p>
-                  </div>
-                  <div className="bg-blue-50 rounded-xl p-3 text-center">
-                    <p className="text-lg font-bold text-blue-700">{analytics.retentionData.newCustomers}</p>
-                    <p className="text-[10px] text-blue-600 font-semibold uppercase mt-0.5">New</p>
-                  </div>
-                  <div className="bg-[var(--surface-raised)] rounded-xl p-3 text-center">
-                    <p className="text-lg font-bold text-[var(--text-secondary)]">{analytics.retentionData.dormantCustomers}</p>
-                    <p className="text-[10px] text-[var(--text-secondary)] font-semibold uppercase mt-0.5">Dormant</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-center justify-between bg-brand-surface rounded-xl px-3 py-2.5">
-                  <span className="text-xs text-brand font-semibold">Retention Rate</span>
-                  <span className="text-sm font-bold text-brand">{analytics.retentionData.retentionRate}%</span>
-                </div>
-              </div>
-            )}
-
-            {/* ── 8. Program Performance (Bar Chart) ─────────── */}
-            {analytics.programPerformance.length > 0 && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                <SectionTitle icon={Gift} label="Program Performance" />
-                <div className="space-y-3 mt-3">
-                  {analytics.programPerformance.map((p) => (
-                    <div key={p.programId} className="bg-[var(--surface-raised)] rounded-xl p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.programName}</p>
-                        <span className="text-xs font-bold text-brand">{p.completionRate}% completion</span>
-                      </div>
-                      <div className="h-1.5 bg-[var(--border)] rounded-full overflow-hidden mb-2">
-                        <div className="h-full bg-brand rounded-full transition-all" style={{ width: `${p.completionRate}%` }} />
-                      </div>
-                      <div className="flex gap-4 text-[10px] text-[var(--text-secondary)]">
-                        <span>{p.activeCards} cards</span>
-                        <span>{p.totalRedemptions} redemptions</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ── 9. Staff Performance (Horizontal Bar) ──────── */}
-            {analytics.staffPerformance.length > 0 && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                <SectionTitle icon={UserCheck} label="Staff Performance" href="/dashboard/business/staff" />
-                <div className="space-y-2 mt-3">
-                  {analytics.staffPerformance.slice(0, 5).map((s, i) => {
-                    const max = analytics.staffPerformance[0]?.stampsIssued || 1;
-                    return (
-                      <Link key={s.staffId} href={`/dashboard/business/staff/${s.staffId}`}
-                        className="flex items-center gap-3 bg-[var(--surface-raised)] rounded-xl px-3 py-2.5 hover:bg-[var(--border-light)] transition-colors">
-                        <span className={`text-xs font-bold w-4 text-center ${i === 0 ? "text-amber-500" : "text-[var(--text-tertiary)]"}`}>
-                          {i + 1}
-                        </span>
-                        <div className="h-7 w-7 rounded-full bg-brand-surface text-brand text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                          {s.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{s.name}</p>
-                          <div className="h-1 bg-[var(--border)] rounded-full overflow-hidden mt-1">
-                            <div className="h-full bg-brand rounded-full" style={{ width: `${(s.stampsIssued / max) * 100}%` }} />
-                          </div>
-                        </div>
-                        <span className="text-xs font-bold text-[var(--text-primary)] flex-shrink-0">{s.stampsIssued}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* ── 10. Top Customers ──────────────────────────── */}
-            {analytics.topCustomers.length > 0 && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden">
-                <div className="flex items-center justify-between px-4 pt-4 pb-2">
-                  <div className="flex items-center gap-2">
-                    <Crown className="h-4 w-4 text-amber-500" />
-                    <p className="text-sm font-bold text-[var(--text-primary)]">Top Customers</p>
-                  </div>
-                  <Link href="/dashboard/business/customers" className="text-xs font-semibold text-brand">View all</Link>
-                </div>
-                <div className="divide-y divide-[var(--border-light)]">
-                  {analytics.topCustomers.slice(0, 5).map((c, i) => (
-                    <Link key={c.customerId} href={`/dashboard/business/customers/${c.customerId}`}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--surface-raised)] transition-colors">
-                      <span className={`text-xs font-bold w-4 text-center ${i === 0 ? "text-amber-500" : "text-[var(--text-muted)]"}`}>{i + 1}</span>
-                      <div className="h-8 w-8 rounded-full bg-brand-surface text-brand text-xs font-bold flex items-center justify-center flex-shrink-0">
-                        {c.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{c.name}</p>
-                        <p className="text-[10px] text-[var(--text-tertiary)]">{c.lifetimeStamps} stamps · {c.totalRedemptions} redeemed</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
-                    </Link>
-                  ))}
-                </div>
-                          </div>
-            )}
-
-            {/* ── 11. Revenue & Payout Pipeline ─────────────────── */}
-            {analytics.revenue && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                <SectionTitle icon={Gift} label="Revenue & Payout" href="/dashboard/business/redemptions" />
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <MetricCard label="Reward Payout (period)" value={Fmt.formatKes(analytics.revenue.rewardPayoutKes)} accent />
-                  <MetricCard label="Rewards Paid" value={Fmt.formatKes(analytics.revenue.rewardsPaidKes)} />
-                  <MetricCard label="Pending Payout" value={Fmt.formatKes(analytics.revenue.pendingPayoutKes)} warn={analytics.revenue.pendingPayoutKes > 0} />
-                  <MetricCard label="Accrued Liability" value={Fmt.formatKes(analytics.revenue.accruedLiabilityKes)} sub={`${analytics.revenue.failedPayouts} failed`} />
-                </div>
-                {analytics.revenue.payoutSuccessRate > 0 && (
-                  <div className="mt-3 flex items-center justify-between bg-brand-surface rounded-xl px-3 py-2.5">
-                    <span className="text-xs font-semibold text-brand">Payout success rate</span>
-                    <span className="text-sm font-bold text-brand">{Fmt.formatPercent(analytics.revenue.payoutSuccessRate)}%</span>
-                  </div>
-                )}
-                {analytics.revenue.avgPayoutLatencyDays != null && (
-                  <p className="text-[10px] text-[var(--text-tertiary)] mt-2">Avg payout latency: {Fmt.formatDecimal(analytics.revenue.avgPayoutLatencyDays)} days</p>
-                )}
-              </div>
-            )}
-
-                  {/* ── 12. Traffic Insights ─────────────────────────── */}
-            {analytics.traffic && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                <SectionTitle icon={Zap} label="Traffic Insights" />
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <MetricCard label="Busiest Day" value={analytics.traffic.busiestDayOfWeek ?? "—"} accent sub={`${analytics.traffic.busiestDayStamps} stamps`} />
-                  <MetricCard label="Visit Cadence" value={analytics.traffic.visitCadenceDays != null ? `${Fmt.formatDecimal(analytics.traffic.visitCadenceDays)}d` : "—"} accent sub="avg between visits" />
-                </div>
-                {analytics.traffic.peakHours.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest mb-1.5">Peak Hours</p>
-                    <ResponsiveContainer width="100%" height={112}>
-                      <BarChart data={analytics.traffic.peakHours.sort((a, b) => a.hour - b.hour)} layout="vertical" margin={{ left: 28 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
-                        <XAxis type="number" tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                        <YAxis type="category" dataKey="hour" tickFormatter={(h: any) => Fmt.formatHour(h)} tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                        <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid #e5e7eb" }} labelFormatter={(h: any) => Fmt.formatHour(h)} />
-                        <Bar dataKey="stampCount" fill="var(--brand)" radius={[0, 4, 4, 0]} name="Stamps" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-                {analytics.traffic.underutilizedHours.length > 0 && (
-                  <div className="mt-3 rounded-xl bg-[var(--surface-raised)] p-2.5">
-                    <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest mb-1.5">Quiet Windows</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {analytics.traffic.underutilizedHours.slice(0, 4).map((u) => (
-                        <span key={u.hour} className="text-[10px] text-[var(--text-secondary)] bg-[var(--border-light)] px-2 py-0.5 rounded-full">
-                          {Fmt.formatHour(u.hour)} {u.label} · {u.stampCount} stamps
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── 13. Actionable Recommendations ───────────────── */}
-            {analytics.recommendations && analytics.recommendations.length > 0 && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-                <SectionTitle icon={AlertCircle} label="Recommendations" href="/dashboard/business/insights" />
-                <div className="mt-3 space-y-2.5">
-                  {analytics.recommendations.map((r) => (
-                    <div key={r.type} className="bg-[var(--surface-raised)] rounded-xl p-3 flex items-start gap-2.5">
-                      <span className={`mt-0.5 text-xs font-bold uppercase tracking-widest ${
-                        r.priority === "high" ? "text-rose-500" : r.priority === "medium" ? "text-amber-500" : "text-sky-500"
-                      }`}>{r.priority}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[var(--text-primary)]">{r.title}</p>
-                        <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{r.description}</p>
-                      </div>
-                      {r.actionUrl && (
-                        <Link href={r.actionUrl} className="text-xs font-semibold text-brand flex-shrink-0">{r.action}</Link>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <h1 className="mt-1 truncate text-[15px] font-bold leading-tight text-[var(--text-primary)]">
+              {business?.name}
+            </h1>
           </div>
+
+          {/* Primary action */}
+          <Link
+            href="/dashboard/business/scan"
+            aria-label="Scan QR"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand text-white shadow-[0_6px_18px_var(--brand-ring)] transition-transform active:scale-95"
+          >
+            <ScanLine className="h-5 w-5" />
+          </Link>
+        </header>
+
+        {/* ═══════════════════════════════════════════════════════
+            MOMENTUM HERO
+            ═══════════════════════════════════════════════════════ */}
+
+        <section className="mb-4 w-full">
+          <Link
+            href="/dashboard/business/analytics"
+            className="animate-scale-in relative block w-full overflow-hidden rounded-[28px] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.08)] transition-transform active:scale-[0.99]"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--brand-dark), var(--brand))",
+            }}
+          >
+            {/* Decorative glow */}
+            <div
+              className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-20"
+              style={{
+                background:
+                  "radial-gradient(circle, #fff, transparent 70%)",
+              }}
+            />
+
+            <div className="relative flex min-w-0 items-center gap-4">
+              {/* Score */}
+              <div className="shrink-0">
+                <MomentumRing
+                  score={momentum.score}
+                  label="Score"
+                  dark
+                  size={68}
+                />
+              </div>
+
+              {/* Content */}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[9px] font-bold uppercase tracking-[0.16em] text-white/65">
+                  Today&apos;s momentum
+                </p>
+
+                <p
+                  className="mt-1 truncate text-lg font-bold leading-tight text-white"
+                  style={{
+                    fontFamily: "'Space Grotesk', sans-serif",
+                  }}
+                >
+                  {momentum.tier}
+                </p>
+
+                <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-white/70">
+                  {stampsToday > 0
+                    ? `${stampsToday} stamp${
+                        stampsToday === 1 ? "" : "s"
+                      } issued today`
+                    : "No stamps yet — scan a customer to get going"}
+                </p>
+              </div>
+            </div>
+
+            {/* Analytics CTA */}
+            <div className="relative mt-4 flex w-fit max-w-full items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+              <span className="truncate">View full analytics</span>
+              <ChevronRight className="h-3 w-3 shrink-0" />
+            </div>
+          </Link>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════
+            KEY METRICS
+            Responsive wrapping grid.
+            No horizontal overflow.
+            ═══════════════════════════════════════════════════════ */}
+
+        <section className="mb-5 grid w-full grid-cols-2 gap-2.5 sm:grid-cols-4">
+          <MetricCard
+            label="Customers"
+            value={activeCards}
+            sub={
+              newThisWeek > 0
+                ? `+${newThisWeek} this week`
+                : "Total active"
+            }
+            icon={Users}
+            tone="brand"
+          />
+
+          <MetricCard
+            label="Stamps today"
+            value={stampsToday}
+            sub="Since midnight"
+            icon={ScanLine}
+            tone="accent"
+          />
+
+          <MetricCard
+            label="Ready to redeem"
+            value={rewardReadyCards}
+            sub={
+              rewardReadyCards > 0
+                ? "Waiting"
+                : "None pending"
+            }
+            icon={Gift}
+            tone={
+              rewardReadyCards > 0
+                ? "warning"
+                : "default"
+            }
+          />
+
+          <MetricCard
+            label="Redeemed"
+            value={totalRedemptions}
+            sub={
+              totalStampsIssued > 0
+                ? `${totalStampsIssued} issued`
+                : "All time"
+            }
+            icon={CircleCheck}
+            tone="default"
+          />
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════
+            QUICK ACTIONS
+            2 columns on small screens.
+            4 columns when enough room exists.
+            ═══════════════════════════════════════════════════════ */}
+
+        <section className="mb-5">
+          <div className="mb-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                Quick actions
+              </p>
+            </div>
+          </div>
+
+          <div className="grid w-full grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <QuickAction
+              icon={ScanLine}
+              label="Scan"
+              description="Award stamp"
+              href="/dashboard/business/scan"
+            />
+
+            <QuickAction
+              icon={BarChart3}
+              label="Stats"
+              description="View insights"
+              href="/dashboard/business/analytics"
+            />
+
+            <QuickAction
+              icon={Users}
+              label="Clients"
+              description="Manage customers"
+              href="/dashboard/business/customers"
+            />
+
+            <QuickAction
+              icon={UserCheck}
+              label="Staff"
+              description="Manage team"
+              href="/dashboard/business/staff"
+            />
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════
+            ATTENTION / INSIGHTS
+            Cards wrap naturally instead of creating viewport
+            overflow.
+            ═══════════════════════════════════════════════════════ */}
+
+        {insights.length > 0 && (
+          <section className="mb-5">
+            <div className="mb-2.5 flex items-center gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-brand-surface">
+                <Flame className="h-3.5 w-3.5 text-brand" />
+              </div>
+
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                  Needs your attention
+                </p>
+              </div>
+            </div>
+
+            <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {insights.map((item, index) => (
+                <InsightCard
+                  key={`${item.href}-${index}`}
+                  item={item}
+                  index={index}
+                />
+              ))}
+            </div>
+          </section>
         )}
+
+        {/* ═══════════════════════════════════════════════════════
+            LOYALTY PROGRAMS
+            ═══════════════════════════════════════════════════════ */}
+
+        <section className="mb-5 w-full">
+          <ProgramsSection programs={programs} />
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════
+            TEAM
+            ═══════════════════════════════════════════════════════ */}
+
+        {(dashboard?.staffMini?.length ?? 0) > 0 && (
+          <section className="mb-5 w-full">
+            <YourTeamSection staff={dashboard!.staffMini!} />
+          </section>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════
+            TOP STAFF
+            ═══════════════════════════════════════════════════════ */}
+
+        <section className="w-full">
+          <StaffTopFive staff={staff} />
+        </section>
+      </div>
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   METRIC CARD
+   ═══════════════════════════════════════════════════════════════ */
+
+function MetricCard({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  tone = "default",
+}: {
+  label: string;
+  value: number;
+  sub?: string;
+  icon: React.ElementType;
+  tone?: "default" | "brand" | "accent" | "warning";
+}) {
+  const toneStyles = {
+    default: {
+      iconBg: "bg-[var(--border-light)]",
+      iconColor: "text-[var(--text-secondary)]",
+    },
+    brand: {
+      iconBg: "bg-brand-surface",
+      iconColor: "text-brand",
+    },
+    accent: {
+      iconBg: "bg-[var(--accent-light)]",
+      iconColor: "text-[var(--accent)]",
+    },
+    warning: {
+      iconBg: "bg-amber-50",
+      iconColor: "text-amber-600",
+    },
+  };
+
+  const styles = toneStyles[tone];
+
+  return (
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.025)]">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${styles.iconBg}`}
+        >
+          <Icon className={`h-4 w-4 ${styles.iconColor}`} />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[10px] font-medium text-[var(--text-tertiary)]">
+            {label}
+          </p>
+
+          <p className="mt-0.5 truncate text-xl font-bold leading-none tracking-tight text-[var(--text-primary)]">
+            {value}
+          </p>
+        </div>
       </div>
 
-      {/* ── Loyalty programs ───────────────────────────────── */}
-      <div className="px-5 mt-5">
-        <ProgramsStrip programs={programs} />
-      </div>
-
-      {/* ── Staff strip ────────────────────────────────────── */}
-      <div className="px-5 mt-5">
-        <StaffStrip staff={staff} />
-      </div>
+      {sub && (
+        <p className="mt-2 truncate text-[9.5px] font-medium text-[var(--text-tertiary)]">
+          {sub}
+        </p>
+      )}
     </div>
   );
 }
 
-// ── Sub-components (programs, staff, create prompt) ─────────
+/* ═══════════════════════════════════════════════════════════════
+   QUICK ACTION
+   ═══════════════════════════════════════════════════════════════ */
 
-function ProgramsStrip({ programs }: { programs: LoyaltyProgram[] }) {
+function QuickAction({
+  icon: Icon,
+  label,
+  description,
+  href,
+}: {
+  icon: React.ElementType;
+  label: string;
+  description: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex min-w-0 items-center gap-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] p-3 shadow-[0_2px_10px_rgba(0,0,0,0.025)] transition-all active:scale-[0.98] sm:flex-col sm:items-center sm:justify-center sm:p-3.5"
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-surface transition-transform group-active:scale-95">
+        <Icon className="h-[17px] w-[17px] text-brand" />
+      </div>
+
+      <div className="min-w-0 flex-1 sm:w-full sm:text-center">
+        <p className="truncate text-xs font-bold text-[var(--text-primary)]">
+          {label}
+        </p>
+
+        <p className="mt-0.5 truncate text-[9px] text-[var(--text-tertiary)]">
+          {description}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INSIGHT CARD
+   ═══════════════════════════════════════════════════════════════ */
+
+function InsightCard({
+  item,
+  index,
+}: {
+  item: {
+    icon: React.ElementType;
+    text: string;
+    href: string;
+    tone: "warn" | "info" | "positive";
+  };
+  index: number;
+}) {
+  const Icon = item.icon;
+
+  const styles = {
+    warn: {
+      bg: "bg-amber-50",
+      icon: "text-amber-600",
+    },
+    positive: {
+      bg: "bg-emerald-50",
+      icon: "text-emerald-600",
+    },
+    info: {
+      bg: "bg-brand-surface",
+      icon: "text-brand",
+    },
+  };
+
+  const style = styles[item.tone];
+
+  return (
+    <Link
+      href={item.href}
+      className="animate-slide-in-right flex min-w-0 w-full items-start gap-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.025)] transition-transform active:scale-[0.99]"
+      style={{
+        animationDelay: `${index * 60}ms`,
+      }}
+    >
+      <div
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${style.bg}`}
+      >
+        <Icon className={`h-4 w-4 ${style.icon}`} />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="line-clamp-2 text-xs font-semibold leading-snug text-[var(--text-secondary)]">
+          {item.text}
+        </p>
+
+        <div className="mt-1.5 flex items-center gap-1 text-[9px] font-semibold text-brand">
+          <span>Take action</span>
+          <ChevronRight className="h-3 w-3 shrink-0" />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PROGRAMS
+   ═══════════════════════════════════════════════════════════════ */
+
+function ProgramsSection({
+  programs,
+}: {
+  programs: LoyaltyProgram[];
+}) {
   if (programs.length === 0) {
     return (
-      <Link href="/dashboard/business/profile"
-        className="flex items-center gap-3 bg-brand-surface border border-brand/10 rounded-2xl px-4 py-3.5">
-        <div className="h-9 w-9 rounded-xl bg-brand/10 flex items-center justify-center flex-shrink-0">
+      <Link
+        href="/dashboard/business/profile/programs"
+        className="flex min-w-0 w-full items-center gap-3 rounded-2xl border border-brand/10 bg-brand-surface p-4 transition-transform active:scale-[0.99]"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10">
           <Gift className="h-4 w-4 text-brand" />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-brand">Create your first loyalty program</p>
-          <p className="text-xs text-brand/60 mt-0.5">Set up stamps &amp; rewards</p>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-brand">
+            Create your first loyalty program
+          </p>
+
+          <p className="mt-0.5 truncate text-[11px] text-brand/60">
+            Set up stamps &amp; rewards
+          </p>
         </div>
-        <ChevronRight className="h-4 w-4 text-brand/40 flex-shrink-0" />
+
+        <ChevronRight className="h-4 w-4 shrink-0 text-brand/40" />
       </Link>
     );
   }
 
   return (
-    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-4 pt-4 pb-2">
-        <div className="flex items-center gap-2">
-          <Gift className="h-4 w-4 text-brand" />
-          <p className="text-sm font-bold text-[var(--text-primary)]">Programs</p>
-          <span className="text-[10px] font-bold bg-brand-surface text-brand px-1.5 py-0.5 rounded-full">{programs.length}</span>
+    <div className="w-full overflow-hidden rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] shadow-[0_2px_12px_rgba(0,0,0,0.025)]">
+      {/* Header */}
+      <div className="flex min-w-0 items-center justify-between gap-3 px-4 pb-2.5 pt-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-surface">
+            <Gift className="h-3.5 w-3.5 text-brand" />
+          </div>
+
+          <p className="truncate text-sm font-bold text-[var(--text-primary)]">
+            Programs
+          </p>
+
+          <span className="shrink-0 rounded-full bg-brand-surface px-1.5 py-0.5 text-[9px] font-bold text-brand">
+            {programs.length}
+          </span>
         </div>
-        <Link href="/dashboard/business/profile" className="text-xs font-semibold text-brand flex items-center gap-0.5">
-          <Plus className="h-3 w-3" /> Add
+
+        <Link
+          href="/dashboard/business/profile/programs"
+          className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-brand"
+        >
+          <Plus className="h-3 w-3" />
+          Add
         </Link>
       </div>
+
+      {/* Program list */}
       <div className="divide-y divide-[var(--border-light)]">
-        {programs.map((p) => (
-          <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-            <div className={`h-2 w-2 rounded-full flex-shrink-0 ${p.isActive ? "bg-green-500" : "bg-[var(--text-muted)]"}`} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.name}</p>
-              <p className="text-[10px] text-[var(--text-tertiary)]">{p.stampsRequired} stamps → {p.rewardDescription}</p>
+        {programs.map((program) => (
+          <Link
+            key={program.id}
+            href={`/dashboard/business/programs/${program.id}`}
+            className="flex min-w-0 items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--surface-raised)]"
+          >
+            <span
+              className={`h-2 w-2 shrink-0 rounded-full ${
+                program.isActive
+                  ? "bg-emerald-500"
+                  : "bg-[var(--text-muted)]"
+              }`}
+            />
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                {program.name}
+              </p>
+
+              <p className="mt-0.5 truncate text-[10px] text-[var(--text-tertiary)]">
+                {program.stampsRequired} stamps →{" "}
+                {program.rewardDescription}
+              </p>
             </div>
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${p.isActive ? "bg-green-50 text-green-600" : "bg-[var(--border-light)] text-[var(--text-tertiary)]"}`}>
-              {p.isActive ? "Active" : "Paused"}
+
+            <span
+              className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                program.isActive
+                  ? "bg-emerald-50 text-emerald-600"
+                  : "bg-[var(--border-light)] text-[var(--text-tertiary)]"
+              }`}
+            >
+              {program.isActive ? "Active" : "Paused"}
             </span>
-          </div>
+
+            <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+          </Link>
         ))}
       </div>
     </div>
   );
 }
 
-function StaffStrip({ staff }: { staff: StaffMember[] }) {
+/* ═══════════════════════════════════════════════════════════════
+   YOUR TEAM
+   ═══════════════════════════════════════════════════════════════ */
+
+function YourTeamSection({
+  staff,
+}: {
+  staff: StaffMini[];
+}) {
+  return (
+    <div className="w-full">
+      {/* Section heading */}
+      <div className="mb-2.5 flex min-w-0 items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-surface">
+            <UserCheck className="h-3.5 w-3.5 text-brand" />
+          </div>
+
+          <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+            Your team
+          </p>
+        </div>
+
+        <Link
+          href="/dashboard/business/staff"
+          className="shrink-0 text-xs font-semibold text-brand"
+        >
+          Manage
+        </Link>
+      </div>
+
+      {/* Responsive team grid */}
+      <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
+        {staff.map((member) => {
+          const percentage =
+            member.dailyGoal > 0
+              ? Math.min(
+                  Math.round(
+                    (member.stampsToday / member.dailyGoal) * 100,
+                  ),
+                  100,
+                )
+              : 0;
+
+          const reached =
+            member.dailyGoal > 0 &&
+            member.stampsToday >= member.dailyGoal;
+
+          return (
+            <Link
+              key={member.userId}
+              href={`/dashboard/business/staff/${member.userId}`}
+              className="min-w-0 rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.025)] transition-transform active:scale-[0.99]"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                {/* Avatar */}
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-surface">
+                  {member.avatarUrl ? (
+                    <img
+                      src={member.avatarUrl}
+                      alt={member.fullName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm font-bold text-brand">
+                      {member.fullName
+                        .charAt(0)
+                        .toUpperCase()}
+                    </span>
+                  )}
+                </div>
+
+                {/* Identity */}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold leading-tight text-[var(--text-primary)]">
+                    {member.fullName}
+                  </p>
+
+                  <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                    <span
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                        member.isOnShift
+                          ? "bg-emerald-500"
+                          : "bg-[var(--text-muted)]"
+                      }`}
+                    />
+
+                    <span className="truncate text-[10px] text-[var(--text-tertiary)]">
+                      {member.isOnShift
+                        ? "On shift"
+                        : "Off shift"}
+                    </span>
+                  </div>
+                </div>
+
+                <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+              </div>
+
+              {/* Goal */}
+              <div className="mt-3">
+                <div className="mb-1.5 flex min-w-0 items-center justify-between gap-2">
+                  <span
+                    className={`truncate text-[10px] font-bold ${
+                      reached
+                        ? "text-emerald-600"
+                        : "text-amber-600"
+                    }`}
+                  >
+                    {member.stampsToday}/{member.dailyGoal} stamps
+                  </span>
+
+                  <span className="shrink-0 text-[9px] font-semibold text-[var(--text-tertiary)]">
+                    {percentage}%
+                  </span>
+                </div>
+
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border-light)]">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      reached
+                        ? "bg-emerald-500"
+                        : "bg-amber-500"
+                    }`}
+                    style={{
+                      width: `${percentage}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOP STAFF
+   ═══════════════════════════════════════════════════════════════ */
+
+function StaffTopFive({
+  staff,
+}: {
+  staff: StaffMember[];
+}) {
   if (staff.length === 0) {
     return (
-      <Link href="/dashboard/business/staff"
-        className="flex items-center gap-3 bg-[var(--surface-raised)] border border-[var(--border-light)] rounded-2xl px-4 py-3.5">
-        <UserCheck className="h-4 w-4 text-[var(--text-tertiary)]" />
-        <p className="text-sm text-[var(--text-secondary)]">No staff linked yet — tap to add</p>
-        <ChevronRight className="h-4 w-4 text-[var(--text-muted)] ml-auto flex-shrink-0" />
+      <Link
+        href="/dashboard/business/staff"
+        className="flex min-w-0 w-full items-center gap-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface-raised)] p-4 transition-transform active:scale-[0.99]"
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--border-light)]">
+          <UserCheck className="h-4 w-4 text-[var(--text-tertiary)]" />
+        </div>
+
+        <p className="min-w-0 flex-1 truncate text-sm text-[var(--text-secondary)]">
+          No staff linked yet — tap to add
+        </p>
+
+        <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
       </Link>
     );
   }
 
+  const ranked = [...staff]
+    .sort(
+      (a, b) =>
+        ((b as any).stampsIssued ?? 0) -
+        ((a as any).stampsIssued ?? 0),
+    )
+    .slice(0, 5);
+
   return (
-    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-4 pt-4 pb-2">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-brand" />
-          <p className="text-sm font-bold text-[var(--text-primary)]">Staff</p>
-          <span className="text-[10px] font-bold bg-brand-surface text-brand px-1.5 py-0.5 rounded-full">{staff.length}</span>
+    <div className="w-full overflow-hidden rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] shadow-[0_2px_12px_rgba(0,0,0,0.025)]">
+      {/* Header */}
+      <div className="flex min-w-0 items-center justify-between gap-3 px-4 pb-2.5 pt-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-surface">
+            <Users className="h-3.5 w-3.5 text-brand" />
+          </div>
+
+          <p className="truncate text-sm font-bold text-[var(--text-primary)]">
+            Top Staff
+          </p>
+
+          <span className="shrink-0 rounded-full bg-brand-surface px-1.5 py-0.5 text-[9px] font-bold text-brand">
+            {staff.length}
+          </span>
         </div>
-        <Link href="/dashboard/business/staff" className="text-xs font-semibold text-brand">Manage</Link>
+
+        <Link
+          href="/dashboard/business/staff"
+          className="shrink-0 text-xs font-semibold text-brand"
+        >
+          Manage
+        </Link>
       </div>
-      <div className="px-4 pb-4 flex gap-2 flex-wrap">
-        {staff.map((s) => (
-          <div key={s.userId} className="flex items-center gap-2 bg-[var(--surface-raised)] rounded-xl px-3 py-2">
-            <div className="h-6 w-6 rounded-full bg-brand-surface text-brand text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-              {s.fullName.charAt(0).toUpperCase()}
-            </div>
-            <p className="text-xs font-semibold text-[var(--text-secondary)]">{s.fullName.split(" ")[0]}</p>
+
+      {/* Ranked list */}
+      <div className="divide-y divide-[var(--border-light)]">
+        {ranked.map((member, index) => (
+          <div
+            key={member.userId}
+            className="min-w-0"
+          >
+            <RankedListItem
+              rank={index + 1}
+              initials={member.fullName
+                .charAt(0)
+                .toUpperCase()}
+              title={member.fullName}
+              subtitle={(member as any).role}
+              trailing={
+                (member as any).stampsIssued != null
+                  ? `${(member as any).stampsIssued}`
+                  : undefined
+              }
+            />
           </div>
         ))}
       </div>
+
+      {/* View all */}
+      {staff.length > 5 && (
+        <Link
+          href="/dashboard/business/staff"
+          className="flex min-w-0 items-center justify-center gap-1 border-t border-[var(--border-light)] py-3 text-xs font-semibold text-brand"
+        >
+          <span className="truncate">
+            View all {staff.length} staff
+          </span>
+
+          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+        </Link>
+      )}
     </div>
   );
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   CREATE BUSINESS
+   ═══════════════════════════════════════════════════════════════ */
+
 function CreateBusinessPrompt() {
-  const [form, setForm] = useState({ name: "", category: "", location: "", mpesaNumber: "" });
+  const [form, setForm] = useState({
+    name: "",
+    category: "",
+    location: "",
+    mpesaNumber: "",
+  });
+
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleCreate(
+    event: React.FormEvent,
+  ) {
+    event.preventDefault();
+
     setIsCreating(true);
     setError(null);
+
     try {
-      const res = await businessesApi.create(form);
-      if (res.success) window.location.reload();
-      else setError(res.error?.message ?? "Failed to create business");
+      const response = await businessesApi.create(form);
+
+      if (response.success) {
+        window.location.reload();
+      } else {
+        setError(
+          response.error?.message ??
+            "Failed to create business",
+        );
+      }
     } catch {
       setError("An unexpected error occurred.");
     } finally {
@@ -799,42 +1084,107 @@ function CreateBusinessPrompt() {
     }
   }
 
+  const fields = [
+    {
+      key: "name",
+      label: "Business Name",
+      placeholder: "Artisan Brews",
+    },
+    {
+      key: "category",
+      label: "Category",
+      placeholder: "Cafe, Fitness, Retail…",
+    },
+    {
+      key: "location",
+      label: "Location",
+      placeholder: "Nairobi, Kenya",
+    },
+    {
+      key: "mpesaNumber",
+      label: "M-Pesa Number",
+      placeholder: "2547XXXXXXXX",
+    },
+  ] as const;
+
   return (
-    <div className="max-w-lg mx-auto px-4 py-10 space-y-6">
-      <div className="text-center space-y-2">
-        <div className="h-16 w-16 bg-brand-surface rounded-2xl flex items-center justify-center mx-auto">
-          <Store className="h-8 w-8 text-brand" />
-        </div>
-        <h1 className="text-xl font-bold text-[var(--text-primary)]">Set Up Your Business</h1>
-        <p className="text-sm text-[var(--text-secondary)]">Create your profile to start running loyalty programs</p>
-      </div>
-      <form onSubmit={handleCreate} className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-5 space-y-4">
-        {[
-          { key: "name", label: "Business Name", placeholder: "Artisan Brews" },
-          { key: "category", label: "Category", placeholder: "Cafe, Fitness, Retail…" },
-          { key: "location", label: "Location", placeholder: "Nairobi, Kenya" },
-          { key: "mpesaNumber", label: "M-Pesa Number", placeholder: "2547XXXXXXXX" },
-        ].map(({ key, label, placeholder }) => (
-          <div key={key}>
-            <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1">{label}</label>
-            <input
-              type="text"
-              value={form[key as keyof typeof form]}
-              onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-              placeholder={placeholder}
-              className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              required
-            />
+    <main className="min-h-full w-full overflow-x-clip pb-10">
+      <div className="mx-auto w-full max-w-lg px-4 py-8 sm:py-12">
+        {/* Intro */}
+        <div className="mb-7 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] bg-brand-surface shadow-sm">
+            <Store className="h-7 w-7 text-brand" />
           </div>
-        ))}
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        <button type="submit" disabled={isCreating}
-          className="w-full bg-brand hover:bg-brand-hover disabled:opacity-50 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
-          {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />}
-          Create Business
-        </button>
-      </form>
-    </div>
+
+          <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+            Set Up Your Business
+          </h1>
+
+          <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
+            Create your profile to start running loyalty
+            programs.
+          </p>
+        </div>
+
+        {/* Form */}
+        <form
+          onSubmit={handleCreate}
+          className="w-full rounded-[24px] border border-[var(--border-light)] bg-[var(--surface)] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-5"
+        >
+          <div className="space-y-4">
+            {fields.map(
+              ({ key, label, placeholder }) => (
+                <div key={key} className="min-w-0">
+                  <label className="mb-1.5 block text-xs font-bold text-[var(--text-secondary)]">
+                    {label}
+                  </label>
+
+                  <input
+                    type="text"
+                    value={form[key]}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        [key]: event.target.value,
+                      }))
+                    }
+                    placeholder={placeholder}
+                    className="box-border w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-3 text-base text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-brand"
+                    required
+                  />
+                </div>
+              ),
+            )}
+          </div>
+
+          {error && (
+            <div className="mt-4 rounded-xl bg-red-50 px-3 py-2.5">
+              <p className="text-xs font-medium text-red-600">
+                {error}
+              </p>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isCreating}
+            className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-[0_6px_18px_var(--brand-ring)] transition-all hover:bg-brand-hover active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isCreating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Store className="h-4 w-4" />
+            )}
+
+            <span>
+              {isCreating
+                ? "Creating..."
+                : "Create Business"}
+            </span>
+          </button>
+        </form>
+      </div>
+    </main>
   );
 }
 

@@ -184,6 +184,10 @@ namespace PunchedApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int?>("DefaultDailyGoal")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_daily_goal");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
@@ -534,6 +538,12 @@ namespace PunchedApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int>("DefaultEnrollmentStamps")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("default_enrollment_stamps");
+
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -555,7 +565,8 @@ namespace PunchedApi.Migrations
                         .HasColumnName("reward_description");
 
                     b.Property<int>("RewardExpirationHours")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("reward_expiration_hours");
 
                     b.Property<decimal>("RewardValue")
                         .HasPrecision(10, 2)
@@ -627,6 +638,50 @@ namespace PunchedApi.Migrations
                     b.HasIndex("LoyaltyProgramId", "EffectiveFrom");
 
                     b.ToTable("loyalty_program_history", (string)null);
+                });
+
+            modelBuilder.Entity("PunchedApi.Domain.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("BusinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_read");
+
+                    b.Property<int>("StampsCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("stamps_count");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessId");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.HasIndex("UserId", "IsRead");
+
+                    b.ToTable("notification_inbox", (string)null);
                 });
 
             modelBuilder.Entity("PunchedApi.Domain.Entities.NotificationLog", b =>
@@ -1309,9 +1364,14 @@ namespace PunchedApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid>("QrTokenId")
+                    b.Property<Guid?>("QrTokenId")
                         .HasColumnType("uuid")
                         .HasColumnName("qr_token_id");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
 
                     b.Property<short>("StampNumber")
                         .HasColumnType("smallint")
@@ -1355,6 +1415,10 @@ namespace PunchedApi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<int?>("DailyGoalOverride")
+                        .HasColumnType("integer")
+                        .HasColumnName("daily_goal_override");
 
                     b.Property<DateOnly?>("DateOfBirth")
                         .HasColumnType("date");
@@ -1631,6 +1695,20 @@ namespace PunchedApi.Migrations
                         .WithMany()
                         .HasForeignKey("LoyaltyProgramId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PunchedApi.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("PunchedApi.Domain.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("PunchedApi.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

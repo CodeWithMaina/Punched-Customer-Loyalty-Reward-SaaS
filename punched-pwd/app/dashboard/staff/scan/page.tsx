@@ -7,11 +7,18 @@ import { businessesApi } from "@/lib/api/businesses";
 import type { StampAwardedResponse } from "@/types";
 import { QRScanner } from "@/components/loyalty/QRScanner";
 import { StampSuccessOverlay } from "@/components/loyalty/StampSuccessOverlay";
-import { Loader2, AlertCircle, ScanLine, Store } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  ScanLine,
+  Store,
+  Camera,
+  X,
+} from "lucide-react";
 
-// Staff scan page — auto-fetches the linked business ID.
 export default function StaffScanPage() {
   useRoleGuard("Staff");
+
   const [businessId, setBusinessId] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [isLoadingBusiness, setIsLoadingBusiness] = useState(true);
@@ -20,10 +27,10 @@ export default function StaffScanPage() {
   const [isAwarding, setIsAwarding] = useState(false);
   const [result, setResult] = useState<StampAwardedResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
   const awardingRef = useRef(false);
   const processedTokensRef = useRef<Set<string>>(new Set());
 
-  // Auto-fetch linked business
   useEffect(() => {
     businessesApi
       .getStaffBusiness()
@@ -39,26 +46,46 @@ export default function StaffScanPage() {
       .finally(() => setIsLoadingBusiness(false));
   }, []);
 
-  const handleScan = useCallback(async (token: string) => {
-    if (!businessId || awardingRef.current || processedTokensRef.current.has(token)) return;
-    processedTokensRef.current.add(token);
-    awardingRef.current = true;
-    setIsScanning(false);
-    setIsAwarding(true);
-    setError(null);
-    setResult(null);
+  const handleScan = useCallback(
+    async (token: string) => {
+      if (
+        !businessId ||
+        awardingRef.current ||
+        processedTokensRef.current.has(token)
+      ) {
+        return;
+      }
 
-    try {
-      const res = await stampsApi.award({ token, businessId });
-      if (res.success && res.data) setResult(res.data);
-      else setError(res.error?.message ?? "Failed to award stamp");
-    } catch {
-      setError("An unexpected error occurred.");
-    } finally {
-      awardingRef.current = false;
-      setIsAwarding(false);
-    }
-  }, [businessId]);
+      processedTokensRef.current.add(token);
+      awardingRef.current = true;
+
+      setIsScanning(false);
+      setIsAwarding(true);
+      setError(null);
+      setResult(null);
+
+      try {
+        const res = await stampsApi.award({
+          token,
+          businessId,
+        });
+
+        if (res.success && res.data) {
+          setResult(res.data);
+        } else {
+          setError(
+            res.error?.message ?? "We couldn't award the stamp."
+          );
+        }
+      } catch {
+        setError("Something went wrong. Please try again.");
+      } finally {
+        awardingRef.current = false;
+        setIsAwarding(false);
+      }
+    },
+    [businessId]
+  );
 
   function reset() {
     setResult(null);
@@ -67,83 +94,186 @@ export default function StaffScanPage() {
     setIsScanning(true);
   }
 
+  function closeScanner() {
+    setIsScanning(false);
+    setError(null);
+  }
+
   if (isLoadingBusiness) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-brand" />
       </div>
     );
   }
 
   if (notLinked) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-8 space-y-4 text-center">
-        <div className="mx-auto w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center">
-          <Store className="h-8 w-8 text-orange-500" />
+      <main className="min-h-[70vh] flex items-center justify-center px-6">
+        <div className="w-full max-w-sm text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent-light)]">
+            <Store className="h-6 w-6 text-[var(--accent)]" />
+          </div>
+
+          <h1 className="text-lg font-semibold text-[var(--text-primary)]">
+            Business not linked
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+            Ask your business manager to link your staff account before
+            scanning customer QR codes.
+          </p>
         </div>
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">Not Linked to a Business</h2>
-        <p className="text-sm text-[var(--text-secondary)]">
-          Ask your business manager to link your account so you can start scanning customer QR codes.
-        </p>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Scan QR Code</h1>
-        <p className="text-sm text-[var(--text-secondary)]">Award stamps to customers</p>
-      </div>
+    <main className="mx-auto w-full max-w-lg px-4 pb-10">
+      {/* Header */}
+      <header className="pt-6 pb-5">
+        <p className="text-sm font-medium text-brand">
+          Customer check-in
+        </p>
 
-      {/* Linked business info */}
-      <div className="bg-brand-surface border border-brand-light rounded-xl px-4 py-3 flex items-center gap-3">
-        <Store className="h-5 w-5 text-brand flex-shrink-0" />
-        <div>
-          <p className="text-xs text-brand font-medium uppercase tracking-wide">Scanning for</p>
-          <p className="font-semibold text-brand-dark">{businessName}</p>
+        <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+          Scan a QR code
+        </h1>
+
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          Scan the customer's code to give them a stamp.
+        </p>
+      </header>
+
+      {/* Business */}
+      <div className="mb-5 flex items-center gap-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] px-4 py-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-surface">
+          <Store className="h-4 w-4 text-brand" />
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[11px] text-[var(--text-tertiary)]">
+            You're scanning for
+          </p>
+
+          <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+            {businessName}
+          </p>
         </div>
       </div>
 
-      {!isScanning && !isAwarding && !result && !error && (
-        <button
-          onClick={() => setIsScanning(true)}
-          className="w-full flex items-center justify-center gap-3 bg-brand text-white rounded-2xl py-4 font-semibold hover:bg-brand-hover transition-colors"
-        >
-          <ScanLine className="h-5 w-5" />
-          Start Scanning
-        </button>
-      )}
+      {/* Idle state */}
+      {!isScanning &&
+        !isAwarding &&
+        !result &&
+        !error && (
+          <section className="rounded-3xl border border-[var(--border-light)] bg-[var(--surface)] p-5">
+            <div className="flex aspect-square max-h-[320px] items-center justify-center rounded-3xl bg-[var(--brand-surface)]">
+              <div className="text-center">
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-[var(--brand)] shadow-sm">
+                  <ScanLine className="h-9 w-9 text-white" />
+                </div>
 
+                <p className="mt-5 text-base font-semibold text-[var(--text-primary)]">
+                  Ready to scan
+                </p>
+
+                <p className="mt-1 max-w-[220px] text-xs leading-5 text-[var(--text-secondary)]">
+                  Ask the customer to show their loyalty QR code.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsScanning(true)}
+              className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-2xl bg-brand py-4 text-sm font-semibold text-white transition-colors hover:bg-brand-hover active:scale-[0.99]"
+            >
+              <Camera className="h-5 w-5" />
+              Start scanning
+            </button>
+          </section>
+        )}
+
+      {/* Scanner */}
       {isScanning && (
-        <div className="space-y-4">
-          <QRScanner onScan={handleScan} isActive={isScanning} />
-          <button onClick={() => setIsScanning(false)} className="w-full text-sm text-[var(--text-secondary)] hover:text-[var(--text-secondary)]">
-            Cancel
-          </button>
-        </div>
+        <section>
+          <div className="overflow-hidden rounded-3xl bg-black">
+            <QRScanner
+              onScan={handleScan}
+              isActive={isScanning}
+            />
+          </div>
+
+          <div className="mt-4 flex items-center justify-center">
+            <button
+              onClick={closeScanner}
+              className="flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--border-light)]"
+            >
+              <X className="h-4 w-4" />
+              Cancel
+            </button>
+          </div>
+        </section>
       )}
 
+      {/* Awarding */}
       {isAwarding && (
-        <div className="flex flex-col items-center gap-3 py-10">
-          <Loader2 className="h-10 w-10 animate-spin text-brand" />
-          <p className="text-[var(--text-secondary)]">Awarding stamp...</p>
-        </div>
+        <section className="rounded-3xl border border-[var(--border-light)] bg-[var(--surface)] px-6 py-14 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-surface">
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
+          </div>
+
+          <h2 className="mt-5 text-base font-semibold text-[var(--text-primary)]">
+            Adding stamp
+          </h2>
+
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+            Just a moment...
+          </p>
+        </section>
       )}
 
+      {/* Success */}
       {result && (
-        <StampSuccessOverlay result={result} onClose={reset} />
+        <StampSuccessOverlay
+          result={result}
+          onClose={reset}
+        />
       )}
 
+      {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center space-y-3">
-          <AlertCircle className="h-10 w-10 text-red-500 mx-auto" />
-          <p className="text-red-700 font-medium">{error}</p>
-          <button onClick={reset} className="w-full bg-[var(--border-light)] text-[var(--text-secondary)] rounded-xl py-2.5 font-medium text-sm hover:bg-[var(--border)] transition-colors">
-            Try Again
+        <section className="rounded-3xl border border-red-100 bg-red-50 p-6 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white">
+            <AlertCircle className="h-6 w-6 text-red-500" />
+          </div>
+
+          <h2 className="mt-4 text-base font-semibold text-red-800">
+            Couldn't add the stamp
+          </h2>
+
+          <p className="mt-1 text-sm leading-5 text-red-700">
+            {error}
+          </p>
+
+          <button
+            onClick={reset}
+            className="mt-5 w-full rounded-2xl bg-white py-3 text-sm font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-100"
+          >
+            Try again
           </button>
-        </div>
+        </section>
       )}
-    </div>
+
+      {/* Helper */}
+      {!isScanning &&
+        !isAwarding &&
+        !result &&
+        !error && (
+          <p className="mt-5 text-center text-xs text-[var(--text-tertiary)]">
+            Only scan the customer's loyalty QR code.
+          </p>
+        )}
+    </main>
   );
 }

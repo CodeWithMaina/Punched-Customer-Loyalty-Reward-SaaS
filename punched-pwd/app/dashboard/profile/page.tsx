@@ -24,195 +24,381 @@ export default function ProfilePage() {
   const { user } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
   const { logout } = useAuth();
+
   const [copiedRef, setCopiedRef] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
+
   const currentTheme = THEMES.find((t) => t.value === theme);
 
-  const referralCode = user?.id ? user.id.slice(0, 8).toUpperCase() : "—";
+  const referralCode = user?.id
+    ? user.id.slice(0, 8).toUpperCase()
+    : "—";
+
   const isCustomer = user?.role === "Customer";
 
+  const copyReferralCode = async () => {
+    if (!referralCode || referralCode === "—") return;
+
+    await navigator.clipboard.writeText(referralCode);
+
+    setCopiedRef(true);
+
+    setTimeout(() => {
+      setCopiedRef(false);
+    }, 2000);
+  };
+
   return (
-    <div className="max-w-lg mx-auto pb-8">
-      {/* Profile Header */}
-      <div className="px-5 pt-5 pb-4 animate-fade-in">
+    <main className="mx-auto w-full max-w-lg px-4 pb-10">
+      {/* Profile header */}
+      <header className="pt-7 pb-7">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-brand-light flex items-center justify-center overflow-hidden ring-2 ring-brand/20">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-surface">
             {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+              <img
+                src={user.avatarUrl}
+                alt="Profile"
+                className="h-full w-full object-cover"
+              />
             ) : (
-              <UserIcon className="h-8 w-8 text-brand" />
+              <UserIcon className="h-7 w-7 text-brand" />
             )}
           </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-[var(--text-primary)] leading-tight">{user?.fullName}</h1>
-            <p className="text-sm text-[var(--text-secondary)] truncate">{user?.email}</p>
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-brand bg-brand-surface px-2 py-0.5 rounded-full">
+
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
+              {user?.fullName || "Your Profile"}
+            </h1>
+
+            <p className="mt-0.5 truncate text-sm text-[var(--text-secondary)]">
+              {user?.email}
+            </p>
+
+            <div className="mt-2 flex items-center gap-2">
+              <span className="rounded-full bg-brand-surface px-2.5 py-1 text-[10px] font-semibold text-brand">
                 {user?.role}
               </span>
-              <span className="text-[10px] text-[var(--text-tertiary)]">
-                Since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "—"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Referral Quick Card — accent highlight (10%) */}
-      {isCustomer && (
-        <div className="px-5 mb-5">
-          <div className="bg-accent-light rounded-2xl p-4 flex items-center gap-3 border border-accent/10">
-            <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-              <Share2 className="h-5 w-5 text-accent" />
+              {user?.createdAt && (
+                <span className="text-[11px] text-[var(--text-tertiary)]">
+                  Joined{" "}
+                  {new Date(user.createdAt).toLocaleDateString("en-US", {
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </span>
+              )}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-accent-text font-medium">Your Referral Code</p>
-              <p className="text-lg font-bold text-accent-text tracking-widest font-mono">{referralCode}</p>
-            </div>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(referralCode);
-                setCopiedRef(true);
-                setTimeout(() => setCopiedRef(false), 2000);
-              }}
-              className="h-9 w-9 rounded-xl bg-[var(--surface)] flex items-center justify-center shadow-sm active:scale-95 transition-transform"
-            >
-              {copiedRef ? <Check className="h-4 w-4 text-ok" /> : <Copy className="h-4 w-4 text-[var(--text-tertiary)]" />}
-            </button>
           </div>
         </div>
+      </header>
+
+      {/* Referral */}
+      {isCustomer && (
+        <section className="mb-7">
+          <div className="rounded-2xl bg-[var(--accent-light)] px-4 py-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)]">
+                <Share2 className="h-4 w-4 text-[var(--accent)]" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] text-[var(--accent-text)]">
+                  Referral code
+                </p>
+
+                <p className="mt-0.5 font-mono text-base font-bold tracking-[0.15em] text-[var(--accent-text)]">
+                  {referralCode}
+                </p>
+              </div>
+
+              <button
+                onClick={copyReferralCode}
+                aria-label="Copy referral code"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] transition-transform active:scale-95"
+              >
+                {copiedRef ? (
+                  <Check className="h-4 w-4 text-[var(--success)]" />
+                ) : (
+                  <Copy className="h-4 w-4 text-[var(--text-secondary)]" />
+                )}
+              </button>
+            </div>
+          </div>
+        </section>
       )}
 
-      {/* Settings Sections */}
-      <div className="px-5 space-y-3">
-        {/* Account Section */}
-        <SettingsSection title="ACCOUNT">
-          <SettingsRow href="/dashboard/profile/account" icon={UserIcon} label="Account Info" sub="Name, phone, date of birth, gender" />
-          <SettingsRow href="/dashboard/profile/password" icon={KeyRound} label="Change Password" sub="Update your password" />
-          {isCustomer && (
-            <SettingsRow href="/dashboard/profile/referral" icon={Share2} label="Referrals" sub="Invite friends, earn rewards" />
-          )}
-        </SettingsSection>
+      {/* Account */}
+      <SettingsGroup title="Account">
+        <SettingsRow
+          href="/dashboard/profile/account"
+          icon={UserIcon}
+          label="Account information"
+          sub="Personal details"
+        />
 
-        {/* Theme */}
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden">
-          <div className="px-4 pt-3 pb-1">
-            <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">APPEARANCE</p>
+        <SettingsRow
+          href="/dashboard/profile/password"
+          icon={KeyRound}
+          label="Password"
+          sub="Change your password"
+        />
+
+        {isCustomer && (
+          <SettingsRow
+            href="/dashboard/profile/referral"
+            icon={Share2}
+            label="Referrals"
+            sub="Invite friends and earn rewards"
+          />
+        )}
+      </SettingsGroup>
+
+      {/* Appearance */}
+      <SettingsGroup title="Appearance">
+        <button
+          onClick={() => setShowThemePicker(true)}
+          className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--border-light)] active:bg-[var(--border-light)]"
+        >
+          <SettingsIcon>
+            <Palette className="h-4 w-4 text-[var(--text-secondary)]" />
+          </SettingsIcon>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-[var(--text-primary)]">
+              Theme
+            </p>
+
+            <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+              {currentTheme?.label || "Default"}
+            </p>
           </div>
-          <button
-            onClick={() => setShowThemePicker(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--border-light)] active:bg-[var(--border)] transition-colors"
-          >
-            <div className="h-9 w-9 rounded-xl bg-[var(--border-light)] flex items-center justify-center flex-shrink-0">
-              <Palette className="h-4 w-4 text-[var(--text-secondary)]" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-semibold text-[var(--text-primary)]">Theme</p>
-              <p className="text-xs text-[var(--text-tertiary)]">{currentTheme?.label}</p>
-            </div>
-            <div className="flex -space-x-1.5 mr-1">
-              <div className="h-5 w-5 rounded-full border-2 border-[var(--surface)] shadow-sm" style={{ background: currentTheme?.primary }} />
-              <div className="h-5 w-5 rounded-full border-2 border-[var(--surface)] shadow-sm" style={{ background: currentTheme?.accent }} />
-            </div>
-            <ChevronRight className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
-          </button>
+
+          <div className="flex shrink-0 -space-x-1.5">
+            <span
+              className="h-5 w-5 rounded-full border-2 border-[var(--surface)]"
+              style={{
+                background: currentTheme?.primary,
+              }}
+            />
+
+            <span
+              className="h-5 w-5 rounded-full border-2 border-[var(--surface)]"
+              style={{
+                background: currentTheme?.accent,
+              }}
+            />
+          </div>
+
+          <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+        </button>
+      </SettingsGroup>
+
+      {/* Support */}
+      <SettingsGroup title="Support">
+        <SettingsRow
+          href="/dashboard/profile/about"
+          icon={Info}
+          label="About Punched"
+          sub="About the app"
+        />
+
+        <SettingsRow
+          href="/dashboard/profile/faq"
+          icon={HelpCircle}
+          label="Frequently asked questions"
+          sub="Find quick answers"
+        />
+
+        <SettingsRow
+          href="/dashboard/profile/help"
+          icon={MessageCircle}
+          label="Help & support"
+          sub="Get help from our team"
+        />
+      </SettingsGroup>
+
+      {/* Logout */}
+      <button
+        onClick={logout}
+        className="mt-6 flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 transition-colors hover:bg-red-50 active:bg-red-50"
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50">
+          <LogOut className="h-4 w-4 text-red-500" />
         </div>
 
-        {/* Theme bottom sheet */}
-        {showThemePicker && (
-          <div className="fixed inset-0 z-50 flex flex-col justify-end">
-            <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"
-              onClick={() => setShowThemePicker(false)}
-            />
-            <div className="relative bg-[var(--surface)] rounded-t-3xl shadow-elevated overflow-hidden animate-slide-up">
-              <div className="flex items-center justify-between px-5 pt-4 pb-2">
-                <div>
-                  <div className="w-10 h-1 bg-[var(--border)] rounded-full mx-auto mb-3" />
-                  <p className="text-base font-bold text-[var(--text-primary)]">Choose Theme</p>
-                  <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Personalize your experience</p>
-                </div>
-                <button
-                  onClick={() => setShowThemePicker(false)}
-                  className="h-8 w-8 rounded-full bg-[var(--border-light)] flex items-center justify-center hover:bg-[var(--border)] transition-colors"
-                >
-                  <X className="h-4 w-4 text-[var(--text-secondary)]" />
-                </button>
+        <span className="text-sm font-semibold text-red-500">
+          Log out
+        </span>
+      </button>
+
+      <p className="mt-8 text-center text-[10px] text-[var(--text-muted)]">
+        Punched Loyalty · v1.0.0
+      </p>
+
+      {/* Theme picker */}
+      {showThemePicker && (
+        <div className="fixed inset-0 z-50 flex items-end">
+          {/* Backdrop */}
+          <button
+            aria-label="Close theme picker"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowThemePicker(false)}
+          />
+
+          {/* Bottom sheet */}
+          <section className="relative w-full rounded-t-3xl bg-[var(--surface)] shadow-elevated animate-slide-up">
+            <div className="mx-auto h-1 w-10 rounded-full bg-[var(--border)] mt-3" />
+
+            <div className="flex items-center justify-between px-5 pb-4 pt-4">
+              <div>
+                <h2 className="text-base font-bold text-[var(--text-primary)]">
+                  Theme
+                </h2>
+
+                <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+                  Choose how Punched looks
+                </p>
               </div>
-              <div className="divide-y divide-[var(--border-light)] pb-8">
-                {THEMES.map(({ value, label, primary, accent }) => {
-                  const isActive = theme === value;
-                  return (
-                    <button
-                      key={value}
-                      onClick={() => { setTheme(value); setShowThemePicker(false); }}
-                      className={`w-full flex items-center gap-4 px-5 py-4 transition-colors ${
-                        isActive ? "bg-brand-surface" : "hover:bg-[var(--border-light)] active:bg-[var(--border)]"
-                      }`}
-                    >
-                      <div className="flex -space-x-2">
-                        <div className="h-9 w-9 rounded-full border-2 border-[var(--surface)] shadow-md" style={{ background: primary }} />
-                        <div className="h-9 w-9 rounded-full border-2 border-[var(--surface)] shadow-md" style={{ background: accent }} />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className={`text-sm font-semibold ${isActive ? "text-brand-text" : "text-[var(--text-primary)]"}`}>{label}</p>
-                        <p className="text-xs text-[var(--text-tertiary)] capitalize">{value}</p>
-                      </div>
-                      {isActive && <Check className="h-5 w-5 text-brand flex-shrink-0" />}
-                    </button>
-                  );
-                })}
+
+              <button
+                onClick={() => setShowThemePicker(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--border-light)]"
+              >
+                <X className="h-4 w-4 text-[var(--text-secondary)]" />
+              </button>
+            </div>
+
+            <div className="px-4 pb-8">
+              <div className="overflow-hidden rounded-2xl border border-[var(--border-light)]">
+                {THEMES.map(
+                  ({ value, label, primary, accent }, index) => {
+                    const isActive = theme === value;
+
+                    return (
+                      <button
+                        key={value}
+                        onClick={() => {
+                          setTheme(value);
+                          setShowThemePicker(false);
+                        }}
+                        className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${
+                          index !== THEMES.length - 1
+                            ? "border-b border-[var(--border-light)]"
+                            : ""
+                        } ${
+                          isActive
+                            ? "bg-brand-surface"
+                            : "hover:bg-[var(--border-light)]"
+                        }`}
+                      >
+                        <div className="flex shrink-0 -space-x-2">
+                          <span
+                            className="h-8 w-8 rounded-full border-2 border-[var(--surface)] shadow-sm"
+                            style={{ background: primary }}
+                          />
+
+                          <span
+                            className="h-8 w-8 rounded-full border-2 border-[var(--surface)] shadow-sm"
+                            style={{ background: accent }}
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={`text-sm font-semibold ${
+                              isActive
+                                ? "text-brand-text"
+                                : "text-[var(--text-primary)]"
+                            }`}
+                          >
+                            {label}
+                          </p>
+
+                          <p className="text-xs capitalize text-[var(--text-tertiary)]">
+                            {value}
+                          </p>
+                        </div>
+
+                        {isActive && (
+                          <Check className="h-5 w-5 shrink-0 text-brand" />
+                        )}
+                      </button>
+                    );
+                  }
+                )}
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Support Section */}
-        <SettingsSection title="SUPPORT">
-          <SettingsRow href="/dashboard/profile/about" icon={Info} label="About Punched" sub="Our mission & story" />
-          <SettingsRow href="/dashboard/profile/faq" icon={HelpCircle} label="FAQ" sub="Frequently asked questions" />
-          <SettingsRow href="/dashboard/profile/help" icon={MessageCircle} label="Help & Support" sub="Get in touch" />
-        </SettingsSection>
-
-        {/* Logout */}
-        <button
-          onClick={logout}
-          className="w-full flex items-center gap-3 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card px-4 py-3.5 hover:bg-danger-light transition-colors group active:scale-[0.99]"
-        >
-          <div className="h-9 w-9 rounded-xl bg-danger-light flex items-center justify-center group-hover:bg-danger/10 transition-colors">
-            <LogOut className="h-4 w-4 text-danger" />
-          </div>
-          <span className="text-sm font-semibold text-danger">Log Out</span>
-        </button>
-
-        <p className="text-center text-[10px] text-[var(--text-muted)] pt-2 pb-4">Punched Loyalty v1.0.0</p>
-      </div>
-    </div>
+          </section>
+        </div>
+      )}
+    </main>
   );
 }
 
-function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
+function SettingsGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden">
-      <div className="px-4 pt-3 pb-1">
-        <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">{title}</p>
+    <section className="mb-6">
+      <h2 className="mb-2 px-1 text-xs font-semibold text-[var(--text-tertiary)]">
+        {title}
+      </h2>
+
+      <div className="overflow-hidden rounded-2xl border border-[var(--border-light)] bg-[var(--surface)]">
+        {children}
       </div>
-      <div className="divide-y divide-[var(--border-light)]">{children}</div>
-    </div>
+    </section>
   );
 }
 
-function SettingsRow({ href, icon: Icon, label, sub }: { href: string; icon: React.ElementType; label: string; sub: string }) {
+function SettingsRow({
+  href,
+  icon: Icon,
+  label,
+  sub,
+}: {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  sub: string;
+}) {
   return (
-    <Link href={href} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--border-light)] transition-colors active:bg-[var(--border)]">
-      <div className="h-9 w-9 rounded-xl bg-[var(--border-light)] flex items-center justify-center flex-shrink-0">
+    <Link
+      href={href}
+      className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--border-light)] active:bg-[var(--border-light)]"
+    >
+      <SettingsIcon>
         <Icon className="h-4 w-4 text-[var(--text-secondary)]" />
+      </SettingsIcon>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-[var(--text-primary)]">
+          {label}
+        </p>
+
+        <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+          {sub}
+        </p>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-[var(--text-primary)]">{label}</p>
-        <p className="text-xs text-[var(--text-tertiary)]">{sub}</p>
-      </div>
-      <ChevronRight className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
+
+      <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
     </Link>
+  );
+}
+
+function SettingsIcon({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--border-light)]">
+      {children}
+    </div>
   );
 }

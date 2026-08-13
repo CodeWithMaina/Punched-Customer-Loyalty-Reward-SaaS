@@ -213,4 +213,30 @@ public class AdminController : ControllerBase
         var result = await _adminService.GetApiHealthAsync(days);
         return Ok(result);
     }
+
+    // ── Backfill ─────────────────────────────────────────────
+
+    [HttpPost("backfill/analytics")]
+    [ProducesResponseType(typeof(ApiResponse<MessageResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> BackfillAnalytics([FromQuery] DateOnly from, [FromQuery] DateOnly to)
+    {
+        var result = await _adminService.BackfillAnalyticsAsync(from, to);
+        return Ok(result);
+    }
+
+    [HttpPost("backfill/segments")]
+    [ProducesResponseType(typeof(ApiResponse<MessageResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> BackfillSegments()
+    {
+        var result = await _adminService.BackfillSegmentsAsync();
+        return Ok(result);
+    }
+
+    [HttpPost("backfill/program-history")]
+    [ProducesResponseType(typeof(ApiResponse<MessageResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> BackfillProgramHistory()
+    {
+        var result = await _adminService.BackfillProgramHistoryAsync();
+        return Ok(result);
+    }
 }

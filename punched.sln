@@ -1,8 +1,10 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PunchedApi", "PunchedApi\PunchedApi.csproj", "{DA9DB351-7FAD-E03A-8429-618BC9BC0902}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PunchedApi.Tests", "PunchedApi.Tests\PunchedApi.Tests.csproj", "{78F8A963-4454-4B80-96CA-CBFFD9EBA162}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -14,6 +16,10 @@ Global
 		{DA9DB351-7FAD-E03A-8429-618BC9BC0902}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DA9DB351-7FAD-E03A-8429-618BC9BC0902}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DA9DB351-7FAD-E03A-8429-618BC9BC0902}.Release|Any CPU.Build.0 = Release|Any CPU
+		{78F8A963-4454-4B80-96CA-CBFFD9EBA162}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{78F8A963-4454-4B80-96CA-CBFFD9EBA162}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{78F8A963-4454-4B80-96CA-CBFFD9EBA162}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{78F8A963-4454-4B80-96CA-CBFFD9EBA162}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

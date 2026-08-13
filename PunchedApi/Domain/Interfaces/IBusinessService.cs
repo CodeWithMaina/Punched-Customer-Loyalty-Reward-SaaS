@@ -9,7 +9,16 @@ public interface IBusinessService
     Task<ApiResponse<BusinessResponse>> UpdateMyBusinessAsync(Guid ownerId, UpdateBusinessRequest request);
     Task<ApiResponse<BusinessResponse>> GetBusinessByIdAsync(Guid businessId);
     Task<ApiResponse<List<BusinessResponse>>> ListBusinessesAsync(string? category, string? search, int page, int pageSize);
-    Task<ApiResponse<List<BusinessCustomerResponse>>> GetBusinessCustomersAsync(Guid ownerId, string? search);
+    Task<ApiResponse<PaginatedResponse<BusinessCustomerResponse>>> GetBusinessCustomersAsync(
+        Guid ownerId,
+        string? search,
+        string? status,
+        DateOnly? enrolledFrom,
+        DateOnly? enrolledTo,
+        string sortBy,
+        string sortDirection,
+        int page,
+        int pageSize);
     Task<ApiResponse<BusinessCustomerResponse>> GetSingleCustomerAsync(Guid ownerId, Guid customerId);
     Task<ApiResponse<BusinessDashboardResponse>> GetDashboardAsync(Guid ownerId);
     Task<ApiResponse<StaffBusinessResponse>> GetStaffBusinessAsync(Guid staffUserId);
@@ -20,6 +29,8 @@ public interface IBusinessService
     Task<ApiResponse<StaffActivityFeedResponse>> GetMyStaffActivityAsync(Guid staffUserId, StaffActivityFilterRequest request);
     Task<ApiResponse<CustomerPeriodStatsResponse>> GetCustomerPeriodStatsAsync(Guid ownerId, Guid customerId, string period);
     Task<ApiResponse<MessageResponse>> LinkStaffToBusinessAsync(Guid ownerId, Guid staffUserId);
+    Task<ApiResponse<BusinessResponse>> SetBusinessDailyGoalAsync(Guid ownerId, int? dailyGoal);
+    Task<ApiResponse<StaffMemberResponse>> SetStaffDailyGoalAsync(Guid ownerId, Guid staffUserId, int? dailyGoal);
     Task<ApiResponse<BusinessAnalyticsResponse>> GetBusinessAnalyticsAsync(Guid ownerId, string period);
     Task<ApiResponse<BusinessAnalyticsComparisonResponse>> GetBusinessAnalyticsComparisonAsync(
         Guid ownerId, string period, string? prev, DateOnly? start, DateOnly? end);
@@ -30,4 +41,5 @@ public interface IBusinessService
     Task<ApiResponse<List<StaffUtilizationResponse>>> GetStaffUtilizationAsync(Guid ownerId, DateOnly? from = null, DateOnly? to = null);
     Task<ApiResponse<List<StaffShiftResponse>>> GetStaffShiftsAsync(Guid ownerId, Guid staffUserId, DateOnly? from = null, DateOnly? to = null);
     Task<ApiResponse<MessageResponse>> UpsertStaffShiftAsync(Guid ownerId, Guid staffUserId, UpsertStaffShiftRequest request);
+    Task<bool> CanAccessBusinessAsync(Guid userId, Guid businessId);
 }

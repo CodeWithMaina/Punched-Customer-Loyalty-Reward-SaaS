@@ -11,6 +11,7 @@ import type { StaffBusinessResponse } from "@/types";
 import {
   Loader2,
   LogOut,
+  Bell,
   CreditCard,
   Home,
   Compass,
@@ -76,6 +77,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const businessNav = [
     { href: "/dashboard/business", label: "Overview", icon: LayoutDashboard, exact: true },
+    { href: "/dashboard/business/analytics", label: "Analytics", icon: TrendingUp, exact: false },
     { href: "/dashboard/business/customers", label: "Customers", icon: Users, exact: false },
     { href: "/dashboard/business/staff", label: "Staff", icon: UserCheck, exact: false },
     { href: "/dashboard/business/profile", label: "Settings", icon: User, exact: false },
@@ -164,8 +166,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        {/* Logout */}
-        <div className="px-3 py-4 border-t border-[var(--border-light)]">
+        {/* Account actions */}
+        <div className="space-y-1 px-3 py-4 border-t border-[var(--border-light)]">
+          <Link
+            href="/dashboard/notifications"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--text-tertiary)] transition-colors hover:bg-brand-surface hover:text-brand"
+          >
+            <Bell className="h-5 w-5 flex-shrink-0" />
+            Notifications
+          </Link>
           <button
             onClick={logout}
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-[var(--text-tertiary)] hover:text-danger hover:bg-danger-light transition-colors"
@@ -188,13 +197,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               {displayLabel}
             </span>
           </div>
-          <button
-            onClick={logout}
-            className="flex items-center gap-1.5 text-sm text-[var(--text-tertiary)] hover:text-danger transition-colors px-2 py-1.5 rounded-xl hover:bg-danger-light"
-            aria-label="Logout"
+          <Link
+            href="/dashboard/notifications"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-tertiary)] transition-colors hover:bg-brand-surface hover:text-brand"
+            aria-label="Open notifications"
           >
-            <LogOut className="h-4 w-4" />
-          </button>
+            <Bell className="h-4 w-4" />
+          </Link>
         </header>
 
         {/* Page content */}

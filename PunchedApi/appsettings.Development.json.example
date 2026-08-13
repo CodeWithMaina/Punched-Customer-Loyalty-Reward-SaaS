@@ -1,6 +1,7 @@
 {
+  "//": "Copy this file to appsettings.Development.json and edit with LOCAL dev values only. Never commit real cloud credentials.",
   "ConnectionStrings": {
-    "DefaultConnection": "Host=ep-sparkling-heart-alclyxb5-pooler.c-3.eu-central-1.aws.neon.tech;Port=5432;Database=neondb;Username=neondb_owner;Password=npg_ubiywSrk3Z0m;SSL Mode=Require;Trust Server Certificate=true"
+    "DefaultConnection": "Host=localhost;Database=punched_db;Username=postgres;Password=changeme;SSL Mode=Prefer;"
   },
   "JwtSettings": {
     "Secret": "dev-secret-key-for-local-testing-only-change-in-production-32chars!!",

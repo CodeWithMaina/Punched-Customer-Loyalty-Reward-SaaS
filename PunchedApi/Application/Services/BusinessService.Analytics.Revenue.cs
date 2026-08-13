@@ -10,12 +10,12 @@ public partial class BusinessService
         BuildRevenueTrafficAsync(
         Guid businessId, DateTime now, DateTime periodStart, LoyaltyProgram? activeProgram,
         List<LoyaltyProgram> programs, int totalPeriodStamps, Dictionary<int, int> stampsByHour,
-        int redemptionCount, IReadOnlyList<CardInsight> cards)
+        IReadOnlyDictionary<DateTime, int> dailyStamps, int redemptionCount, IReadOnlyList<CardInsight> cards)
     {
         var revenue = await BuildRevenueCoreAsync(businessId, now, periodStart, activeProgram, programs, cards);
         var (overview, traffic) = await BuildOverviewTrafficAsync(
             businessId, now, periodStart, activeProgram, totalPeriodStamps, stampsByHour,
-            redemptionCount, cards, revenue);
+            dailyStamps, redemptionCount, cards, revenue);
         return (revenue, overview, traffic);
     }
 }

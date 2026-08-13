@@ -9,15 +9,18 @@ public partial class BusinessService
 {
     private async Task<(ExecutiveOverviewResponse Overview, BusinessTrafficResponse Traffic)> BuildOverviewTrafficAsync(
         Guid businessId, DateTime now, DateTime periodStart, LoyaltyProgram? activeProgram,
-        int totalPeriodStamps, Dictionary<int, int> stampsByHour, int redemptionCount,
-        IReadOnlyList<CardInsight> cards, BusinessRevenueResponse revenue)
+        int totalPeriodStamps, Dictionary<int, int> stampsByHour,
+        IReadOnlyDictionary<DateTime, int> dailyStamps, int redemptionCount,
+        IReadOnlyList<CardInsight> cards,
+        BusinessRevenueResponse revenue)
     {
         var dayNames = new[] { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
         var thirtyDaysAgo = now.AddDays(-30);
         var ninetyDaysAgo = now.AddDays(-90);
         var weekStart = now.Date.AddDays(-(((int)now.DayOfWeek + 6) % 7));
-        var stampsThisWeek = await _context.Stamps
-            .CountAsync(s => s.Card.BusinessId == businessId && s.StampedAt >= weekStart);
+        var stampsThisWeek = dailyStamps
+            .Where(x => x.Key >= weekStart)
+            .Sum(x => x.Value);
 
         var overview = new ExecutiveOverviewResponse
         {
@@ -40,10 +43,9 @@ public partial class BusinessService
             PeakHours = stampsByHour.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key).Take(3)
                 .Select(kv => new PeakHourItem { Hour = kv.Key, StampCount = kv.Value }).ToList()
         };
-        var weeklyRaw = await _context.Stamps
-            .Where(s => s.Card.BusinessId == businessId && s.StampedAt >= periodStart)
-            .GroupBy(s => s.StampedAt.DayOfWeek)
-            .Select(g => new { Day = g.Key, C = g.Count() }).ToListAsync();
+        var weeklyRaw = dailyStamps
+            .GroupBy(x => x.Key.DayOfWeek)
+            .Select(g => new { Day = g.Key, C = g.Sum(x => x.Value) });
         var busiest = weeklyRaw.OrderByDescending(x => x.C).FirstOrDefault();
         traffic.BusiestDayOfWeek = busiest != null ? dayNames[(int)busiest.Day] : null;
         traffic.BusiestDayStamps = busiest?.C ?? 0;
@@ -58,7 +60,16 @@ public partial class BusinessService
                 .Take(4)
                 .Select(h => new UnderutilizedHourItem { Hour = h, StampCount = hourlyCounts[h], Label = UnderutilizedHourLabel(h) })
                 .ToList();
-        traffic.VisitCadenceDays = await ComputeVisitCadenceAsync(businessId, periodStart);
+        try
+        {
+            traffic.VisitCadenceDays = await ComputeVisitCadenceAsync(businessId, periodStart);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to compute visit cadence for business {BusinessId} from {PeriodStart}",
+                businessId, periodStart);
+        }
 
         return (overview, traffic);
     }
