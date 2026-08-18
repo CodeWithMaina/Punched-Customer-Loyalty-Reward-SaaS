@@ -37,6 +37,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Insight> Insights => Set<Insight>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<AppointmentStatusHistory> AppointmentStatusHistory => Set<AppointmentStatusHistory>();
+    public DbSet<AppointmentResource> AppointmentResources => Set<AppointmentResource>();
     public DbSet<ServiceCatalogItem> ServiceCatalogItems => Set<ServiceCatalogItem>();
     public DbSet<StaffServiceAssignment> StaffServiceAssignments => Set<StaffServiceAssignment>();
     public DbSet<Notification> Notifications => Set<Notification>();
