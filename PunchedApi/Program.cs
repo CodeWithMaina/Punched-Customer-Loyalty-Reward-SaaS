@@ -136,6 +136,11 @@ try
     builder.Services.AddScoped<IPayoutService, PayoutService>();
     builder.Services.AddScoped<IRewardPayoutGateway, FakeMpesaPayoutGateway>();
 
+    // ── Booking (Phase 2/3) ─────────────────────────────────
+    builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+    builder.Services.AddScoped<AppointmentAvailabilityService>();
+    builder.Services.AddScoped<IServiceCatalogService, ServiceCatalogService>();
+
     // ── Seed framework ─────────────────────────────────────
     builder.Services.AddSingleton<ISeedRandom, SeedRandom>();
     builder.Services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
