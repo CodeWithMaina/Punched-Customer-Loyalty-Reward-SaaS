@@ -30,16 +30,25 @@ public class Stamp : BaseEntity
 
     /// <summary>
     /// FK to the QR token that was scanned to award this stamp.
-    /// Each QR token can only produce one stamp (unique constraint).
+    /// Nullable for system-generated stamps (e.g. welcome stamps granted on
+    /// enrollment, which are not tied to a QR scan). Each QR token can only
+    /// produce one stamp (partial unique constraint — PostgreSQL allows
+    /// multiple NULLs, so system stamps are not constrained).
     /// </summary>
-    [Required]
-    public Guid QrTokenId { get; set; }
+    public Guid? QrTokenId { get; set; }
 
     /// <summary>
     /// FK to the Business or Staff user who awarded this stamp.
     /// Nullable so existing records before attribution are preserved.
     /// </summary>
     public Guid? AwardedByUserId { get; set; }
+
+    /// <summary>
+    /// Origin of this stamp: "scan" (awarded via QR token) or "enrollment"
+    /// (welcome stamp granted when a customer enrolled). Null for legacy records.
+    /// </summary>
+    [MaxLength(20)]
+    public string? Source { get; set; }
 
     // ── Navigation ──────────────────────────────────────────
     /// <summary>

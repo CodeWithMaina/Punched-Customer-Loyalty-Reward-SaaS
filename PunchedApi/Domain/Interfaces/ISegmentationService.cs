@@ -4,4 +4,5 @@ public interface ISegmentationService
 {
     Task RecomputeBusinessSegmentsAsync(Guid businessId, CancellationToken cancellationToken = default);
     Task RecomputeAllBusinessesAsync(CancellationToken cancellationToken = default);
+    Task BackfillAllBusinessesAsync(CancellationToken cancellationToken = default);
 }

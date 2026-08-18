@@ -15,6 +15,13 @@ public interface IAuthService
     Task<ApiResponse<MessageResponse>> RegisterAsync(RegisterRequest request);
 
     /// <summary>
+    /// Registers a business owner + their business atomically.
+    /// Creates UserAuth + Business-role User + Business, then sends a verification code.
+    /// The owner completes verification via the existing /auth/verify-email flow to obtain tokens.
+    /// </summary>
+    Task<ApiResponse<RegisterBusinessResponse>> RegisterBusinessAsync(RegisterBusinessRequest request);
+
+    /// <summary>
     /// Verifies a user's email with the 6-digit code.
     /// On success, returns JWT tokens and user profile.
     /// </summary>

@@ -88,6 +88,24 @@ public class SmtpEmailService : IEmailService
             </div>
             """);
 
+    public Task<bool> SendStaffInvitationAsync(string email, string businessName, string invitationUrl, DateTime expiresAt)
+    {
+        var expiresLocal = expiresAt.ToLocalTime().ToString("g");
+        return SendAsync(email, $"You've been invited to join {businessName} 🎉", "staff_invitation", businessName, $"""
+            <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
+              <h2 style="color:#1a1a1a">You're invited to join {businessName} on Punched</h2>
+              <p style="color:#444;font-size:15px">{businessName} has added you as a team member on <strong>Punched</strong> — the digital loyalty platform. Once you join you'll be able to issue stamps and help reward your customers.</p>
+              <div style="padding:20px 0">
+                <a href="{invitationUrl}" style="background:#10b981;color:white;padding:14px 30px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block">Accept Invitation</a>
+              </div>
+              <p style="color:#666;font-size:13px">This invitation link expires on <strong>{expiresLocal}</strong>. If the link has expired, ask your business owner to resend it.</p>
+              <p style="color:#666;font-size:13px">If the button above does not work, copy and paste this address into your browser:</p>
+              <p style="color:#444;font-size:12px;word-break:break-all;background:#f4f4f5;padding:12px;border-radius:8px">{invitationUrl}</p>
+              <p style="color:#888;font-size:13px">If you weren't expecting this email, you can safely ignore it.</p>
+            </div>
+            """);
+    }
+
     private async Task<bool> SendAsync(string email, string subject, string templateType, string? businessName, string htmlBody)
     {
         try

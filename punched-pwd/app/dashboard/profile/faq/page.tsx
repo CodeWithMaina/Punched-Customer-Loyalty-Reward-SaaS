@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  MessageCircle,
+} from "lucide-react";
 
 const FAQ_DATA = [
   {
@@ -67,49 +72,134 @@ export default function FAQPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-5 pb-8">
-      <div className="flex items-center gap-3 pt-4 pb-5">
-        <button onClick={() => router.back()} className="h-9 w-9 rounded-xl bg-[var(--border-light)] flex items-center justify-center hover:bg-[var(--border)] transition-colors">
+    <main className="mx-auto w-full max-w-lg px-4 pb-10">
+      {/* Header */}
+      <header className="flex items-center gap-3 pt-5 pb-5">
+        <button
+          onClick={() => router.back()}
+          aria-label="Go back"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--border-light)] transition-colors hover:bg-[var(--border)] active:scale-95"
+        >
           <ArrowLeft className="h-4 w-4 text-[var(--text-secondary)]" />
         </button>
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">FAQ</h1>
-      </div>
 
-      <div className="space-y-4">
+        <div>
+          <h1 className="text-lg font-semibold text-[var(--text-primary)]">
+            Frequently asked questions
+          </h1>
+
+          <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+            Quick answers about Punched
+          </p>
+        </div>
+      </header>
+
+      {/* Intro */}
+      <section className="pb-6">
+        <p className="text-sm leading-6 text-[var(--text-secondary)]">
+          Find answers to common questions about stamps, rewards,
+          your account, and using Punched.
+        </p>
+      </section>
+
+      {/* FAQ sections */}
+      <div className="space-y-7">
         {FAQ_DATA.map((section) => (
-          <div key={section.section} className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden">
-            <div className="px-4 pt-3 pb-1">
-              <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">{section.section}</p>
-            </div>
-            <div className="divide-y divide-[var(--border-light)]">
+          <section key={section.section}>
+            <h2 className="mb-2 px-1 text-xs font-semibold text-[var(--text-tertiary)]">
+              {section.section}
+            </h2>
+
+            <div className="overflow-hidden rounded-2xl border border-[var(--border-light)] bg-[var(--surface)]">
               {section.items.map((item, idx) => {
                 const key = `${section.section}-${idx}`;
                 const isOpen = openIndex === key;
+
                 return (
-                  <div key={key}>
+                  <div
+                    key={key}
+                    className={
+                      idx !== section.items.length - 1
+                        ? "border-b border-[var(--border-light)]"
+                        : ""
+                    }
+                  >
                     <button
                       onClick={() => toggle(key)}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-[var(--surface-raised)] transition-colors"
+                      aria-expanded={isOpen}
+                      className={`flex w-full items-center gap-3 px-4 py-4 text-left transition-colors ${
+                        isOpen
+                          ? "bg-brand-surface"
+                          : "hover:bg-[var(--border-light)] active:bg-[var(--border-light)]"
+                      }`}
                     >
-                      <span className="flex-1 text-sm font-semibold text-[var(--text-primary)]">{item.q}</span>
-                      {isOpen ? (
-                        <ChevronUp className="h-4 w-4 text-[var(--text-tertiary)] flex-shrink-0" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-[var(--text-tertiary)] flex-shrink-0" />
-                      )}
+                      <span
+                        className={`min-w-0 flex-1 text-sm font-medium leading-5 ${
+                          isOpen
+                            ? "text-brand-text"
+                            : "text-[var(--text-primary)]"
+                        }`}
+                      >
+                        {item.q}
+                      </span>
+
+                      <span
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                          isOpen
+                            ? "bg-[var(--surface)]"
+                            : "bg-[var(--border-light)]"
+                        }`}
+                      >
+                        {isOpen ? (
+                          <ChevronUp className="h-3.5 w-3.5 text-brand" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+                        )}
+                      </span>
                     </button>
+
                     {isOpen && (
-                      <div className="px-4 pb-3">
-                        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{item.a}</p>
+                      <div className="bg-brand-surface px-4 pb-4">
+                        <div className="border-l-2 border-brand/30 pl-3">
+                          <p className="text-sm leading-6 text-[var(--text-secondary)]">
+                            {item.a}
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
-          </div>
+          </section>
         ))}
       </div>
-    </div>
+
+      {/* Still need help */}
+      <section className="mt-8 rounded-2xl bg-[var(--border-light)] px-4 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)]">
+            <MessageCircle className="h-4 w-4 text-[var(--text-secondary)]" />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">
+              Still need help?
+            </p>
+
+            <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+              Our support team can help you out.
+            </p>
+          </div>
+
+          <button
+            onClick={() => router.push("/dashboard/profile/help")}
+            className="shrink-0 text-xs font-semibold text-brand"
+          >
+            Contact us
+          </button>
+        </div>
+      </section>
+    </main>
   );
 }

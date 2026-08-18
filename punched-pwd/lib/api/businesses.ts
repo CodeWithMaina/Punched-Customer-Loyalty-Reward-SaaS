@@ -7,6 +7,7 @@ import type {
   CreateBusinessRequest,
   UpdateBusinessRequest,
   BusinessCustomer,
+  PaginatedResponse,
   BusinessDashboardResponse,
   BusinessAnalyticsResponse,
   BusinessAnalyticsComparisonResponse,
@@ -18,6 +19,8 @@ import type {
   StaffActivityQuery,
   StaffMember,
   StaffMemberAnalyticsResponse,
+  StampDto,
+  NotificationDto,
 } from "@/types";
 
 export const businessesApi = {
@@ -41,11 +44,20 @@ export const businessesApi = {
   updateMine: (data: UpdateBusinessRequest) =>
     apiClient.patch<ApiResponse<Business>>("/businesses/me", data).then((r) => r.data),
 
-  getMyCustomers: (search?: string) =>
-    cachedFetch(`biz:customers:${search ?? ""}`, () =>
+  getMyCustomers: (params?: {
+    search?: string;
+    status?: "active" | "ready";
+    enrolledFrom?: string;
+    enrolledTo?: string;
+    sortBy?: "recent" | "stamps" | "name";
+    sortDirection?: "asc" | "desc";
+    page?: number;
+    pageSize?: number;
+  }) =>
+    cachedFetch(`biz:customers:${JSON.stringify(params ?? {})}`, () =>
       apiClient
-        .get<ApiResponse<BusinessCustomer[]>>("/businesses/me/customers", {
-          params: search ? { search } : undefined,
+        .get<ApiResponse<PaginatedResponse<BusinessCustomer>>>("/businesses/me/customers", {
+          params,
         })
         .then((r) => r.data),
       20_000
@@ -64,11 +76,6 @@ export const businessesApi = {
       15_000
     ),
 
-  linkStaff: (staffUserId: string) =>
-    apiClient
-      .post<ApiResponse<MessageResponse>>(`/businesses/me/staff/${staffUserId}`)
-      .then((r) => r.data),
-
   getStaffBusiness: () =>
     apiClient
       .get<ApiResponse<StaffBusinessResponse>>("/businesses/staff/my-business")
@@ -79,6 +86,16 @@ export const businessesApi = {
       .get<ApiResponse<StaffMember[]>>("/businesses/me/staff", {
         params: params ?? undefined,
       })
+      .then((r) => r.data),
+
+  setBusinessDailyGoal: (dailyGoal?: number) =>
+    apiClient
+      .put<ApiResponse<Business>>("/businesses/me/daily-goal", { dailyGoal })
+      .then((r) => r.data),
+
+  setStaffDailyGoal: (staffUserId: string, dailyGoal?: number) =>
+    apiClient
+      .put<ApiResponse<StaffMember>>(`/businesses/me/staff/${staffUserId}/daily-goal`, { dailyGoal })
       .then((r) => r.data),
 
   getStaffAnalytics: () =>
@@ -107,6 +124,27 @@ export const businessesApi = {
     apiClient
       .get<ApiResponse<StaffActivityFeedResponse>>("/businesses/staff/activity", {
         params: params ?? undefined,
+      })
+      .then((r) => r.data),
+
+  getRecentStamps: (businessId: string, staffUserId?: string, limit = 20) =>
+    apiClient
+      .get<ApiResponse<StampDto[]>>(`/businesses/${businessId}/activity/recent`, {
+        params: { staffUserId: staffUserId ?? undefined, limit },
+      })
+      .then((r) => r.data),
+
+  getMyNotifications: (unreadOnly = false) =>
+    apiClient
+      .get<ApiResponse<NotificationDto[]>>("/businesses/me/notifications", {
+        params: { unreadOnly },
+      })
+      .then((r) => r.data),
+
+  markNotificationsRead: (notificationId?: string) =>
+    apiClient
+      .post<ApiResponse<MessageResponse>>("/businesses/me/notifications/read", {
+        notificationId: notificationId ?? null,
       })
       .then((r) => r.data),
 

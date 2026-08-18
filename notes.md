@@ -661,4 +661,73 @@ The first customer for each business uses Customer@1234!
 All other customers use Cust@1234!
 
 
+<!-- What We Need To Do -->
 
+# App Header
+1. Remove the logout icon and its functionality.
+2. Replace that with a notification icon, that when tapped/clicked it will open a notification page.
+
+# Others
+1. Implement a debouncer for all search fields
+
+# Business Owner Dashboard
+# Dashboard
+1. We have a button to add a new program (+ Add), we need to make this button redirect to the page to create a new program.
+2. When the user taps/clicks the program we need to go to the programs details page.
+3. We need to improve the Staff section and also when the user taps/clicks the staff we should be redirected to the staff details page.
+4. We need to add a way for the user to choose their own date range along the 7D, 30D and 90D, this should be done by having a calender where the user will select the range and we will have dynamic data depending on the range.
+
+# Customer Page
+1. The Export button is outside the screen we need to position that properly.
+2. We need to make the search field in this page to perform a database first search not UI.
+3. When we drill down to the customer details page, the data/ui stretches outside the screen lets have that UI positioned well and refactored.
+3. We need pagination added and it should be a backend first pagination and sorting.
+4. Lets add an intelligent filtering functionality that is backend first.
+
+# Staff Page
+1. The Add button is outside the screen we need to position that properly.
+2. We need to make the search field in this page to perform a database first search not UI.
+3. We need pagination added and it should be a backend first pagination and sorting.
+4. Lets add an intelligent filtering functionality that is backend first.
+5. Lets have the default listing to be, the staff with the most stamps in the top and the top 3 should have a golden star.
+
+# Settings Page
+1. Add the change password functionality that is inside the owners profile into this main page so that the owners profile doesnt have the password functionality.
+<!-- Owner Profile Page -->
+1. Remove the password functionality.
+2. Make this page mainly for displaying, this means we will not have fields that are prefilled, we will only have the owners profile displayed.
+3. Remove the Owner Profile title and improve the design of that page.
+4. Add a button or a strategic way that when the user taps/clicks a page to edit the profile opens, this page is different from the display profile.
+5. If there is data that can be added to the profile add it.
+<!-- Business Profile Page -->
+1. Make this page mainly for displaying, this means we will not have fields that are prefilled, we will only have the business profile displayed.
+2. Add a button or a strategic way that when the user taps/clicks a page to edit the business profile opens, this page is different from the display profile.
+3. If there is data that can be added to the profile add it.
+4. Redesign and improve the design of this pages.
+
+
+
+
+# What To Think About
+1. The refferal program.
+2. The Loyalty program including the loyalty cards and more.
+3. When a user enrolls to a business they get one free stamp as default.
+4. This default stamps should come from the DB, this means it should be created or set when creating the program, this way differnt businesses can have different defaults.
+
+
+
+# Customer Owner Dashboard
+
+# Explore Page
+1. The cards overflow the screens, position them properly.
+2. The 2 switch tab buttons overflow the screen too, improve the switching animation.
+3. We need pagination added and it should be a backend first pagination and sorting.
+4. Backend first search with a UI debouncer.
+5. The filtering is not working, implement this to completion and it should be a backend first filter.
+
+# Staff Owner Dashboard
+
+# Activity Page
+1. For the recent activity/stamps have it paginated(backend first).
+2. For the recent activity, when a user clicks/taps a customer they should be taken to the customer page.
+2. I see we have a daily goal, we need to have that as a dynamic factor that is set by the business owner per user and with a default value per business.

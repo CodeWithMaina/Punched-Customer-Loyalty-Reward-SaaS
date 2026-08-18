@@ -9,14 +9,20 @@ namespace PunchedApi.Application.Services;
 
 public class LoyaltyService : ILoyaltyService
 {
-    private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWork _unitOfWork;
     private readonly ApplicationDbContext _context;
+    private readonly IStampService _stampService;
     private readonly ILogger<LoyaltyService> _logger;
 
-    public LoyaltyService(IUnitOfWork unitOfWork, ApplicationDbContext context, ILogger<LoyaltyService> logger)
+    public LoyaltyService(
+        IUnitOfWork unitOfWork,
+        ApplicationDbContext context,
+        IStampService stampService,
+        ILogger<LoyaltyService> logger)
     {
         _unitOfWork = unitOfWork;
         _context = context;
+        _stampService = stampService;
         _logger = logger;
     }
 
@@ -43,6 +49,7 @@ public class LoyaltyService : ILoyaltyService
                     RewardValue = request.RewardValue,
                     RewardDescription = request.RewardDescription.Trim(),
                     RewardExpirationHours = request.RewardExpirationHours,
+                    DefaultEnrollmentStamps = Math.Clamp(request.DefaultEnrollmentStamps, 0, 100),
                     CreatedAt = DateTime.UtcNow
                 };
                 await _unitOfWork.LoyaltyPrograms.AddAsync(program);
@@ -74,6 +81,7 @@ public class LoyaltyService : ILoyaltyService
                 program.RewardValue = request.RewardValue;
                 program.RewardDescription = request.RewardDescription.Trim();
                 program.RewardExpirationHours = request.RewardExpirationHours;
+                program.DefaultEnrollmentStamps = Math.Clamp(request.DefaultEnrollmentStamps, 0, 100);
                 _unitOfWork.LoyaltyPrograms.Update(program);
 
                 await _context.LoyaltyProgramHistory.AddAsync(new LoyaltyProgramHistory
@@ -115,6 +123,20 @@ public class LoyaltyService : ILoyaltyService
         return ApiResponse<List<LoyaltyProgramResponse>>.Ok(programs.Select(MapProgram).ToList());
     }
 
+    public async Task<ApiResponse<LoyaltyProgramResponse>> GetBusinessProgramAsync(Guid ownerId, Guid programId)
+    {
+        var business = await _unitOfWork.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+        if (business == null)
+            return ApiResponse<LoyaltyProgramResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+        var program = await _context.LoyaltyPrograms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == programId && p.BusinessId == business.Id);
+        return program == null
+            ? ApiResponse<LoyaltyProgramResponse>.Fail("NOT_FOUND", "Loyalty program not found.")
+            : ApiResponse<LoyaltyProgramResponse>.Ok(MapProgram(program));
+    }
+
     public async Task<ApiResponse<LoyaltyProgramResponse>> CreateProgramAsync(Guid ownerId, CreateLoyaltyProgramRequest request)
     {
         try
@@ -132,6 +154,7 @@ public class LoyaltyService : ILoyaltyService
                 StampsRequired = request.StampsRequired,
                 RewardValue = request.RewardValue,
                 RewardDescription = request.RewardDescription.Trim(),
+                DefaultEnrollmentStamps = Math.Clamp(request.DefaultEnrollmentStamps, 0, 100),
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -181,6 +204,8 @@ public class LoyaltyService : ILoyaltyService
             if (request.StampsRequired.HasValue) program.StampsRequired = request.StampsRequired.Value;
             if (request.RewardValue.HasValue) program.RewardValue = request.RewardValue.Value;
             if (request.RewardDescription != null) program.RewardDescription = request.RewardDescription.Trim();
+            if (request.DefaultEnrollmentStamps.HasValue)
+                program.DefaultEnrollmentStamps = Math.Clamp(request.DefaultEnrollmentStamps.Value, 0, 100);
 
             _unitOfWork.LoyaltyPrograms.Update(program);
 
@@ -243,6 +268,36 @@ public class LoyaltyService : ILoyaltyService
         }
     }
 
+        public async Task BackfillProgramHistoryAsync(CancellationToken cancellationToken = default)
+    {
+        var programs = await _context.LoyaltyPrograms
+            .IgnoreQueryFilters()
+            .ToListAsync(cancellationToken);
+
+        foreach (var program in programs)
+        {
+            var hasHistory = await _context.LoyaltyProgramHistory
+                .AnyAsync(h => h.LoyaltyProgramId == program.Id, cancellationToken);
+
+            if (!hasHistory)
+            {
+                await _context.LoyaltyProgramHistory.AddAsync(new LoyaltyProgramHistory
+                {
+                    Id = Guid.NewGuid(),
+                    LoyaltyProgramId = program.Id,
+                    StampsRequired = program.StampsRequired,
+                    RewardValue = program.RewardValue,
+                    RewardDescription = program.RewardDescription,
+                    EffectiveFrom = program.CreatedAt,
+                    CreatedAt = DateTime.UtcNow
+                }, cancellationToken);
+            }
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+        _logger.LogInformation("Backfilled loyalty program history for {Count} programs", programs.Count);
+    }
+
     // ── Legacy upsert ────────────────────────────────────────
 
     public async Task<ApiResponse<LoyaltyProgramResponse>> GetProgramAsync(Guid businessId)
@@ -277,20 +332,32 @@ public class LoyaltyService : ILoyaltyService
             if (existing != null)
                 return ApiResponse<LoyaltyCardResponse>.Fail("ALREADY_ENROLLED", "You are already enrolled in this program.");
 
+            var now = DateTime.UtcNow;
+            var welcomeStamps = Math.Clamp(activeProgram.DefaultEnrollmentStamps, 0, 100);
+
             var card = new LoyaltyCard
             {
                 Id = Guid.NewGuid(),
                 CustomerId = customerId,
                 BusinessId = business.Id,
                 ProgramId = activeProgram.Id,
-                TotalStamps = 0,
-                LifetimeStamps = 0,
+                TotalStamps = welcomeStamps,
+                LifetimeStamps = welcomeStamps,
                 TotalRedemptions = 0,
-                EnrolledAt = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow
+                LastStampAt = welcomeStamps > 0 ? now : null,
+                EnrolledAt = now,
+                CreatedAt = now
             };
 
-            await _unitOfWork.LoyaltyCards.AddAsync(card);
+                        await _unitOfWork.LoyaltyCards.AddAsync(card);
+
+            // Record the welcome stamp ledger entries via StampService so the
+            // Source column and activity feed stay consistent.
+            for (var i = 1; i <= welcomeStamps; i++)
+            {
+                await _stampService.CreateEnrollmentStampAsync(card.Id, i);
+            }
+
             await _unitOfWork.SaveChangesAsync();
 
             return ApiResponse<LoyaltyCardResponse>.Ok(MapCard(card, business, activeProgram));
@@ -338,6 +405,7 @@ public class LoyaltyService : ILoyaltyService
         RewardValue = p.RewardValue,
         RewardDescription = p.RewardDescription,
         RewardExpirationHours = p.RewardExpirationHours,
+        DefaultEnrollmentStamps = p.DefaultEnrollmentStamps,
         CreatedAt = p.CreatedAt
     };
 

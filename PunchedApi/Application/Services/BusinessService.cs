@@ -133,14 +133,22 @@ public partial class BusinessService : IBusinessService
         return ApiResponse<List<BusinessResponse>>.Ok(result);
     }
 
-    public async Task<ApiResponse<List<BusinessCustomerResponse>>> GetBusinessCustomersAsync(Guid ownerId, string? search)
+    public async Task<ApiResponse<PaginatedResponse<BusinessCustomerResponse>>> GetBusinessCustomersAsync(
+        Guid ownerId,
+        string? search,
+        string? status,
+        DateOnly? enrolledFrom,
+        DateOnly? enrolledTo,
+        string sortBy,
+        string sortDirection,
+        int page,
+        int pageSize)
     {
         var business = await _unitOfWork.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
         if (business == null)
-            return ApiResponse<List<BusinessCustomerResponse>>.Fail("NOT_FOUND", "No business found for this account.");
+            return ApiResponse<PaginatedResponse<BusinessCustomerResponse>>.Fail("NOT_FOUND", "No business found for this account.");
 
         var query = _context.LoyaltyCards
-            .Include(c => c.Customer)
             .Where(c => c.BusinessId == business.Id)
             .AsNoTracking()
             .AsQueryable();
@@ -150,29 +158,69 @@ public partial class BusinessService : IBusinessService
             var searchLower = search.ToLower();
             query = query.Where(c =>
                 c.Customer.FullName.ToLower().Contains(searchLower) ||
-                c.Customer.Email.ToLower().Contains(searchLower));
+                c.Customer.Email.ToLower().Contains(searchLower) ||
+                (c.Customer.PhoneNumber != null && c.Customer.PhoneNumber.Contains(searchLower)));
         }
 
-        var cards = await query.OrderByDescending(c => c.LastStampAt ?? c.EnrolledAt).ToListAsync();
-
-        var result = cards.Select(c => new BusinessCustomerResponse
+        if (status?.ToLowerInvariant() == "active")
         {
-            UserId = c.CustomerId,
-            FullName = c.Customer.FullName,
-            Email = c.Customer.Email,
-            PhoneNumber = c.Customer.PhoneNumber,
-            DateOfBirth = c.Customer.DateOfBirth,
-            Gender = c.Customer.Gender,
-            AvatarUrl = c.Customer.AvatarUrl,
-            CardId = c.Id,
-            TotalStamps = c.TotalStamps,
-            LifetimeStamps = c.LifetimeStamps,
-            TotalRedemptions = c.TotalRedemptions,
-            EnrolledAt = c.EnrolledAt,
-            LastStampAt = c.LastStampAt
-        }).ToList();
+            var activeSince = DateTime.UtcNow.AddDays(-7);
+            query = query.Where(c => c.LastStampAt >= activeSince);
+        }
+        else if (status?.ToLowerInvariant() == "ready")
+        {
+            query = query.Where(c => c.TotalStamps >= c.Program.StampsRequired);
+        }
 
-        return ApiResponse<List<BusinessCustomerResponse>>.Ok(result);
+        if (enrolledFrom.HasValue)
+        {
+            var from = enrolledFrom.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            query = query.Where(c => c.EnrolledAt >= from);
+        }
+
+        if (enrolledTo.HasValue)
+        {
+            var toExclusive = enrolledTo.Value.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            query = query.Where(c => c.EnrolledAt < toExclusive);
+        }
+
+        var descending = !string.Equals(sortDirection, "asc", StringComparison.OrdinalIgnoreCase);
+        query = sortBy.ToLowerInvariant() switch
+        {
+            "stamps" => descending ? query.OrderByDescending(c => c.TotalStamps).ThenBy(c => c.Customer.FullName) : query.OrderBy(c => c.TotalStamps).ThenBy(c => c.Customer.FullName),
+            "name" => descending ? query.OrderByDescending(c => c.Customer.FullName) : query.OrderBy(c => c.Customer.FullName),
+            _ => descending ? query.OrderByDescending(c => c.LastStampAt ?? c.EnrolledAt) : query.OrderBy(c => c.LastStampAt ?? c.EnrolledAt)
+        };
+
+        var totalCount = await query.CountAsync();
+        var cards = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(c => new BusinessCustomerResponse
+            {
+                UserId = c.CustomerId,
+                FullName = c.Customer.FullName,
+                Email = c.Customer.Email,
+                PhoneNumber = c.Customer.PhoneNumber,
+                DateOfBirth = c.Customer.DateOfBirth,
+                Gender = c.Customer.Gender,
+                AvatarUrl = c.Customer.AvatarUrl,
+                CardId = c.Id,
+                TotalStamps = c.TotalStamps,
+                LifetimeStamps = c.LifetimeStamps,
+                TotalRedemptions = c.TotalRedemptions,
+                EnrolledAt = c.EnrolledAt,
+                LastStampAt = c.LastStampAt
+            })
+            .ToListAsync();
+
+        return ApiResponse<PaginatedResponse<BusinessCustomerResponse>>.Ok(new PaginatedResponse<BusinessCustomerResponse>
+        {
+            Items = cards,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 
     public async Task<ApiResponse<BusinessCustomerResponse>> GetSingleCustomerAsync(Guid ownerId, Guid customerId)
@@ -217,6 +265,7 @@ public partial class BusinessService : IBusinessService
         Description = b.Description,
         LogoUrl = b.LogoUrl,
         OwnerId = b.OwnerId,
+        DefaultDailyGoal = b.DefaultDailyGoal,
         CreatedAt = b.CreatedAt,
         LoyaltyPrograms = b.LoyaltyPrograms.Select(p => new LoyaltyProgramResponse
         {
@@ -228,6 +277,7 @@ public partial class BusinessService : IBusinessService
             RewardValue = p.RewardValue,
             RewardDescription = p.RewardDescription,
             RewardExpirationHours = p.RewardExpirationHours,
+            DefaultEnrollmentStamps = p.DefaultEnrollmentStamps,
             CreatedAt = p.CreatedAt
         }).ToList(),
         // Legacy: first active program for backward compat
@@ -241,6 +291,7 @@ public partial class BusinessService : IBusinessService
             RewardValue = ap.RewardValue,
             RewardDescription = ap.RewardDescription,
             RewardExpirationHours = ap.RewardExpirationHours,
+            DefaultEnrollmentStamps = ap.DefaultEnrollmentStamps,
             CreatedAt = ap.CreatedAt
         } : null,
         HasReferralProgram = b.ReferralProgram != null && b.ReferralProgram.IsActive
@@ -262,13 +313,46 @@ public partial class BusinessService : IBusinessService
             var todayUtc = DateTime.UtcNow.Date;
             var activeProgram = business.LoyaltyPrograms.FirstOrDefault(p => p.IsActive);
 
-            // Sequential queries — DbContext is not thread-safe
+                        // Sequential queries — DbContext is not thread-safe
             var activeCards = await _context.LoyaltyCards.CountAsync(c => c.BusinessId == businessId);
             var totalStamps = await _context.Stamps.CountAsync(s => s.Card.BusinessId == businessId);
             var stampsToday = await _context.Stamps.CountAsync(s => s.Card.BusinessId == businessId && s.StampedAt >= todayUtc);
             var totalRedemptions = await _context.Redemptions.CountAsync(r => r.BusinessId == businessId);
             var rewardReadyCards = activeProgram == null ? 0
                 : await _context.LoyaltyCards.CountAsync(c => c.BusinessId == businessId && c.TotalStamps >= activeProgram.StampsRequired);
+
+            // ── Staff mini cards ("Your team") — today's scan stamps, effective goal, on-shift ──
+            var staffUsers = await _context.Users
+                .Where(u => u.StaffBusinessId == businessId)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var today = DateOnly.FromDateTime(todayUtc);
+            var stampsTodayByStaff = await _context.Stamps
+                .Where(s => s.Card.BusinessId == businessId
+                    && s.AwardedByUserId != null
+                    && s.Source != StampSource.Enrollment
+                    && s.StampedAt >= todayUtc)
+                .GroupBy(s => s.AwardedByUserId!.Value)
+                .Select(g => new { StaffUserId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.StaffUserId, x => x.Count);
+
+            var onShiftStaff = (await _context.StaffShifts
+                .Where(s => s.BusinessId == businessId && s.Date == today && s.IsWorking)
+                .Select(s => s.StaffUserId)
+                .ToListAsync())
+                .ToHashSet();
+
+            var defaultGoal = business.DefaultDailyGoal;
+            var staffMini = staffUsers.Select(u => new StaffMiniDto
+            {
+                UserId = u.Id,
+                FullName = u.FullName,
+                AvatarUrl = u.AvatarUrl,
+                StampsToday = stampsTodayByStaff.GetValueOrDefault(u.Id, 0),
+                DailyGoal = u.DailyGoalOverride ?? defaultGoal ?? 0,
+                IsOnShift = onShiftStaff.Contains(u.Id)
+            }).ToList();
 
             return ApiResponse<BusinessDashboardResponse>.Ok(new BusinessDashboardResponse
             {
@@ -278,7 +362,8 @@ public partial class BusinessService : IBusinessService
                 TotalStampsIssued = totalStamps,
                 StampsToday = stampsToday,
                 TotalRedemptions = totalRedemptions,
-                RewardReadyCards = rewardReadyCards
+                RewardReadyCards = rewardReadyCards,
+                StaffMini = staffMini
             });
         }
         catch (Exception ex)
@@ -397,6 +482,7 @@ public partial class BusinessService : IBusinessService
                 TotalStamps = totalStamps,
                 TotalCustomers = totalCustomers,
                 RewardReadyCount = rewardReadyCount,
+                DailyGoal = user.DailyGoalOverride ?? business.DefaultDailyGoal,
                 RecentActivity = recentStamps
             });
         }
@@ -433,6 +519,7 @@ public partial class BusinessService : IBusinessService
             FullName = u.FullName,
             Email = u.Email,
             AvatarUrl = u.AvatarUrl,
+            DailyGoalOverride = u.DailyGoalOverride,
             StampsIssued = _context.Stamps.Count(s => s.AwardedByUserId == u.Id && s.Card.BusinessId == business.Id),
         });
 
@@ -445,7 +532,55 @@ public partial class BusinessService : IBusinessService
         };
 
         var result = await projected.ToListAsync();
+
+        // Effective goal = personal override, else business default.
+        var defaultGoal = business.DefaultDailyGoal;
+        foreach (var s in result)
+        {
+            s.DailyGoal = s.DailyGoalOverride ?? defaultGoal;
+        }
+
         return ApiResponse<List<StaffMemberResponse>>.Ok(result);
+    }
+
+    public async Task<ApiResponse<BusinessResponse>> SetBusinessDailyGoalAsync(Guid ownerId, int? dailyGoal)
+    {
+        var business = await _unitOfWork.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+        if (business == null)
+            return ApiResponse<BusinessResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+        business.DefaultDailyGoal = dailyGoal.HasValue ? Math.Clamp(dailyGoal.Value, 1, 1000) : null;
+        _unitOfWork.Businesses.Update(business);
+        await _unitOfWork.SaveChangesAsync();
+        return ApiResponse<BusinessResponse>.Ok(MapToResponse(business));
+    }
+
+    public async Task<ApiResponse<StaffMemberResponse>> SetStaffDailyGoalAsync(Guid ownerId, Guid staffUserId, int? dailyGoal)
+    {
+        var business = await _unitOfWork.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+        if (business == null)
+            return ApiResponse<StaffMemberResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+        var staffUser = await _unitOfWork.Users.FirstOrDefaultAsync(
+            u => u.Id == staffUserId && u.StaffBusinessId == business.Id);
+        if (staffUser == null)
+            return ApiResponse<StaffMemberResponse>.Fail("NOT_FOUND", "Staff member not found in your business.");
+
+        staffUser.DailyGoalOverride = dailyGoal.HasValue ? Math.Clamp(dailyGoal.Value, 1, 1000) : null;
+        _unitOfWork.Users.Update(staffUser);
+        await _unitOfWork.SaveChangesAsync();
+
+        var stampsIssued = await _context.Stamps.CountAsync(s => s.AwardedByUserId == staffUser.Id && s.Card.BusinessId == business.Id);
+        return ApiResponse<StaffMemberResponse>.Ok(new StaffMemberResponse
+        {
+            UserId = staffUser.Id,
+            FullName = staffUser.FullName,
+            Email = staffUser.Email,
+            AvatarUrl = staffUser.AvatarUrl,
+            StampsIssued = stampsIssued,
+            DailyGoalOverride = staffUser.DailyGoalOverride,
+            DailyGoal = staffUser.DailyGoalOverride ?? business.DefaultDailyGoal
+        });
     }
 
     public async Task<ApiResponse<MessageResponse>> LinkStaffToBusinessAsync(Guid ownerId, Guid staffUserId)
@@ -542,6 +677,7 @@ public partial class BusinessService : IBusinessService
                 CustomersServed      = customersServed,
                 TotalStampsAllTime   = totalStampsAllTime,
                 TotalCustomersAllTime = totalCustomersAllTime,
+                DailyGoal            = staffUser.DailyGoalOverride ?? business.DefaultDailyGoal,
                 RecentActivity       = recentActivity,
             });
         }
@@ -850,15 +986,7 @@ public partial class BusinessService : IBusinessService
                 .AsNoTracking()
                 .ToListAsync();
 
-            // 6. Program redemption counts — single batch query
-            var programIds = business.LoyaltyPrograms.Select(p => p.Id).ToList();
-            var programRedemptionCounts = await _context.Redemptions
-                .Where(r => r.BusinessId == businessId && programIds.Contains(r.Card.ProgramId))
-                .GroupBy(r => r.Card.ProgramId)
-                .Select(g => new { ProgramId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.ProgramId, x => x.Count);
-
-            // 7. Staff performance — aggregated in SQL
+            // 6. Staff performance — aggregated in SQL
             var staffStampStats = await stampsQuery
                 .Where(s => s.AwardedByUserId != null)
                 .GroupBy(s => s.AwardedByUserId!.Value)
@@ -942,22 +1070,7 @@ public partial class BusinessService : IBusinessService
                 };
             }).ToList();
 
-            // 5. Program performance (batch — no N+1)
-            var programPerformance = business.LoyaltyPrograms.Select(prog =>
-            {
-                var progCards = cardSummaries.Where(c => c.ProgramId == prog.Id).ToList();
-                var completed = progCards.Count(c => c.LifetimeStamps >= prog.StampsRequired);
-                return new ProgramPerformanceItem
-                {
-                    ProgramId = prog.Id,
-                    ProgramName = prog.Name,
-                    TotalRedemptions = programRedemptionCounts.GetValueOrDefault(prog.Id, 0),
-                    ActiveCards = progCards.Count,
-                    CompletionRate = progCards.Count > 0 ? Math.Round((double)completed / progCards.Count * 100, 1) : 0
-                };
-            }).ToList();
-
-            // 6. Customer growth (cumulative)
+            // 5. Customer growth (cumulative)
             var prePeriodCount = cardSummaries.Count(c => c.EnrolledAt < periodStart);
             var growthData = new List<GrowthPoint>();
             var running = prePeriodCount;
@@ -1040,7 +1153,7 @@ public partial class BusinessService : IBusinessService
             var redemptionCount = redemptionsByHour.Values.Sum();
             var extended = await BuildExtendedAnalyticsAsync(
                 businessId, now, periodStart, activeProgram, business.LoyaltyPrograms.ToList(),
-                totalPeriodStamps, stampsByHour, redemptionCount, cardInsights, staffUsers, staffPeriodStats);
+                totalPeriodStamps, stampsByHour, dailyStamps, redemptionCount, cardInsights, staffUsers, staffPeriodStats);
 
             return ApiResponse<BusinessAnalyticsResponse>.Ok(new BusinessAnalyticsResponse
             {
@@ -1288,6 +1401,26 @@ public partial class BusinessService : IBusinessService
 
         await _context.SaveChangesAsync();
         return ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "Staff shift saved." });
+    }
+
+    public async Task<bool> CanAccessBusinessAsync(Guid userId, Guid businessId)
+    {
+        var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return false;
+
+        // Business owner → own business
+        if (user.Role == UserRole.Business)
+        {
+            return await _context.Businesses.AnyAsync(b => b.Id == businessId && b.OwnerId == userId);
+        }
+
+        // Staff → linked to the business
+        if (user.Role == UserRole.Staff)
+        {
+            return user.StaffBusinessId == businessId;
+        }
+
+        return false;
     }
 /// <summary>
     /// Period-over-period comparison scoped strictly to the authenticated owner's business.

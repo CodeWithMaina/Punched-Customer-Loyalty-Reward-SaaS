@@ -55,6 +55,15 @@ public class LoyaltyProgram : BaseEntity
     [Range(0, 8760)] // 0 = no expiry, max 1 year
     public int RewardExpirationHours { get; set; } = 48;
 
+    /// <summary>
+    /// Number of stamps a new customer receives automatically upon enrolling
+    /// in this program. Configured per program so different businesses can
+    /// offer different welcome bonuses. 0 means no welcome stamps.
+    /// A welcome-stamp ledger entry is recorded on enrollment.
+    /// </summary>
+    [Range(0, 100)]
+    public int DefaultEnrollmentStamps { get; set; } = 0;
+
     // ── Navigation ──────────────────────────────────────────
     /// <summary>
     /// The business this program belongs to.

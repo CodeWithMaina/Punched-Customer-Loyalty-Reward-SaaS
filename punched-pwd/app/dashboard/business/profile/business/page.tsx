@@ -5,65 +5,60 @@ import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
 import type { Business } from "@/types";
-import toast from "react-hot-toast";
 import {
-  ArrowLeft, Loader2, Save, Store, Phone, Mail, MapPin, FileText, Link2, Hash,
+  ArrowLeft, Loader2, Store, Phone, Mail, MapPin, FileText, Hash, Pencil,
 } from "lucide-react";
 
-function Field({ label, icon, value, onChange, placeholder, type = "text", required, readOnly }: {
-  label: string; icon: React.ReactNode; value: string;
-  onChange?: (v: string) => void; placeholder?: string;
-  type?: string; required?: boolean; readOnly?: boolean;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]">{icon}{label}</label>
-      <input type={type} value={value} readOnly={readOnly}
-        onChange={(e) => onChange?.(e.target.value)} placeholder={placeholder} required={required}
-        className={`w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand ${readOnly ? "bg-[var(--surface-raised)] text-[var(--text-tertiary)] cursor-default" : ""}`} />
-    </div>
-  );
-}
+// ═══════════════════════════════════════════════════════════════
+//  Business Profile — View
+//  Route: /dashboard/business/profile/business
+//  Display-only. Editing lives on a separate page:
+//  /dashboard/business/profile/business/edit
+// ═══════════════════════════════════════════════════════════════
 
-export default function BusinessProfilePage() {
+export default function BusinessProfileViewPage() {
   useRoleGuard("Business");
   const [business, setBusiness] = useState<Business | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: "", category: "", location: "", phoneNumber: "",
-    email: "", description: "", logoUrl: "", mpesaNumber: "",
-  });
 
   useEffect(() => {
     businessesApi.getMine().then((res) => {
-      if (res.success && res.data) {
-        const b = res.data;
-        setBusiness(b);
-        setForm({
-          name: b.name ?? "", category: b.category ?? "", location: b.location ?? "",
-          phoneNumber: b.phoneNumber ?? "", email: b.email ?? "", description: b.description ?? "",
-          logoUrl: b.logoUrl ?? "", mpesaNumber: (b as any).mpesaNumber ?? "",
-        });
-      }
+      if (res.success && res.data) setBusiness(res.data);
       setIsLoading(false);
     });
   }, []);
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault(); setIsSaving(true);
-    try {
-      const res = await businessesApi.updateMine(form);
-      if (res.success && res.data) { setBusiness(res.data); toast.success("Business profile updated!"); }
-      else toast.error(res.error?.message ?? "Failed to update.");
-    } catch { toast.error("Unexpected error."); } finally { setIsSaving(false); }
-  }
-
-  if (isLoading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Loader2 className="h-8 w-8 animate-spin text-brand" />
+  const InfoRow = ({
+    icon: Icon,
+    label,
+    value,
+  }: {
+    icon: React.ElementType;
+    label: string;
+    value: string;
+  }) => (
+    <div className="flex items-center gap-3 py-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--border-light)]">
+        <Icon className="h-4 w-4 text-[var(--text-secondary)]" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-[var(--text-tertiary)]">{label}</p>
+        <p className="break-words text-sm font-semibold text-[var(--text-primary)]">
+          {value || "—"}
+        </p>
+      </div>
     </div>
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+      </div>
+    );
+  }
+
+  const b = business;
 
   return (
     <div className="max-w-lg mx-auto pb-12">
@@ -72,73 +67,42 @@ export default function BusinessProfilePage() {
         <Link href="/dashboard/business/profile" className="h-9 w-9 rounded-xl border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--border-light)] transition-colors flex-shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-lg font-bold text-[var(--text-primary)]">Business Profile</h1>
-          <p className="text-xs text-[var(--text-tertiary)]">Manage your business details</p>
+          <p className="text-xs text-[var(--text-tertiary)]">Your business details</p>
         </div>
+        <Link
+          href="/dashboard/business/profile/business/edit"
+          className="flex items-center gap-1.5 bg-brand hover:bg-brand-hover text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-colors"
+        >
+          <Pencil className="h-3.5 w-3.5" />Edit
+        </Link>
       </div>
 
-      {/* Business logo preview */}
-      <div className="mx-5 mb-5 flex items-center gap-4 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-        <div className="h-14 w-14 rounded-2xl bg-brand-surface border border-brand/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-          {form.logoUrl ? <img src={form.logoUrl} alt="logo" className="h-full w-full object-cover" /> : <Store className="h-7 w-7 text-brand" />}
+      {/* Logo + name */}
+      <div className="mx-5 mb-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-5 flex items-center gap-4">
+        <div className="h-16 w-16 rounded-2xl bg-brand-surface flex items-center justify-center overflow-hidden flex-shrink-0">
+          {b?.logoUrl ? (
+            <img src={b.logoUrl} alt={b.name} className="h-full w-full object-cover" />
+          ) : (
+            <Store className="h-7 w-7 text-brand" />
+          )}
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-bold text-[var(--text-primary)] truncate">{form.name || "Your Business"}</p>
-          <p className="text-xs text-[var(--text-tertiary)]">{form.category}{form.category && form.location ? " · " : ""}{form.location}</p>
+          <p className="truncate text-lg font-bold text-[var(--text-primary)]">{b?.name}</p>
+          <p className="text-xs text-[var(--text-tertiary)]">{b?.category}</p>
         </div>
       </div>
 
-      <div className="px-5">
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* Core info */}
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4 space-y-4">
-            <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">Core Info</p>
-            <Field label="Business Name" icon={<Store className="h-3.5 w-3.5" />} value={form.name}
-              onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="Artisan Brews" required />
-            <Field label="Category" icon={<Hash className="h-3.5 w-3.5" />} value={form.category}
-              onChange={(v) => setForm((f) => ({ ...f, category: v }))} placeholder="Cafe, Restaurant, Salon…" required />
-            <Field label="Location" icon={<MapPin className="h-3.5 w-3.5" />} value={form.location}
-              onChange={(v) => setForm((f) => ({ ...f, location: v }))} placeholder="Downtown, Nairobi" required />
-          </div>
-
-          {/* Contact */}
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4 space-y-4">
-            <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">Contact</p>
-            <Field label="Phone" icon={<Phone className="h-3.5 w-3.5" />} value={form.phoneNumber}
-              onChange={(v) => setForm((f) => ({ ...f, phoneNumber: v }))} placeholder="+254 700 000 000" type="tel" />
-            <Field label="Email" icon={<Mail className="h-3.5 w-3.5" />} value={form.email}
-              onChange={(v) => setForm((f) => ({ ...f, email: v }))} placeholder="hello@business.co.ke" type="email" />
-          </div>
-
-          {/* Branding */}
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4 space-y-4">
-            <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">Branding</p>
-            <Field label="Logo URL" icon={<Link2 className="h-3.5 w-3.5" />} value={form.logoUrl}
-              onChange={(v) => setForm((f) => ({ ...f, logoUrl: v }))} placeholder="https://cdn.example.com/logo.png" type="url" />
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]">
-                <FileText className="h-3.5 w-3.5" />Description
-              </label>
-              <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Tell customers what makes your business special…" rows={3} maxLength={500}
-                className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none" />
-            </div>
-          </div>
-
-          {/* Payment */}
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4 space-y-4">
-            <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">Payment</p>
-            <Field label="M-Pesa Paybill / Till" icon={<Hash className="h-3.5 w-3.5" />} value={form.mpesaNumber}
-              onChange={(v) => setForm((f) => ({ ...f, mpesaNumber: v }))} placeholder="174379" />
-          </div>
-
-          <button type="submit" disabled={isSaving}
-            className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover text-white font-semibold py-3.5 rounded-2xl transition-colors disabled:opacity-50">
-            {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-            {isSaving ? "Saving…" : "Save Business Profile"}
-          </button>
-        </form>
+      {/* Details */}
+      <div className="mx-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card px-4 divide-y divide-[var(--border-light)]">
+        <InfoRow icon={Store} label="Business name" value={b?.name ?? ""} />
+        <InfoRow icon={Hash} label="Category" value={b?.category ?? ""} />
+        <InfoRow icon={MapPin} label="Location" value={b?.location ?? ""} />
+        <InfoRow icon={Phone} label="Phone" value={b?.phoneNumber ?? ""} />
+        <InfoRow icon={Mail} label="Email" value={b?.email ?? ""} />
+        <InfoRow icon={Hash} label="M-Pesa Paybill / Till" value={(b as any)?.mpesaNumber ?? ""} />
+        <InfoRow icon={FileText} label="Description" value={b?.description ?? ""} />
       </div>
     </div>
   );

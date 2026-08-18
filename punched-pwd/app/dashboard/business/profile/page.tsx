@@ -7,7 +7,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useThemeStore, THEMES } from "@/store/themeStore";
 import {
-  User, Store, Gift, Link2, HelpCircle,
+  User, Store, Gift, Link2, HelpCircle, Lock,
   MessageCircle, LogOut, ChevronRight, Shield, Palette, Check, X,
 } from "lucide-react";
 
@@ -15,8 +15,9 @@ const MENU_GROUPS = [
   {
     label: "Account",
     items: [
-      { href: "/dashboard/business/profile/owner", icon: User, label: "Owner Profile", description: "Name, phone, avatar, password" },
+      { href: "/dashboard/business/profile/owner", icon: User, label: "Owner Profile", description: "Name, phone and avatar" },
       { href: "/dashboard/business/profile/business", icon: Store, label: "Business Profile", description: "Name, location, contact, branding" },
+      { href: "/dashboard/profile/password", icon: Lock, label: "Change Password", description: "Update your account password" },
     ],
   },
   {

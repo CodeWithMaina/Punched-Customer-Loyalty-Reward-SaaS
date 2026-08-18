@@ -73,6 +73,13 @@ public class User : BaseEntity
     public Guid? StaffBusinessId { get; set; }
 
     /// <summary>
+    /// Optional personal daily stamp goal that overrides the business default.
+    /// Only meaningful for Staff users; null means fall back to business default.
+    /// </summary>
+    [Range(1, 1000)]
+    public int? DailyGoalOverride { get; set; }
+
+    /// <summary>
     /// Soft-delete marker. Deleted users are excluded from normal queries.
     /// </summary>
     public bool IsDeleted { get; set; }

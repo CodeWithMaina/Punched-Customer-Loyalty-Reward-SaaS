@@ -12,10 +12,12 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   showPasswordToggle?: boolean;
+  /** Optional helper text shown under the field (hidden if an error is present). */
+  extraHint?: { tone?: "ok" | "error"; text: string };
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, type, showPasswordToggle, ...props }, ref) => {
+  ({ className, label, error, type, showPasswordToggle, extraHint, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
 
     const isPassword = type === "password";
@@ -69,6 +71,17 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         </div>
         {error && (
           <p className="mt-1.5 text-xs text-danger font-medium">{error}</p>
+        )}
+        {extraHint && !error && (
+          <p
+            className={`mt-1.5 text-xs font-medium ${
+              extraHint.tone === "ok"
+                ? "text-ok-text"
+                : "text-[var(--text-secondary)]"
+            }`}
+          >
+            {extraHint.text}
+          </p>
         )}
       </div>
     );

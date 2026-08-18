@@ -30,11 +30,15 @@ public class StampConfiguration : IEntityTypeConfiguration<Stamp>
             .HasColumnName("stamped_at");
 
         builder.Property(e => e.QrTokenId)
-            .IsRequired()
+            .IsRequired(false)
             .HasColumnName("qr_token_id");
 
         builder.Property(e => e.AwardedByUserId)
             .HasColumnName("awarded_by_user_id");
+
+        builder.Property(e => e.Source)
+            .HasMaxLength(20)
+            .HasColumnName("source");
 
         builder.Property(e => e.CreatedAt)
             .HasColumnName("created_at");
@@ -45,7 +49,8 @@ public class StampConfiguration : IEntityTypeConfiguration<Stamp>
             t.HasCheckConstraint("chk_stamp_number_positive", "\"stamp_number\" > 0");
         });
 
-        // One stamp per QR token
+        // One stamp per QR token (nullable here so system-generated welcome stamps
+        // with a NULL token are permitted) — PostgreSQL treats NULLs as distinct.
         builder.HasIndex(e => e.QrTokenId).IsUnique();
         builder.HasIndex(e => e.CardId);
         builder.HasIndex(e => new { e.CardId, e.StampedAt });

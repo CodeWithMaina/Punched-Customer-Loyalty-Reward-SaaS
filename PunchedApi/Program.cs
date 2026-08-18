@@ -115,10 +115,17 @@ try
     else
         builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 
+    builder.Services.Configure<PublicAppSettings>(
+        builder.Configuration.GetSection(PublicAppSettings.SectionName));
+
+    // Staff invitations (invitation-only staff onboarding)
+    builder.Services.AddScoped<IInvitationService, InvitationService>();
+
     builder.Services.AddScoped<IUserService, UserService>();
     builder.Services.AddScoped<IBusinessService, BusinessService>();
     builder.Services.AddScoped<ILoyaltyService, LoyaltyService>();
     builder.Services.AddScoped<IStampService, StampService>();
+    builder.Services.AddScoped<INotificationsService, NotificationsService>();
     builder.Services.AddScoped<IQrService, QrService>();
     builder.Services.AddScoped<IRedemptionService, RedemptionService>();
     builder.Services.AddScoped<IReferralService, ReferralService>();
@@ -141,6 +148,7 @@ try
     builder.Services.AddScoped<ISeedStep, LoyaltyProgramSeedStep>();
     builder.Services.AddScoped<ISeedStep, ReferralProgramSeedStep>();
     builder.Services.AddScoped<ISeedStep, LoyaltyActivitySeedStep>();
+    builder.Services.AddScoped<ISeedStep, AnalyticsBackfillSeedStep>();
     builder.Services.AddScoped<ISeedStep, ReferralSeedStep>();
     builder.Services.AddScoped<ISeedStep, SessionSeedStep>();
     builder.Services.AddScoped<ISeedStep, UnsupportedDomainsSeedStep>();

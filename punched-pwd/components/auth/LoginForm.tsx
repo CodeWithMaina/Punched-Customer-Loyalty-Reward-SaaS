@@ -109,6 +109,16 @@ export function LoginForm() {
           Sign up
         </Link>
       </p>
+
+      {/* Business owner? */}
+      <p className="text-center text-sm text-[var(--text-secondary)]">
+        <Link
+          href="/business-register"
+          className="text-brand font-semibold hover:text-brand-hover"
+        >
+          Register a business
+        </Link>
+      </p>
     </form>
   );
 }

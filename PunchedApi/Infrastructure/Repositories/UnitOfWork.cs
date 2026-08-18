@@ -26,6 +26,8 @@ public class UnitOfWork : IUnitOfWork
     private IRepository<ReferralProgram>? _referralPrograms;
     private IRepository<ReferralLink>? _referralLinks;
     private IRepository<Referral>? _referrals;
+    private IRepository<Notification>? _notifications;
+    private IRepository<StaffInvitation>? _staffInvitations;
 
     public UnitOfWork(ApplicationDbContext context)
     {
@@ -79,6 +81,14 @@ public class UnitOfWork : IUnitOfWork
     /// <inheritdoc />
     public IRepository<Referral> Referrals =>
         _referrals ??= new Repository<Referral>(_context);
+
+    /// <inheritdoc />
+    public IRepository<Notification> Notifications =>
+        _notifications ??= new Repository<Notification>(_context);
+
+    /// <inheritdoc />
+    public IRepository<StaffInvitation> StaffInvitations =>
+        _staffInvitations ??= new Repository<StaffInvitation>(_context);
 
     /// <inheritdoc />
     public async Task<int> SaveChangesAsync()

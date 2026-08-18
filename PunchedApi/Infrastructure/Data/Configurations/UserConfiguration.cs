@@ -43,6 +43,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(100)
             .HasColumnName("source_campaign");
 
+        builder.Property(e => e.DailyGoalOverride)
+            .HasColumnName("daily_goal_override");
+
         builder.Property(e => e.IsDeleted)
             .HasColumnName("is_deleted")
             .HasDefaultValue(false);

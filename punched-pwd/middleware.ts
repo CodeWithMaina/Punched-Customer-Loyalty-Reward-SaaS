@@ -23,7 +23,14 @@ const PUBLIC_PATHS = new Set([
   "/reset-password",
 ]);
 
-const PUBLIC_PREFIX = ["/refer", "/_next", "/api", "/favicon.ico"];
+const PUBLIC_PREFIX = [
+  "/refer",
+  "/invitations",
+  "/business-register",
+  "/_next",
+  "/api",
+  "/favicon.ico",
+];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

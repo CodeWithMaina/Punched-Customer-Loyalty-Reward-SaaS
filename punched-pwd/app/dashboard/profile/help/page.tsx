@@ -1,111 +1,211 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Mail, MessageCircle, Phone, ExternalLink } from "lucide-react";
+import {
+  ArrowLeft,
+  Mail,
+  MessageCircle,
+  Phone,
+  ExternalLink,
+  Clock3,
+  HelpCircle,
+  ChevronRight,
+} from "lucide-react";
+
+const CONTACT_OPTIONS = [
+  {
+    href: "mailto:support@punched.app",
+    icon: Mail,
+    title: "Email support",
+    description: "support@punched.app",
+    external: false,
+  },
+  {
+    href: "https://wa.me/254700000000",
+    icon: MessageCircle,
+    title: "WhatsApp",
+    description: "Quick responses, Mon–Fri",
+    external: true,
+  },
+  {
+    href: "tel:+254700000000",
+    icon: Phone,
+    title: "Call us",
+    description: "+254 700 000 000",
+    external: false,
+  },
+];
+
+const SUPPORT_HOURS = [
+  { day: "Monday – Friday", time: "8:00 AM – 6:00 PM" },
+  { day: "Saturday", time: "9:00 AM – 1:00 PM" },
+  { day: "Sunday & Holidays", time: "Closed" },
+];
 
 export default function HelpPage() {
   const router = useRouter();
 
   return (
-    <div className="max-w-lg mx-auto px-5 pb-8">
-      <div className="flex items-center gap-3 pt-4 pb-5">
-        <button onClick={() => router.back()} className="h-9 w-9 rounded-xl bg-[var(--border-light)] flex items-center justify-center hover:bg-[var(--border)] transition-colors">
+    <main className="mx-auto w-full max-w-lg px-4 pb-10">
+      {/* Header */}
+      <header className="flex items-center gap-3 pt-5 pb-6">
+        <button
+          onClick={() => router.back()}
+          aria-label="Go back"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--border-light)] transition-colors hover:bg-[var(--border)] active:scale-95"
+        >
           <ArrowLeft className="h-4 w-4 text-[var(--text-secondary)]" />
         </button>
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">Help & Support</h1>
-      </div>
 
-      {/* Quick Help */}
-      <div className="bg-brand-surface rounded-2xl p-5 mb-6 text-center">
-        <div className="h-14 w-14 rounded-2xl bg-brand/10 flex items-center justify-center mx-auto mb-3">
-          <MessageCircle className="h-7 w-7 text-brand" />
+        <div>
+          <h1 className="text-lg font-semibold text-[var(--text-primary)]">
+            Help & Support
+          </h1>
+
+          <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+            We&apos;re here when you need us
+          </p>
         </div>
-        <h2 className="text-lg font-bold text-[var(--text-primary)] mb-1">Need Help?</h2>
-        <p className="text-sm text-[var(--text-secondary)]">We&apos;re here to help. Choose how you&apos;d like to reach us.</p>
-      </div>
+      </header>
 
-      {/* Contact Options */}
-      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden mb-6">
-        <div className="px-4 pt-3 pb-1">
-          <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">CONTACT US</p>
+      {/* Intro */}
+      <section className="pb-7">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-surface">
+            <MessageCircle className="h-5 w-5 text-brand" />
+          </div>
+
+          <div>
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+              Need a hand?
+            </h2>
+
+            <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
+              Choose the easiest way to reach our support team.
+            </p>
+          </div>
         </div>
-        <div className="divide-y divide-[var(--border-light)]">
-          <a
-            href="mailto:support@punched.app"
-            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--surface-raised)] transition-colors"
-          >
-            <div className="h-9 w-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-              <Mail className="h-4 w-4 text-blue-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[var(--text-primary)]">Email Support</p>
-              <p className="text-xs text-[var(--text-tertiary)]">support@punched.app</p>
-            </div>
-            <ExternalLink className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
-          </a>
+      </section>
 
-          <a
-            href="https://wa.me/254700000000"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--surface-raised)] transition-colors"
-          >
-            <div className="h-9 w-9 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
-              <MessageCircle className="h-4 w-4 text-green-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[var(--text-primary)]">WhatsApp Chat</p>
-              <p className="text-xs text-[var(--text-tertiary)]">Quick responses, Mon–Fri</p>
-            </div>
-            <ExternalLink className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
-          </a>
+      {/* Contact options */}
+      <section>
+        <h2 className="mb-2 px-1 text-xs font-semibold text-[var(--text-tertiary)]">
+          CONTACT US
+        </h2>
 
-          <a
-            href="tel:+254700000000"
-            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--surface-raised)] transition-colors"
-          >
-            <div className="h-9 w-9 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
-              <Phone className="h-4 w-4 text-purple-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[var(--text-primary)]">Call Us</p>
-              <p className="text-xs text-[var(--text-tertiary)]">+254 700 000 000</p>
-            </div>
-            <ExternalLink className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
-          </a>
+        <div className="overflow-hidden rounded-2xl border border-[var(--border-light)] bg-[var(--surface)]">
+          {CONTACT_OPTIONS.map(
+            (
+              {
+                href,
+                icon: Icon,
+                title,
+                description,
+                external,
+              },
+              index
+            ) => (
+              <a
+                key={title}
+                href={href}
+                target={external ? "_blank" : undefined}
+                rel={external ? "noopener noreferrer" : undefined}
+                className={`flex items-center gap-3 px-4 py-4 transition-colors hover:bg-[var(--border-light)] active:bg-[var(--border-light)] ${
+                  index !== CONTACT_OPTIONS.length - 1
+                    ? "border-b border-[var(--border-light)]"
+                    : ""
+                }`}
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-surface">
+                  <Icon className="h-4 w-4 text-brand" />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">
+                    {title}
+                  </p>
+
+                  <p className="mt-0.5 truncate text-xs text-[var(--text-tertiary)]">
+                    {description}
+                  </p>
+                </div>
+
+                {external ? (
+                  <ExternalLink className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                )}
+              </a>
+            )
+          )}
         </div>
-      </div>
+      </section>
 
-      {/* Business Hours */}
-      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-5 mb-4">
-        <h3 className="text-sm font-bold text-[var(--text-primary)] mb-3">Support Hours</h3>
-        <div className="space-y-2">
-          {[
-            { day: "Monday – Friday", time: "8:00 AM – 6:00 PM" },
-            { day: "Saturday", time: "9:00 AM – 1:00 PM" },
-            { day: "Sunday & Holidays", time: "Closed" },
-          ].map(({ day, time }) => (
-            <div key={day} className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">{day}</span>
-              <span className="text-sm font-medium text-[var(--text-primary)]">{time}</span>
+      {/* FAQ shortcut */}
+      <button
+        onClick={() => router.push("/dashboard/profile/faq")}
+        className="mt-5 flex w-full items-center gap-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] px-4 py-4 text-left transition-colors hover:bg-[var(--border-light)] active:bg-[var(--border-light)]"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--border-light)]">
+          <HelpCircle className="h-4 w-4 text-[var(--text-secondary)]" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
+            Browse frequently asked questions
+          </p>
+
+          <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+            Find an answer without contacting support
+          </p>
+        </div>
+
+        <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+      </button>
+
+      {/* Support hours */}
+      <section className="mt-7">
+        <div className="mb-2 flex items-center gap-2 px-1">
+          <Clock3 className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+
+          <h2 className="text-xs font-semibold text-[var(--text-tertiary)]">
+            SUPPORT HOURS
+          </h2>
+        </div>
+
+        <div className="rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] px-4">
+          {SUPPORT_HOURS.map(({ day, time }, index) => (
+            <div
+              key={day}
+              className={`flex items-center justify-between py-3.5 ${
+                index !== SUPPORT_HOURS.length - 1
+                  ? "border-b border-[var(--border-light)]"
+                  : ""
+              }`}
+            >
+              <span className="text-sm text-[var(--text-secondary)]">
+                {day}
+              </span>
+
+              <span
+                className={`text-sm font-medium ${
+                  time === "Closed"
+                    ? "text-[var(--text-tertiary)]"
+                    : "text-[var(--text-primary)]"
+                }`}
+              >
+                {time}
+              </span>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Tip */}
-      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
-        <p className="text-xs text-amber-700 leading-relaxed">
-          <span className="font-semibold">Tip:</span> Before reaching out, check our{" "}
-          <span
-            onClick={() => router.push("/dashboard/profile/faq")}
-            className="text-brand font-semibold cursor-pointer hover:underline"
-          >
-            FAQ
-          </span>{" "}
-          — your question might already be answered there!
-        </p>
-      </div>
-    </div>
+      {/* Footer */}
+      <p className="mt-7 px-4 text-center text-[11px] leading-5 text-[var(--text-muted)]">
+        We&apos;ll do our best to respond as quickly as possible during
+        support hours.
+      </p>
+    </main>
   );
 }

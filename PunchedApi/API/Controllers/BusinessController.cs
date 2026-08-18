@@ -17,11 +17,19 @@ namespace PunchedApi.API.Controllers;
 public class BusinessController : ControllerBase
 {
     private readonly IBusinessService _businessService;
+    private readonly IStampService _stampService;
+    private readonly INotificationsService _notificationsService;
     private readonly ILogger<BusinessController> _logger;
 
-    public BusinessController(IBusinessService businessService, ILogger<BusinessController> logger)
+    public BusinessController(
+        IBusinessService businessService,
+        IStampService stampService,
+        INotificationsService notificationsService,
+        ILogger<BusinessController> logger)
     {
         _businessService = businessService;
+        _stampService = stampService;
+        _notificationsService = notificationsService;
         _logger = logger;
     }
 
@@ -114,13 +122,27 @@ public class BusinessController : ControllerBase
     /// </summary>
     [HttpGet("me/customers")]
     [Authorize(Roles = "Business")]
-    [ProducesResponseType(typeof(ApiResponse<List<BusinessCustomerResponse>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyCustomers([FromQuery] string? search)
+    [ProducesResponseType(typeof(ApiResponse<PaginatedResponse<BusinessCustomerResponse>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyCustomers(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] DateOnly? enrolledFrom,
+        [FromQuery] DateOnly? enrolledTo,
+        [FromQuery] string sortBy = "recent",
+        [FromQuery] string sortDirection = "desc",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var result = await _businessService.GetBusinessCustomersAsync(userId.Value, search);
+        if (enrolledFrom.HasValue && enrolledTo.HasValue && enrolledTo < enrolledFrom)
+            return BadRequest(ApiResponse<PaginatedResponse<BusinessCustomerResponse>>.Fail("INVALID_DATE_RANGE", "End date cannot precede start date."));
+
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var result = await _businessService.GetBusinessCustomersAsync(
+            userId.Value, search, status, enrolledFrom, enrolledTo, sortBy, sortDirection, page, pageSize);
         return Ok(result);
     }
 
@@ -330,6 +352,47 @@ public class BusinessController : ControllerBase
     }
 
     /// <summary>
+    /// Set the business-level default daily stamp goal for staff members.
+    /// </summary>
+    [HttpPut("me/daily-goal")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<BusinessResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SetBusinessDailyGoal([FromBody] UpdateBusinessDailyGoalRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        if (request.DailyGoal.HasValue && (request.DailyGoal.Value < 1 || request.DailyGoal.Value > 1000))
+            return BadRequest(ApiResponse<BusinessResponse>.Fail("INVALID_GOAL", "Daily goal must be between 1 and 1000."));
+
+        var result = await _businessService.SetBusinessDailyGoalAsync(userId.Value, request.DailyGoal);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Set (or clear, when dailyGoal is null) a staff member's personal daily stamp goal override.
+    /// </summary>
+    [HttpPut("me/staff/{staffUserId:guid}/daily-goal")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<StaffMemberResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetStaffDailyGoal(Guid staffUserId, [FromBody] SetStaffDailyGoalRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        if (request.DailyGoal.HasValue && (request.DailyGoal.Value < 1 || request.DailyGoal.Value > 1000))
+            return BadRequest(ApiResponse<StaffMemberResponse>.Fail("INVALID_GOAL", "Daily goal must be between 1 and 1000."));
+
+        var result = await _businessService.SetStaffDailyGoalAsync(userId.Value, staffUserId, request.DailyGoal);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Get real per-attribution stamp analytics for a single staff member (owner view).
     /// Supports period=today|7d|30d|all (default: all).
     /// </summary>
@@ -476,6 +539,63 @@ public class BusinessController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Business activity feed: recent stamps (newest-first), optionally filtered to a staff member.
+    /// Business-scoped — caller must be the owner or a linked staff member.
+    /// </summary>
+    [HttpGet("{businessId:guid}/activity/recent")]
+    [Authorize(Roles = "Business,Staff")]
+    [ProducesResponseType(typeof(ApiResponse<List<StampDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetRecentActivity(
+        Guid businessId,
+        [FromQuery] Guid? staffUserId,
+        [FromQuery] int limit = 20)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        if (!await _businessService.CanAccessBusinessAsync(userId.Value, businessId))
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<List<StampDto>>.Fail("FORBIDDEN", "You are not authorized to view this business's activity."));
+
+        limit = Math.Clamp(limit, 1, 50);
+        var result = await _stampService.GetRecentStampsAsync(businessId, staffUserId, limit);
+        if (!result.Success) return BadRequest(result);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get the authenticated staff member's in-app notifications.
+    /// </summary>
+    [HttpGet("me/notifications")]
+    [Authorize(Roles = "Staff")]
+    [ProducesResponseType(typeof(ApiResponse<List<NotificationDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyNotifications([FromQuery] bool unreadOnly = false)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var notifications = await _notificationsService.GetAsync(userId.Value, unreadOnly, 50);
+        return Ok(ApiResponse<List<NotificationDto>>.Ok(notifications));
+    }
+
+    /// <summary>
+    /// Mark the authenticated staff member's notification(s) as read.
+    /// Optionally pass a notificationId; omit to mark all as read.
+    /// </summary>
+    [HttpPost("me/notifications/read")]
+    [Authorize(Roles = "Staff")]
+    [ProducesResponseType(typeof(ApiResponse<MessageResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> MarkNotificationsRead([FromBody] MarkNotificationReadRequest? request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        await _notificationsService.MarkReadAsync(userId.Value, request?.NotificationId);
+        return Ok(ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "Notifications marked as read." }));
+    }
+
     private Guid? GetUserId()
     {
         var claim = User.FindFirst("userId")?.Value;
@@ -496,13 +616,14 @@ public class BusinessController : ControllerBase
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var result = await _businessService.GetBusinessCustomersAsync(userId.Value, search);
+        var result = await _businessService.GetBusinessCustomersAsync(
+            userId.Value, search, null, null, null, "recent", "desc", 1, 100);
         if (!result.Success) return BadRequest(result);
 
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("Name,Email,Phone,DateOfBirth,Gender,TotalStamps,LifetimeStamps,TotalRedemptions,EnrolledAt,LastStampAt");
 
-        foreach (var c in result.Data!)
+        foreach (var c in result.Data!.Items)
         {
             static string Esc(string? v) =>
                 string.IsNullOrEmpty(v) ? "" : v.Contains(',') || v.Contains('"') ? $"\"{v.Replace("\"", "\"\"")}\"" : v;

@@ -14,9 +14,18 @@ public partial class BusinessService
         var days = Math.Max(0, (int)(now - periodStart).TotalDays + 1);
 
         var redemptionBase = _context.Redemptions.Where(r => r.BusinessId == businessId && r.RedeemedAt >= periodStart);
-        var rewardPayoutKes = await redemptionBase.SumAsync(r => (decimal?)r.RewardValue) ?? 0m;
-        var paidRows = await redemptionBase.Where(r => r.PaidAt != null)
-            .Select(r => new { r.RewardValue, r.PaidAt, r.RedeemedAt }).ToListAsync();
+        var totals = await redemptionBase
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                RewardPayoutKes = g.Sum(r => r.RewardValue),
+                RewardsPaidKes = g.Where(r => r.PaidAt != null).Sum(r => r.RewardValue),
+                PendingPayoutKes = g.Where(r => r.PaidAt == null && r.Status != "failed").Sum(r => r.RewardValue),
+                FailedPayouts = g.Count(r => r.Status == "failed"),
+                AvgPayoutLatencyDays = g.Where(r => r.PaidAt != null)
+                    .Average(r => (double?)(r.PaidAt!.Value - r.RedeemedAt).TotalDays)
+            })
+            .SingleOrDefaultAsync();
         var payoutTrendLookup = (await redemptionBase
             .GroupBy(r => r.RedeemedAt.Date)
             .Select(g => new { Date = g.Key, Value = g.Sum(r => r.RewardValue) }).ToListAsync())
@@ -24,22 +33,21 @@ public partial class BusinessService
 
         var revenue = new BusinessRevenueResponse
         {
-            RewardPayoutKes = rewardPayoutKes,
-            RewardsEarnedKes = rewardPayoutKes,
-            RewardsPaidKes = paidRows.Sum(x => x.RewardValue),
-            PendingPayoutKes = await redemptionBase.Where(r => r.PaidAt == null && r.Status != "failed")
-                .SumAsync(r => (decimal?)r.RewardValue) ?? 0m,
-            FailedPayouts = await redemptionBase.CountAsync(r => r.Status == "failed"),
-            AvgPayoutLatencyDays = paidRows.Count > 0
-                ? Math.Round(paidRows.Average(x => (x.PaidAt!.Value - x.RedeemedAt).TotalDays), 2) : null,
+            RewardPayoutKes = totals?.RewardPayoutKes ?? 0m,
+            RewardsEarnedKes = totals?.RewardPayoutKes ?? 0m,
+            RewardsPaidKes = totals?.RewardsPaidKes ?? 0m,
+            PendingPayoutKes = totals?.PendingPayoutKes ?? 0m,
+            FailedPayouts = totals?.FailedPayouts ?? 0,
+            AvgPayoutLatencyDays = totals?.AvgPayoutLatencyDays is { } latencyDays
+                ? Math.Round(latencyDays, 2) : null,
             RewardPayoutTrend = Enumerable.Range(0, days).Select(i => new RewardPayoutPoint
             {
                 Date = periodStart.AddDays(i).Date.ToString("yyyy-MM-dd"),
                 Value = payoutTrendLookup.GetValueOrDefault(periodStart.AddDays(i).Date)
             }).ToList()
         };
-        revenue.PayoutSuccessRate = rewardPayoutKes > 0
-            ? Math.Round((double)(revenue.RewardsPaidKes / rewardPayoutKes) * 100, 1) : 0;
+        revenue.PayoutSuccessRate = revenue.RewardPayoutKes > 0
+            ? Math.Round((double)(revenue.RewardsPaidKes / revenue.RewardPayoutKes) * 100, 1) : 0;
 
         var programById = programs.ToDictionary(p => p.Id, p => p);
         decimal accruedLiability = 0m;
