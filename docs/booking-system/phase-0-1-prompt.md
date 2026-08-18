@@ -9,12 +9,13 @@ Run this prompt against the repo root `C:\Users\PeterMainaChege\Downloads\Learni
 - **Confirmed absent right now** (this is why Phase 1 is needed): no `end_at`, no `appointment_resources`.
 - `Infrastructure/Data/ApplicationDbContext.cs` exposes explicit `DbSet<T>` for `Appointment`, `AppointmentStatusHistory`, `ServiceCatalogItem`, `StaffShift`, `StaffServiceAssignment`; calls `modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly)` — so new `IEntityTypeConfiguration<>` classes are auto-discovered.
 - **Auth:** JWT has **no `businessId` claim**; identity key is `UserId`; roles are `Customer`/`Business`/`Staff`/`Admin`. (`JwtTokenService`, `punched-pwd/lib/api/client.ts`.)
-- **Frontend:** Next 14.2 / TS 5.5 / Tailwind 3.4 + axios `apiClient` + `cachedFetch` + Zustand + RHF 7.52/Zod 3.23 + react-hot-toast. (`punched-pwd/package.json`.)
+- **Frontend:** Next 14.2 / TS 5.5 / Tailwind 3.4 + axios `apiClient` + `cachedFetch` + Zustand + RHF 7.52/Zod 3.23 + react-hot-toast. (`punched-pwd/package.json`).
+- **Toolchain present in this env:** .NET SDK 8.0.424, npm 11.19.0, EF CLI 10.0.6 (compatible with the EF 8 NuGet packages) — builds/migrations are runnable here.
 
 ---
 ## Phase 0 — Scaffold & baseline  (`implementation-plan.md` §0)
-- [ ] **0.1** Create feature branch `booking/phase-0-1` on clean `main`.
-  - `git checkout main && git pull && git checkout -b booking/phase-0-1`
+- [ ] **0.1** Establish integration baseline & create feature branch `booking/phase-0-1`.
+  - Integration base is normally `main`; if `git rev-parse --abbrev-ref HEAD` ≠ `main`, confirm the intended base first. Ensure a clean tree (`git status --short` → 0; stash/commit in-progress work — this env's tree is currently dirty on `chore/clean-repo-files`). Then: `git checkout <base> && git pull && git checkout -b booking/phase-0-1`
 - [ ] **0.2** Baseline build green on current `main` (no code yet).
   - `dotnet build PunchedApi/PunchedApi.csproj`  → must succeed.
   - `npm run build --prefix punched-pwd`  → must succeed.
