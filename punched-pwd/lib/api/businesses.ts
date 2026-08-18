@@ -76,11 +76,6 @@ export const businessesApi = {
       15_000
     ),
 
-  linkStaff: (staffUserId: string) =>
-    apiClient
-      .post<ApiResponse<MessageResponse>>(`/businesses/me/staff/${staffUserId}`)
-      .then((r) => r.data),
-
   getStaffBusiness: () =>
     apiClient
       .get<ApiResponse<StaffBusinessResponse>>("/businesses/staff/my-business")

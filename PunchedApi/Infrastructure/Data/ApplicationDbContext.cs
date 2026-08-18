@@ -40,6 +40,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ServiceCatalogItem> ServiceCatalogItems => Set<ServiceCatalogItem>();
     public DbSet<StaffServiceAssignment> StaffServiceAssignments => Set<StaffServiceAssignment>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<StaffInvitation> StaffInvitations => Set<StaffInvitation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

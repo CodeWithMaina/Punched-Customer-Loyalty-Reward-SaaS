@@ -1259,6 +1259,80 @@ namespace PunchedApi.Migrations
                     b.ToTable("staff_daily_analytics", (string)null);
                 });
 
+            modelBuilder.Entity("PunchedApi.Domain.Entities.StaffInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<Guid>("BusinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("InvitedEmail")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("invited_email");
+
+                    b.Property<Guid>("InvitingUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inviting_user_id");
+
+                    b.Property<int>("ResendCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("resend_count");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("status");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessId")
+                        .HasDatabaseName("ix_staff_invitations_business_id");
+
+                    b.HasIndex("InvitingUserId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_staff_invitations_token_hash");
+
+                    b.HasIndex("BusinessId", "InvitedEmail")
+                        .IsUnique()
+                        .HasDatabaseName("ix_staff_invitations_business_email_pending")
+                        .HasFilter("\"status\" = 0");
+
+                    b.ToTable("staff_invitations", (string)null);
+                });
+
             modelBuilder.Entity("PunchedApi.Domain.Entities.StaffServiceAssignment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1870,6 +1944,25 @@ namespace PunchedApi.Migrations
                         .HasForeignKey("StaffUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("PunchedApi.Domain.Entities.StaffInvitation", b =>
+                {
+                    b.HasOne("PunchedApi.Domain.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PunchedApi.Domain.Entities.User", "InvitingUser")
+                        .WithMany()
+                        .HasForeignKey("InvitingUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Business");
+
+                    b.Navigation("InvitingUser");
                 });
 
             modelBuilder.Entity("PunchedApi.Domain.Entities.StaffServiceAssignment", b =>

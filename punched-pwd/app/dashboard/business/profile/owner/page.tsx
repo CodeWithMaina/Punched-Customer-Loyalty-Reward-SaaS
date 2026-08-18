@@ -1,53 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { useAuthStore } from "@/store/authStore";
-import { usersApi } from "@/lib/api/users";
-import type { UpdateProfileRequest } from "@/types";
-import toast from "react-hot-toast";
 import {
-  ArrowLeft, Loader2, Save, User, Phone, Mail, Link2,
+  ArrowLeft, User, Phone, Mail, CalendarDays, Pencil, Shield,
 } from "lucide-react";
 
-function Field({ label, icon, value, onChange, placeholder, type = "text", required, readOnly }: {
-  label: string; icon: React.ReactNode; value: string;
-  onChange?: (v: string) => void; placeholder?: string;
-  type?: string; required?: boolean; readOnly?: boolean;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]">{icon}{label}</label>
-      <input type={type} value={value} readOnly={readOnly}
-        onChange={(e) => onChange?.(e.target.value)} placeholder={placeholder} required={required}
-        className={`w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand ${readOnly ? "bg-[var(--surface-raised)] text-[var(--text-tertiary)] cursor-default" : ""}`} />
+// ═══════════════════════════════════════════════════════════════
+//  Owner Profile — View
+//  Route: /dashboard/business/profile/owner
+//  Display-only. Editing lives on a separate page:
+//  /dashboard/business/profile/owner/edit
+// ═══════════════════════════════════════════════════════════════
+
+export default function OwnerProfileViewPage() {
+  useRoleGuard("Business");
+  const { user } = useAuthStore();
+
+  const joined = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
+
+  const InfoRow = ({
+    icon: Icon,
+    label,
+    value,
+  }: {
+    icon: React.ElementType;
+    label: string;
+    value: string;
+  }) => (
+    <div className="flex items-center gap-3 py-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--border-light)]">
+        <Icon className="h-4 w-4 text-[var(--text-secondary)]" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-[var(--text-tertiary)]">{label}</p>
+        <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+          {value || "—"}
+        </p>
+      </div>
     </div>
   );
-}
-
-export default function OwnerProfilePage() {
-  useRoleGuard("Business");
-  const { user, setUser } = useAuthStore();
-  const [form, setForm] = useState({ fullName: "", phoneNumber: "", avatarUrl: "" });
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    if (user) setForm({ fullName: user.fullName ?? "", phoneNumber: user.phone ?? "", avatarUrl: user.avatarUrl ?? "" });
-  }, [user]);
-
-  async function saveProfile(e: React.FormEvent) {
-    e.preventDefault(); setIsSaving(true);
-    try {
-      const data: UpdateProfileRequest = {};
-      if (form.fullName) data.fullName = form.fullName;
-      if (form.phoneNumber) data.phoneNumber = form.phoneNumber;
-      if (form.avatarUrl) data.avatarUrl = form.avatarUrl;
-      const res = await usersApi.updateProfile(data);
-      if (res.success && res.data) { setUser(res.data); toast.success("Profile updated!"); }
-      else toast.error(res.error?.message ?? "Failed to update.");
-    } catch { toast.error("Unexpected error."); } finally { setIsSaving(false); }
-  }
 
   return (
     <div className="max-w-lg mx-auto pb-12">
@@ -56,46 +54,39 @@ export default function OwnerProfilePage() {
         <Link href="/dashboard/business/profile" className="h-9 w-9 rounded-xl border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--border-light)] transition-colors flex-shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-lg font-bold text-[var(--text-primary)]">Owner Profile</h1>
-          <p className="text-xs text-[var(--text-tertiary)]">Manage your personal account</p>
+          <p className="text-xs text-[var(--text-tertiary)]">Your personal account</p>
         </div>
+        <Link
+          href="/dashboard/business/profile/owner/edit"
+          className="flex items-center gap-1.5 bg-brand hover:bg-brand-hover text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-colors"
+        >
+          <Pencil className="h-3.5 w-3.5" />Edit
+        </Link>
       </div>
 
-      {/* Avatar preview */}
-      <div className="mx-5 mb-5 flex items-center gap-4 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-        <div className="h-14 w-14 rounded-full bg-brand-surface flex items-center justify-center overflow-hidden flex-shrink-0">
-          {form.avatarUrl ? (
-            <img src={form.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+      {/* Identity card */}
+      <div className="mx-5 mb-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-5 flex flex-col items-center text-center">
+        <div className="h-20 w-20 rounded-full bg-brand-surface flex items-center justify-center overflow-hidden ring-4 ring-brand/10">
+          {user?.avatarUrl ? (
+            <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover" />
           ) : (
-            <span className="text-xl font-bold text-brand">{form.fullName?.charAt(0).toUpperCase() || "?"}</span>
+            <User className="h-9 w-9 text-brand" />
           )}
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-[var(--text-primary)] truncate">{form.fullName || user?.fullName}</p>
-          <p className="text-xs text-[var(--text-tertiary)] truncate">{user?.email}</p>
-        </div>
+        <p className="mt-3 text-lg font-bold text-[var(--text-primary)]">{user?.fullName}</p>
+        <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-brand bg-brand-surface px-2.5 py-1 rounded-full">
+          <Shield className="h-3 w-3" />Business Owner
+        </span>
       </div>
 
-      <div className="px-5 space-y-5">
-        {/* Personal info form */}
-        <form onSubmit={saveProfile} className="space-y-4">
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4 space-y-4">
-            <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">Personal Info</p>
-            <Field label="Full Name" icon={<User className="h-3.5 w-3.5" />} value={form.fullName}
-              onChange={(v) => setForm((f) => ({ ...f, fullName: v }))} placeholder="Your full name" required />
-            <Field label="Phone" icon={<Phone className="h-3.5 w-3.5" />} value={form.phoneNumber}
-              onChange={(v) => setForm((f) => ({ ...f, phoneNumber: v }))} placeholder="+254 700 000 000" type="tel" />
-            <Field label="Email" icon={<Mail className="h-3.5 w-3.5" />} value={user?.email ?? ""} readOnly />
-            <Field label="Avatar URL" icon={<Link2 className="h-3.5 w-3.5" />} value={form.avatarUrl}
-              onChange={(v) => setForm((f) => ({ ...f, avatarUrl: v }))} placeholder="https://…/avatar.jpg" type="url" />
-          </div>
-          <button type="submit" disabled={isSaving}
-            className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover text-white font-semibold py-3.5 rounded-2xl transition-colors disabled:opacity-50">
-            {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-            {isSaving ? "Saving..." : "Save Profile"}
-          </button>
-        </form>
+      {/* Details */}
+      <div className="mx-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card px-4 divide-y divide-[var(--border-light)]">
+        <InfoRow icon={User} label="Full name" value={user?.fullName ?? ""} />
+        <InfoRow icon={Phone} label="Phone" value={user?.phone ?? ""} />
+        <InfoRow icon={Mail} label="Email" value={user?.email ?? ""} />
+        <InfoRow icon={CalendarDays} label="Joined" value={joined} />
       </div>
     </div>
   );

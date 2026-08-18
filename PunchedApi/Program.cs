@@ -115,6 +115,12 @@ try
     else
         builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 
+    builder.Services.Configure<PublicAppSettings>(
+        builder.Configuration.GetSection(PublicAppSettings.SectionName));
+
+    // Staff invitations (invitation-only staff onboarding)
+    builder.Services.AddScoped<IInvitationService, InvitationService>();
+
     builder.Services.AddScoped<IUserService, UserService>();
     builder.Services.AddScoped<IBusinessService, BusinessService>();
     builder.Services.AddScoped<ILoyaltyService, LoyaltyService>();

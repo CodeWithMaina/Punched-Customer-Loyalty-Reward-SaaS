@@ -5,13 +5,15 @@ import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { businessesApi } from "@/lib/api/businesses";
-import type { StaffMember } from "@/types";
+import { onboardingApi } from "@/lib/api/onboarding";
+import type { StaffInvitation, StaffMember } from "@/types";
 import toast from "react-hot-toast";
 import {
-  Loader2, UserPlus, Users, Mail, AlertCircle, ChevronRight, Shield,
+  Loader2, UserPlus, Users, Mail, ChevronRight, Shield,
   Search, X, SlidersHorizontal, Stamp, Star, Target,
 } from "lucide-react";
 import { FilterSheet, SortOptions } from "@/components/ui/FilterSheet";
+import { InviteStaffModal } from "@/components/invitations/InviteStaffModal";
 
 type SortKey = "alpha" | "stamps" | "recent";
 
@@ -19,10 +21,9 @@ export default function BusinessStaffPage() {
   useRoleGuard("Business");
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [invitations, setInvitations] = useState<StaffInvitation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [staffId, setStaffId] = useState("");
-  const [isLinking, setIsLinking] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("stamps");
@@ -97,26 +98,22 @@ export default function BusinessStaffPage() {
     fetchStaff(debouncedQuery, sort);
   }, [debouncedQuery, fetchStaff, sort]);
 
-  async function handleLink(e: React.FormEvent) {
-    e.preventDefault();
-    if (!staffId.trim()) return;
-    setIsLinking(true);
-    try {
-      const res = await businessesApi.linkStaff(staffId.trim());
-      if (res.success) {
-        toast.success("Staff member linked!");
-        setStaffId("");
-        setShowForm(false);
-        fetchStaff(query, sort);
-      } else {
-        toast.error(res.error?.message || "Failed to link staff.");
-      }
-    } catch {
-      toast.error("An unexpected error occurred.");
-    } finally {
-      setIsLinking(false);
-    }
-  }
+  const fetchInvitations = useCallback(() => {
+    onboardingApi
+      .listStaffInvitations()
+      .then((res) => {
+        if (res.success && res.data) {
+          setInvitations(res.data.filter((inv) => inv.status === "Pending"));
+        }
+      })
+      .catch(() => {
+        /* keep current list on transient errors */
+      });
+  }, []);
+
+  useEffect(() => {
+    fetchInvitations();
+  }, [fetchInvitations]);
 
   return (
     <div className="max-w-lg mx-auto pb-10">
@@ -128,32 +125,35 @@ export default function BusinessStaffPage() {
             {staff.length} member{staff.length !== 1 ? "s" : ""} with scan access
           </p>
         </div>
-        <button onClick={() => setShowForm((v) => !v)}
+        <button onClick={() => setShowInviteModal(true)}
           className="flex items-center gap-1.5 bg-brand hover:bg-brand-hover text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-colors">
-          <UserPlus className="h-4 w-4" />Add
+          <UserPlus className="h-4 w-4" />Invite
         </button>
       </div>
 
-      {/* Add staff form */}
-      {showForm && (
-        <div className="mx-5 mb-4 bg-[var(--surface)] rounded-2xl border border-brand/20 shadow-card p-4 space-y-3">
-          <div className="flex items-center gap-2 mb-1">
-            <UserPlus className="h-4 w-4 text-brand" />
-            <p className="text-sm font-bold text-[var(--text-primary)]">Link a Staff Member</p>
+      {/* Pending invitations */}
+      {invitations.length > 0 && (
+        <div className="mx-5 mb-4 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border-light)]">
+            <Mail className="h-4 w-4 text-brand" />
+            <p className="text-sm font-bold text-[var(--text-primary)]">Pending Invitations</p>
           </div>
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700">Staff can scan customer QR codes and award stamps. They cannot edit your programs or view financial data.</p>
+          <div className="divide-y divide-[var(--border-light)]">
+            {invitations.map((inv) => (
+              <div key={inv.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="h-9 w-9 rounded-full bg-brand-surface flex items-center justify-center flex-shrink-0">
+                  <Mail className="h-4 w-4 text-brand" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{inv.email}</p>
+                  <p className="text-xs text-[var(--text-tertiary)]">Awaiting acceptance</p>
+                </div>
+                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full flex-shrink-0">
+                  Pending
+                </span>
+              </div>
+            ))}
           </div>
-          <form onSubmit={handleLink} className="flex gap-2">
-            <input type="text" value={staffId} onChange={(e) => setStaffId(e.target.value)}
-              placeholder="Paste staff user ID (UUID)"
-              className="flex-1 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand font-mono text-xs" />
-            <button type="submit" disabled={isLinking || !staffId.trim()}
-              className="flex items-center gap-1.5 bg-brand hover:bg-brand-hover text-white font-semibold text-sm rounded-xl px-4 py-2.5 disabled:opacity-50 transition-colors flex-shrink-0">
-              {isLinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-            </button>
-          </form>
         </div>
       )}
 
@@ -290,7 +290,7 @@ export default function BusinessStaffPage() {
           <p className="text-xs text-[var(--text-tertiary)]">
             {query
               ? "Try adjusting your search"
-              : "Tap Add to link a staff member using their user ID"}
+              : "Tap Invite to send a staff member an invitation by email"}
           </p>
           {query && (
             <button onClick={() => setQuery("")} className="mt-2 text-xs font-semibold text-brand">
@@ -338,6 +338,13 @@ export default function BusinessStaffPage() {
           ))}
         </div>
       )}
+
+      {/* Invite staff modal */}
+      <InviteStaffModal
+        open={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        onInvited={fetchInvitations}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { usersApi } from "@/lib/api/users";
 import type { User, UpdateProfileRequest } from "@/types";
@@ -11,7 +11,6 @@ import toast from "react-hot-toast";
 const GENDER_OPTIONS = ["Prefer not to say", "Male", "Female", "Non-binary", "Other"];
 
 export default function AccountInfoPage() {
-  const router = useRouter();
   const { user, setUser } = useAuthStore();
   const [form, setForm] = useState<UpdateProfileRequest>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -51,9 +50,9 @@ export default function AccountInfoPage() {
     <div className="max-w-lg mx-auto px-5 pb-8">
       {/* Header */}
       <div className="flex items-center gap-3 pt-4 pb-5">
-        <button onClick={() => router.back()} className="h-9 w-9 rounded-xl bg-[var(--border-light)] flex items-center justify-center hover:bg-[var(--border)] transition-colors">
+        <Link href="/dashboard/profile" className="h-9 w-9 rounded-xl bg-[var(--border-light)] flex items-center justify-center hover:bg-[var(--border)] transition-colors">
           <ArrowLeft className="h-4 w-4 text-[var(--text-secondary)]" />
-        </button>
+        </Link>
         <h1 className="text-lg font-bold text-[var(--text-primary)]">Account Info</h1>
       </div>
 

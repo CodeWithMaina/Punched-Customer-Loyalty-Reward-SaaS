@@ -861,3 +861,62 @@ export interface BusinessAnalyticsComparisonResponse {
   summary: BusinessComparisonSummary;
 }
 
+// ── Onboarding & staff invitations ─────────────────────────────
+
+export type InvitationStatus = "Pending" | "Accepted" | "Revoked";
+
+export interface StaffInvitation {
+  id: string;
+  businessId: string;
+  email: string;
+  invitedByUserId: string;
+  status: InvitationStatus;
+  statusLabel: string;
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt?: string | null;
+  revokedAt?: string | null;
+  resendCount: number;
+  isExpired: boolean;
+}
+
+export interface CreateStaffInvitationRequest {
+  email: string;
+}
+
+export interface StaffInvitationValidationResponse {
+  valid: boolean;
+  businessId: string;
+  businessName: string;
+  businessLogoUrl?: string | null;
+  email: string;
+  expiresAt: string;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+}
+
+export interface AcceptStaffInvitationRequest {
+  fullName: string;
+  password: string;
+  emailConfirmation: string;
+}
+
+export interface RegisterBusinessRequest {
+  fullName: string;
+  email: string;
+  password: string;
+  phoneNumber?: string;
+  businessName: string;
+  businessCategory: string;
+  businessLocation: string;
+  businessPhone?: string;
+  businessEmail?: string;
+  businessMpesaNumber: string;
+  businessDescription?: string;
+  logoUrl?: string;
+}
+
+export interface RegisterBusinessResponse {
+  message: string;
+  business?: Business | null;
+}

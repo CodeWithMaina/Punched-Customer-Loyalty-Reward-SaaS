@@ -89,8 +89,11 @@ public class AuthService : IAuthService
 
             await _unitOfWork.UserAuths.AddAsync(userAuth);
 
-            // Create User profile — prevent self-registration as Admin
-            var role = request.Role == UserRole.Admin ? UserRole.Customer : request.Role;
+            // Create User profile — role is ALWAYS forced server-side.
+            // The public register endpoint only ever creates Customers. Business owners must use
+            // /auth/register-business, and staff can only ever onboard through a valid invitation —
+            // never by self-registering here.
+            var role = UserRole.Customer;
             var user = new User
             {
                 Id = Guid.NewGuid(),
@@ -123,6 +126,111 @@ public class AuthService : IAuthService
         {
             _logger.LogError(ex, "Error during registration for email: {Email}", request.Email);
             return ApiResponse<MessageResponse>.Fail(
+                "REGISTRATION_FAILED",
+                "An unexpected error occurred during registration.");
+        }
+    }
+
+/// <inheritdoc />
+    /// <remarks>
+    /// Atomic business onboarding: creates UserAuth, Business-role User, and the Business in a single
+    /// transaction (one SaveChanges), then sends a verification code. If any insert fails the whole
+    /// operation rolls back so no orphan account or business can exist.
+    /// </remarks>
+    public async Task<ApiResponse<RegisterBusinessResponse>> RegisterBusinessAsync(RegisterBusinessRequest request)
+    {
+        try
+        {
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+
+            // 1. Email must be free.
+            var existingAuth = await _unitOfWork.UserAuths.FirstOrDefaultAsync(a => a.Email == normalizedEmail);
+            if (existingAuth != null)
+            {
+                _logger.LogWarning("Business registration attempt with existing email: {Email}", normalizedEmail);
+                return ApiResponse<RegisterBusinessResponse>.Fail("EMAIL_ALREADY_REGISTERED", "Email already in use");
+            }
+
+            // 2. Duplicate business name guard (soft, case-insensitive) among active businesses only.
+            var duplicateName = await _unitOfWork.Businesses.AnyAsync(b =>
+                b.Name.ToLower() == request.BusinessName.Trim().ToLowerInvariant());
+            if (duplicateName)
+            {
+                return ApiResponse<RegisterBusinessResponse>.Fail("BUSINESS_NAME_TAKEN", "A business with this name already exists.");
+            }
+
+            var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, BcryptWorkFactor);
+            var verificationCode = GenerateVerificationCode();
+            var verificationCodeHash = HashVerificationCode(verificationCode);
+
+            var userAuth = new UserAuth
+            {
+                Id = Guid.NewGuid(),
+                Email = normalizedEmail,
+                PasswordHash = passwordHash,
+                IsVerified = false,
+                VerificationCode = verificationCodeHash,
+                VerificationCodeExpiresAt = DateTime.UtcNow.AddMinutes(VerificationCodeExpiryMinutes),
+                VerificationCodeAttempts = 0,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _unitOfWork.UserAuths.AddAsync(userAuth);
+
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = normalizedEmail,
+                FullName = request.FullName.Trim(),
+                PhoneNumber = request.PhoneNumber?.Trim(),
+                Role = UserRole.Business,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _unitOfWork.Users.AddAsync(user);
+
+            var business = new Business
+            {
+                Id = Guid.NewGuid(),
+                Name = request.BusinessName.Trim(),
+                Category = request.BusinessCategory.Trim(),
+                Location = request.BusinessLocation.Trim(),
+                PhoneNumber = request.BusinessPhone?.Trim(),
+                Email = request.BusinessEmail?.Trim().ToLowerInvariant(),
+                Description = request.BusinessDescription?.Trim(),
+                LogoUrl = request.LogoUrl?.Trim(),
+                MpesaNumber = request.BusinessMpesaNumber.Trim(),
+                OwnerId = user.Id,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _unitOfWork.Businesses.AddAsync(business);
+
+            // Atomic commit — all three records are persisted or none are.
+            await _unitOfWork.SaveChangesAsync();
+
+            await _emailService.SendVerificationCodeAsync(normalizedEmail, verificationCode);
+
+            _logger.LogInformation("Business registered successfully: {Email} / {Business}", normalizedEmail, business.Name);
+
+            return ApiResponse<RegisterBusinessResponse>.Ok(new RegisterBusinessResponse
+            {
+                Message = "Business account created. Check your email for the verification code.",
+                Business = new BusinessResponse
+                {
+                    Id = business.Id,
+                    Name = business.Name,
+                    Category = business.Category,
+                    Location = business.Location,
+                    PhoneNumber = business.PhoneNumber,
+                    Email = business.Email,
+                    Description = business.Description,
+                    LogoUrl = business.LogoUrl,
+                    OwnerId = business.OwnerId
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during business registration for email: {Email}", request.Email);
+            return ApiResponse<RegisterBusinessResponse>.Fail(
                 "REGISTRATION_FAILED",
                 "An unexpected error occurred during registration.");
         }

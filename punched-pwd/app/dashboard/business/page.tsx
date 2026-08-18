@@ -29,10 +29,7 @@ import {
   TrendingUp,
   CircleCheck,
 } from "lucide-react";
-import {
-  MomentumRing,
-  RankedListItem,
-} from "@/components/business/DashboardPrimitives";
+import { MomentumRing } from "@/components/business/DashboardPrimitives";
 
 /* ═══════════════════════════════════════════════════════════════
    BUSINESS DASHBOARD
@@ -518,13 +515,6 @@ export default function BusinessOverviewPage() {
           </section>
         )}
 
-        {/* ═══════════════════════════════════════════════════════
-            TOP STAFF
-            ═══════════════════════════════════════════════════════ */}
-
-        <section className="w-full">
-          <StaffTopFive staff={staff} />
-        </section>
       </div>
     </main>
   );
@@ -936,109 +926,6 @@ function YourTeamSection({
           );
         })}
       </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   TOP STAFF
-   ═══════════════════════════════════════════════════════════════ */
-
-function StaffTopFive({
-  staff,
-}: {
-  staff: StaffMember[];
-}) {
-  if (staff.length === 0) {
-    return (
-      <Link
-        href="/dashboard/business/staff"
-        className="flex min-w-0 w-full items-center gap-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface-raised)] p-4 transition-transform active:scale-[0.99]"
-      >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--border-light)]">
-          <UserCheck className="h-4 w-4 text-[var(--text-tertiary)]" />
-        </div>
-
-        <p className="min-w-0 flex-1 truncate text-sm text-[var(--text-secondary)]">
-          No staff linked yet — tap to add
-        </p>
-
-        <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-      </Link>
-    );
-  }
-
-  const ranked = [...staff]
-    .sort(
-      (a, b) =>
-        ((b as any).stampsIssued ?? 0) -
-        ((a as any).stampsIssued ?? 0),
-    )
-    .slice(0, 5);
-
-  return (
-    <div className="w-full overflow-hidden rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] shadow-[0_2px_12px_rgba(0,0,0,0.025)]">
-      {/* Header */}
-      <div className="flex min-w-0 items-center justify-between gap-3 px-4 pb-2.5 pt-4">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-surface">
-            <Users className="h-3.5 w-3.5 text-brand" />
-          </div>
-
-          <p className="truncate text-sm font-bold text-[var(--text-primary)]">
-            Top Staff
-          </p>
-
-          <span className="shrink-0 rounded-full bg-brand-surface px-1.5 py-0.5 text-[9px] font-bold text-brand">
-            {staff.length}
-          </span>
-        </div>
-
-        <Link
-          href="/dashboard/business/staff"
-          className="shrink-0 text-xs font-semibold text-brand"
-        >
-          Manage
-        </Link>
-      </div>
-
-      {/* Ranked list */}
-      <div className="divide-y divide-[var(--border-light)]">
-        {ranked.map((member, index) => (
-          <div
-            key={member.userId}
-            className="min-w-0"
-          >
-            <RankedListItem
-              rank={index + 1}
-              initials={member.fullName
-                .charAt(0)
-                .toUpperCase()}
-              title={member.fullName}
-              subtitle={(member as any).role}
-              trailing={
-                (member as any).stampsIssued != null
-                  ? `${(member as any).stampsIssued}`
-                  : undefined
-              }
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* View all */}
-      {staff.length > 5 && (
-        <Link
-          href="/dashboard/business/staff"
-          className="flex min-w-0 items-center justify-center gap-1 border-t border-[var(--border-light)] py-3 text-xs font-semibold text-brand"
-        >
-          <span className="truncate">
-            View all {staff.length} staff
-          </span>
-
-          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-        </Link>
-      )}
     </div>
   );
 }

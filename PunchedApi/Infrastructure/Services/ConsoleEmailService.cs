@@ -53,6 +53,14 @@ public class ConsoleEmailService : IEmailService
         return Task.FromResult(true);
     }
 
+    public Task<bool> SendStaffInvitationAsync(string email, string businessName, string invitationUrl, DateTime expiresAt)
+    {
+        _logger.LogInformation("📩 STAFF INVITATION for {Email} to join {Business} (expires {ExpiresAt}): {Url}",
+            email, businessName, expiresAt, invitationUrl);
+        _ = PersistAsync(email, businessName, "email", "staff_invitation", "sent", null);
+        return Task.FromResult(true);
+    }
+
     private async Task PersistAsync(string email, string? businessName, string channel, string templateType, string status, string? error)
     {
         try

@@ -3,11 +3,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { User, Lock, Check, X, Briefcase, Users } from "lucide-react";
+import { Check, X, Store } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/hooks/useAuth";
-import type { UserRole } from "@/types";
 import {
   registerSchema,
   type RegisterFormData,
@@ -32,7 +31,7 @@ export function RegisterForm() {
       email: "",
       fullName: "",
       password: "",
-      role: undefined,
+      role: "Customer",
     },
   });
 
@@ -90,53 +89,25 @@ export function RegisterForm() {
         {...register("fullName")}
       />
 
-      {/* Account Type — 10% accent on selected */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-[var(--text-secondary)]">
-          Account Type
-        </label>
-        <div className="grid grid-cols-3 gap-2.5">
-          {([
-            { value: "Customer", label: "Customer", icon: User, desc: "Collect rewards" },
-            { value: "Business", label: "Business", icon: Briefcase, desc: "Manage programs" },
-            { value: "Staff", label: "Staff", icon: Users, desc: "Issue stamps" },
-          ] as { value: UserRole; label: string; icon: React.ElementType; desc: string }[]).map(
-            ({ value, label, icon: Icon, desc }) => {
-              const isSelected = watch("role") === value;
-              return (
-                <label
-                  key={value}
-                  className={`relative flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.97] ${
-                    isSelected
-                      ? "border-brand bg-brand-surface shadow-sm"
-                      : "border-[var(--border)] hover:border-[var(--text-muted)]"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    value={value}
-                    className="sr-only"
-                    {...register("role")}
-                  />
-                  <div className={`h-9 w-9 rounded-xl flex items-center justify-center transition-colors ${
-                    isSelected ? "bg-brand/10" : "bg-[var(--border-light)]"
-                  }`}>
-                    <Icon className={`h-4 w-4 ${
-                      isSelected ? "text-brand" : "text-[var(--text-tertiary)]"
-                    }`} />
-                  </div>
-                  <span className={`text-xs font-semibold ${
-                    isSelected ? "text-brand" : "text-[var(--text-primary)]"
-                  }`}>{label}</span>
-                  <span className="text-[10px] text-[var(--text-tertiary)] text-center leading-tight">{desc}</span>
-                </label>
-              );
-            }
-          )}
+      {/* Role is always Customer server-side. Public registration only mints
+              customers — business owners use /business-register, staff are
+              onboarded exclusively through an invitation link. */}
+      <input type="hidden" value="Customer" {...register("role")} />
+
+      {/* Business owner? */}
+      <div className="rounded-2xl border border-[var(--border-light)] bg-[var(--surface-raised)] p-4">
+        <div className="flex items-center gap-3">
+          <Store className="h-5 w-5 text-brand flex-shrink-0" />
+          <p className="text-sm text-[var(--text-secondary)]">
+            <Link
+              href="/business-register"
+              className="text-brand font-semibold hover:text-brand-hover"
+            >
+              Own a business?
+            </Link>{" "}
+            Register it here to manage rewards and staff.
+          </p>
         </div>
-        {errors.role && (
-          <p className="text-xs text-danger">{errors.role.message}</p>
-        )}
       </div>
 
       {/* Password */}
@@ -212,6 +183,12 @@ export function RegisterForm() {
         >
           Sign in
         </Link>
+      </p>
+
+      {/* Staff note */}
+      <p className="text-center text-xs text-[var(--text-tertiary)]">
+        Joining a business as staff? Use the invitation link sent to you by your
+        business owner.
       </p>
     </form>
   );

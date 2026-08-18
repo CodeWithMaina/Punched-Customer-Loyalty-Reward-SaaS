@@ -18,6 +18,7 @@ import {
   Check,
   Palette,
   X,
+  Pencil,
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -92,6 +93,23 @@ export default function ProfilePage() {
           </div>
         </div>
       </header>
+
+      {/* Edit profile — editing happens on a separate page */}
+      <div className="mb-6">
+        <Link
+          href="/dashboard/profile/account"
+          className="flex w-full items-center gap-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] px-4 py-3.5 shadow-card transition-colors hover:bg-[var(--surface-raised)]"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-surface">
+            <Pencil className="h-4 w-4 text-brand" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Edit profile</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Update your personal information</p>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+        </Link>
+      </div>
 
       {/* Referral */}
       {isCustomer && (
