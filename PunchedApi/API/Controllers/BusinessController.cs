@@ -19,17 +19,20 @@ public class BusinessController : ControllerBase
     private readonly IBusinessService _businessService;
     private readonly IStampService _stampService;
     private readonly INotificationsService _notificationsService;
+    private readonly IAppointmentService _appointmentService;
     private readonly ILogger<BusinessController> _logger;
 
     public BusinessController(
         IBusinessService businessService,
         IStampService stampService,
         INotificationsService notificationsService,
+        IAppointmentService appointmentService,
         ILogger<BusinessController> logger)
     {
         _businessService = businessService;
         _stampService = stampService;
         _notificationsService = notificationsService;
+        _appointmentService = appointmentService;
         _logger = logger;
     }
 
@@ -595,6 +598,252 @@ public class BusinessController : ControllerBase
         await _notificationsService.MarkReadAsync(userId.Value, request?.NotificationId);
         return Ok(ApiResponse<MessageResponse>.Ok(new MessageResponse { Message = "Notifications marked as read." }));
     }
+
+    // ═══════════════════════════════════════════════════════════
+    //  BOOKING — OWNER APPOINTMENT ROUTES
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Owner: list this business's appointments with filters + paging.
+    /// </summary>
+    [HttpGet("me/appointments")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<PaginatedResponse<AppointmentResponse>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetBusinessAppointments(
+        [FromQuery] Guid? staffId,
+        [FromQuery] Guid? customerId,
+        [FromQuery] Guid? serviceId,
+        [FromQuery] string? status,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.GetBusinessAppointmentsAsync(
+            userId.Value, status, from, to, staffId, customerId, serviceId, page, pageSize);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>Owner: get a single appointment in this business.</summary>
+    [HttpGet("me/appointments/{id:guid}")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<AppointmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetBusinessAppointment(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.GetAppointmentAsync(userId.Value, "Business", id);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>Owner: book an appointment on behalf of a customer.</summary>
+    [HttpPost("me/appointments")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<AppointmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CreateBusinessAppointment([FromBody] CreateAppointmentOnBehalfRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.CreateAppointmentOnBehalfAsync(userId.Value, "Business", request);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>Owner: reschedule an appointment in this business.</summary>
+    [HttpPost("me/appointments/{id:guid}/reschedule")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<AppointmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RescheduleBusinessAppointment(Guid id, [FromBody] RescheduleAppointmentRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.RescheduleAsync(userId.Value, "Business", id, request);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>Owner: cancel an appointment in this business.</summary>
+    [HttpPost("me/appointments/{id:guid}/cancel")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<AppointmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CancelBusinessAppointment(Guid id, [FromBody] CancelAppointmentRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.CancelAsync(userId.Value, "Business", id, request);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>Owner: confirm a booked appointment.</summary>
+    [HttpPost("me/appointments/{id:guid}/confirm")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<AppointmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ConfirmBusinessAppointment(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.ConfirmAsync(userId.Value, "Business", id);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>Owner: complete a confirmed appointment.</summary>
+    [HttpPost("me/appointments/{id:guid}/complete")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<AppointmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CompleteBusinessAppointment(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.CompleteAsync(userId.Value, "Business", id);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>Owner: mark a confirmed appointment as a no-show.</summary>
+    [HttpPost("me/appointments/{id:guid}/no-show")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<AppointmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> MarkBusinessNoShow(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.MarkNoShowAsync(userId.Value, "Business", id);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+
+    // ═══════════════════════════════════════════════════════════
+    //  BOOKING — STAFF APPOINTMENT ROUTES
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>Staff: list the authenticated staff member's own appointments.</summary>
+    [HttpGet("staff/appointments")]
+    [Authorize(Roles = "Staff")]
+    [ProducesResponseType(typeof(ApiResponse<List<AppointmentResponse>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStaffAppointments(
+        [FromQuery] string? status,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.GetStaffAppointmentsAsync(userId.Value, status, from, to);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>Staff: get a single appointment assigned to the authenticated staff member.</summary>
+    [HttpGet("staff/appointments/{id:guid}")]
+    [Authorize(Roles = "Staff")]
+    [ProducesResponseType(typeof(ApiResponse<AppointmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetStaffAppointment(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.GetAppointmentAsync(userId.Value, "Staff", id);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>Staff: confirm a booked appointment assigned to this staff member.</summary>
+    [HttpPost("staff/appointments/{id:guid}/confirm")]
+    [Authorize(Roles = "Staff")]
+    [ProducesResponseType(typeof(ApiResponse<AppointmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ConfirmStaffAppointment(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.ConfirmAsync(userId.Value, "Staff", id);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>Staff: complete a confirmed appointment assigned to this staff member.</summary>
+    [HttpPost("staff/appointments/{id:guid}/complete")]
+    [Authorize(Roles = "Staff")]
+    [ProducesResponseType(typeof(ApiResponse<AppointmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CompleteStaffAppointment(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.CompleteAsync(userId.Value, "Staff", id);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>Staff: mark a confirmed appointment assigned to this staff member as a no-show.</summary>
+    [HttpPost("staff/appointments/{id:guid}/no-show")]
+    [Authorize(Roles = "Staff")]
+    [ProducesResponseType(typeof(ApiResponse<AppointmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> MarkStaffNoShow(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _appointmentService.MarkNoShowAsync(userId.Value, "Staff", id);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  BOOKING — PUBLIC AVAILABILITY
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>Public: compute bookable slots for a business across a date range.</summary>
+    [HttpGet("{businessId:guid}/availability")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<List<AvailabilitySlotResponse>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAvailability(
+        Guid businessId,
+        [FromQuery] Guid[] serviceIds,
+        [FromQuery] Guid? staffId,
+        [FromQuery] DateOnly startDate,
+        [FromQuery] DateOnly endDate)
+    {
+        var request = new AvailabilityQueryRequest
+        {
+            BusinessId = businessId,
+            ServiceIds = serviceIds,
+            StaffUserId = staffId,
+            StartDate = startDate,
+            EndDate = endDate
+        };
+
+        var result = await _appointmentService.GetAvailableSlotsAsync(Guid.Empty, "Anonymous", businessId, request);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>
+    /// Maps an ApiResponse failure to the HTTP status dictated by backend.md §9.
+    /// Success always returns 200 (Ok) via the callers.
+    /// </summary>
+    private IActionResult MapFailure<T>(ApiResponse<T> result)
+        => result.Error?.Code switch
+        {
+            "NOT_FOUND" or "SERVICE_NOT_FOUND" or "STAFF_NOT_FOUND" or "CUSTOMER_NOT_FOUND" => NotFound(result),
+            "FORBIDDEN" => StatusCode(StatusCodes.Status403Forbidden, result),
+            "OVERBOOKING" or "SLOT_UNAVAILABLE" or "INVALID_STATUS_TRANSITION" => Conflict(result),
+            _ => BadRequest(result)   // STAFF_NOT_AVAILABLE, VALIDATION_ERROR, BUSINESS_NOT_FOUND, fallback
+        };
+
 
     private Guid? GetUserId()
     {
