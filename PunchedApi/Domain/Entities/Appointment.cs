@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace PunchedApi.Domain.Entities;
@@ -16,6 +17,11 @@ public class Appointment : BaseEntity
     public DateTime ScheduledAt { get; set; }
 
     [Required]
+    public DateTime EndAt { get; set; }
+
+    [Required]
     [MaxLength(20)]
     public string Status { get; set; } = "booked";
+
+    public ICollection<AppointmentResource> Resources { get; set; } = new List<AppointmentResource>();
 }

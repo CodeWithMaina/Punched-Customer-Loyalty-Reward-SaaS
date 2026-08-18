@@ -16,6 +16,7 @@ public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
         builder.Property(x => x.CustomerId).HasColumnName("customer_id");
         builder.Property(x => x.StaffUserId).HasColumnName("staff_user_id");
         builder.Property(x => x.ScheduledAt).HasColumnName("scheduled_at");
+        builder.Property(x => x.EndAt).HasColumnName("end_at");
         builder.Property(x => x.Status).HasColumnName("status").HasMaxLength(20);
         builder.Property(x => x.CreatedAt).HasColumnName("created_at");
 
@@ -36,6 +37,11 @@ public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
 
         builder.HasIndex(x => new { x.BusinessId, x.ScheduledAt });
         builder.HasIndex(x => new { x.StaffUserId, x.ScheduledAt });
+
+        builder.HasMany(x => x.Resources)
+            .WithOne()
+            .HasForeignKey(r => r.AppointmentId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
 

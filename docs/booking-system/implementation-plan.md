@@ -3,23 +3,23 @@
 > **Legend:** `- [ ]` todo, `- [x]` done. Every step lists **Acceptance** (what "done" means) and **Run** (the command that proves it). Steps cross-reference `feature.md`/`backend.md`/`frontend.md` section numbers. Update checkboxes **in place** as you go.
 
 ## Phase 0 — Scaffold & baseline
-- [ ] 0.1 Branch `booking/main` from `main`.
+- [x] 0.1 Branch `booking/phase-0-1` from `main` (prompt overrides plan's `booking/main`).
   - **Acceptance:** clean working tree, branch created.
-  - **Run:** `git checkout -b booking/main`
-- [ ] 0.2 Baseline build green (backend + frontend).
+  - **Run:** `git checkout -b booking/phase-0-1`
+- [x] 0.2 Baseline build green (backend + frontend).
   - **Acceptance:** `dotnet build` and `npm run build` both pass on current `main`.
-  - **Run:** `dotnet build PunchApi && npm run build`
-- [ ] 0.3 Confirm scaffolded booking tables in `ApplicationDbContext` (appointments, services, staff_services, staff_shifts, appointment_status_history).
+  - **Run:** `dotnet build PunchedApi && npm run build`
+- [x] 0.3 Confirm scaffolded booking tables in `ApplicationDbContext` (appointments, services, staff_services, staff_shifts, appointment_status_history).
   - **Acceptance:** entities + DbSet registered.
   - **Run:** `grep -RIn "DbSet<Appointment\|DbSet<Service" "PunchedApi/Infrastructure/Data"`
 
 ## Phase 1 — Backend domain (`backend.md` §4, §5, §6)
-- [ ] 1.1 Create `Domain/Entities/AppointmentResource.cs` (snapshot join: AppointmentId, ServiceCatalogItemId, Name, DurationMinutes, Price, SortOrder).
+- [x] 1.1 Create `Domain/Entities/AppointmentResource.cs` (snapshot join: AppointmentId, ServiceCatalogItemId, Name, DurationMinutes, Price, SortOrder).
   - **Acceptance:** matches `AppointmentResourceDto` shape.
-- [ ] 1.2 Create/verify `Domain/Entities/Appointment.cs` + `AppointmentStatus` enum + `AppointmentStatusHistory`. `EndAt` required; `Status` default `booked` (no data migration).
-- [ ] 1.3 Create/verify `Domain/Entities/ServiceCatalogItem.cs` (BusinessId, Name, DurationMinutes, Price, IsActive).
-- [ ] 1.4 Register new entities + relationships in `ApplicationDbContext` if missing.
-  - **Run:** `dotnet build PunchApi`
+- [x] 1.2 Add `EndAt` (required) + `Resources` navigation to `Appointment.cs`. `Status` stays a string defaulting to `booked` (repo reality — no `AppointmentStatus` enum).
+- [x] 1.3 Verify `ServiceCatalogItem.cs` + `StaffShift` + `StaffServiceAssignment` (already present).
+- [x] 1.4 Register entities + relationships: `AppointmentResourceConfiguration`, `EndAt` in `AppointmentFoundationConfiguration`, `DbSet<AppointmentResource>`; migration `20260818092234_AddAppointmentEndAtAndAppointmentResources` adds `appointments.end_at` (NOT NULL, empty table) + `appointment_resources`.
+  - **Run:** `dotnet build PunchedApi`
 
 ## Phase 2 — Backend DTOs + validators (`backend.md` §6, §7)
 - [ ] 2.1 `Application/DTOs/AppointmentDTOs.cs`: `CreateAppointmentRequest`, `CreateAppointmentOnBehalfRequest`, `RescheduleRequest`, `CancelRequest`, `AppointmentResponse` (services snapshot list), `AvailabilitySlotResponse`, `PaginatedResponse`.
@@ -82,5 +82,6 @@
 | C6 | Postgres exclusion constraint | Code-enforced overlap check | `feature.md:11` |
 | C7 | `/dashboard/customer/` segment | Booking under `/dashboard/...`; Staff at `/dashboard/staff` | `frontend.md:9` |
 | C8 | "No TanStack Query" / RHF not in deps | `@tanstack/react-query` installed but unused; `react-hook-form` 7.52 in deps | `frontend.md:5,9` |
+| C9 | `StaffInvitation` had no snake_case config in the model, so EF drifted to PascalCase | Added `Configurations/StaffInvitationConfiguration.cs` mapping to `staff_invitations` (matches migrations/snapshot) to stop EF generating destructive renames | `implementation-plan.md` (Phase 1) |
 
 End of `implementation-plan.md`.
