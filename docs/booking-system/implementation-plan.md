@@ -22,15 +22,15 @@
   - **Run:** `dotnet build PunchedApi`
 
 ## Phase 2 — Backend DTOs + validators (`backend.md` §6, §7)
-- [ ] 2.1 `Application/DTOs/AppointmentDTOs.cs`: `CreateAppointmentRequest`, `CreateAppointmentOnBehalfRequest`, `RescheduleRequest`, `CancelRequest`, `AppointmentResponse` (services snapshot list), `AvailabilitySlotResponse`, `PaginatedResponse`.
-- [ ] 2.2 `Application/Validators/AppointmentValidators.cs` (FluentValidation): `serviceIds` min 1, future `scheduledAt`, staff-assignment membership, overlap-aware client hint.
-- [ ] 2.3 Service DTOs + validators if absent (`ServiceDTOs.cs`, `ServiceValidators.cs`).
+- [x] 2.1 `Application/DTOs/AppointmentDTOs.cs`: `CreateAppointmentRequest`, `CreateAppointmentOnBehalfRequest`, `RescheduleRequest`, `CancelRequest`, `AppointmentResponse` (services snapshot list), `AvailabilitySlotResponse`, `PaginatedResponse`.
+- [x] 2.2 `Application/Validators/AppointmentValidators.cs` (FluentValidation): `serviceIds` min 1, future `scheduledAt`, staff-assignment membership, overlap-aware client hint.
+- [x] 2.3 Service DTOs + validators if absent (`ServiceDTOs.cs`, `ServiceValidators.cs`).
 
 ## Phase 3 — Backend services (`backend.md` §3, §8)
-- [ ] 3.1 `Application/Interfaces/IAppointmentService.cs`: `CreateAsync`, `RescheduleAsync`, `CancelAsync`, `ChangeStatusAsync`, `GetMineAsync`, `GetBusinessCalendarAsync`, `GetStaffCalendarAsync`.
-- [ ] 3.2 `Application/Services/AppointmentService.cs`: resolve business from `userId` (Customer/Staff/Business), `EndAt = scheduledAt + Σ durations`, insert status-history row, **transactional overlap check → 409**, commit via `IUnitOfWork`.
-- [ ] 3.3 `IAppointmentAvailabilityService` + impl: working windows × staff-service assignment × busy subtraction → 30-min buckets.
-- [ ] 3.4 `IServiceCatalogService` + impl (owner CRUD).
+- [x] 3.1 `Application/Interfaces/IAppointmentService.cs`: `CreateAsync`, `RescheduleAsync`, `CancelAsync`, `ChangeStatusAsync`, `GetMineAsync`, `GetBusinessCalendarAsync`, `GetStaffCalendarAsync`.
+- [x] 3.2 `Application/Services/AppointmentService.cs`: resolve business from `userId` (Customer/Staff/Business), `EndAt = scheduledAt + Σ durations`, insert status-history row, **transactional overlap check → 409**, commit via `IUnitOfWork`.
+- [x] 3.3 `IAppointmentAvailabilityService` + impl: working windows × staff-service assignment × busy subtraction → 30-min buckets.
+- [x] 3.4 `IServiceCatalogService` + impl (owner CRUD).
 
 ## Phase 4 — Backend controllers + DI (`backend.md` §7)
 - [ ] 4.1 `API/Controllers/AppointmentController.cs`: role-segregated routes + `[Authorize(Roles="Customer|Business|Staff")]` + 409 on conflict.
