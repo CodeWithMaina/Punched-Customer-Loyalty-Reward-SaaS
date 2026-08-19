@@ -33,14 +33,14 @@
 - [x] 3.4 `IServiceCatalogService` + impl (owner CRUD).
 
 ## Phase 4 — Backend controllers + DI (`backend.md` §7)
-- [ ] 4.1 `API/Controllers/AppointmentController.cs`: role-segregated routes + `[Authorize(Roles="Customer|Business|Staff")]` + 409 on conflict.
-- [ ] 4.2 `API/Controllers/ServiceController.cs` (owner CRUD).
-- [ ] 4.3 Register services + AutoMapper `AppointmentProfile` in `Program.cs`.
+- [x] 4.1 `API/Controllers/AppointmentController.cs`: role-segregated routes + `[Authorize(Roles="Customer|Business|Staff")]` + 409 on conflict.
+- [x] 4.2 `API/Controllers/ServiceController.cs` (owner CRUD).
+- [x] 4.3 Register services + AutoMapper `AppointmentProfile` in `Program.cs`.
   - **Run:** `dotnet build PunchApi`
 
 ## Phase 5 — Backend tests (`backend.md` §10; xunit + Moq + Sqlite in-memory)
-- [ ] 5.1 Overlap→409 test; EndAt math test; multi-tenant scoping tests; status-history insertion test.
-- [ ] 5.2 Availability subtraction (busy ranges + `is_working=false` + assignment) test.
+- [x] 5.1 Overlap→409 test; EndAt math test; multi-tenant scoping tests; status-history insertion test.
+- [x] 5.2 Availability subtraction (busy ranges + `is_working=false` + assignment) test.
   - **Run:** `dotnet test --filter "FullyQualified~Appointment"`
 
 ## Phase 6 — Frontend types + API clients (`frontend.md` §4, §5)

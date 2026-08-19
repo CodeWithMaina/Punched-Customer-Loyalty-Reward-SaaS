@@ -204,11 +204,11 @@ public class AppointmentService : IAppointmentService
             if (request.ServiceIds != null && request.ServiceIds.Length > 0)
             {
                 _context.AppointmentResources.RemoveRange(appointment.Resources);
-                appointment.Resources.Clear();
                 var sortOrder = 0;
+                var newResources = new List<AppointmentResource>();
                 foreach (var svc in services)
                 {
-                    appointment.Resources.Add(new AppointmentResource
+                    newResources.Add(new AppointmentResource
                     {
                         Id = Guid.NewGuid(),
                         AppointmentId = appointment.Id,
@@ -220,6 +220,11 @@ public class AppointmentService : IAppointmentService
                         CreatedAt = DateTime.UtcNow
                     });
                 }
+
+                // Replace the collection reference wholesale (instead of mutating in place) and
+                // add the snapshots explicitly so EF tracks them as Added rather than Modified.
+                appointment.Resources = newResources;
+                _context.AppointmentResources.AddRange(newResources);
             }
 
             _unitOfWork.Appointments.Update(appointment);
