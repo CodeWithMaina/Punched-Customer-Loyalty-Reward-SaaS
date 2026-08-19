@@ -44,13 +44,13 @@
   - **Run:** `dotnet test --filter "FullyQualified~Appointment"`
 
 ## Phase 6 — Frontend types + API clients (`frontend.md` §4, §5)
-- [ ] 6.1 Add `ServiceCatalogItem`/`Appointment`/`AvailabilitySlot`/`AppointmentFormData` to `punched-pwd/types/index.ts`.
-- [ ] 6.2 `lib/api/appointments.ts` + `lib/api/services.ts` (reuse `apiClient` + `cachedFetch`/`invalidateCache`; TTLs per frontend.md).
+- [x] 6.1 Add `ServiceCatalogItem`/`Appointment`/`AvailabilitySlot`/`AppointmentFormData` to `punched-pwd/types/index.ts`.
+- [x] 6.2 `lib/api/appointments.ts` + `lib/api/services.ts` (reuse `apiClient` + `cachedFetch`/`invalidateCache`; TTLs per frontend.md).
 
 ## Phase 7 — Frontend store + hook + validation (`frontend.md` §6, §7, §8)
-- [ ] 7.1 `store/bookingStore.ts` — Zustand, session-only (no `persist`).
-- [ ] 7.2 `hooks/useBooking.ts` — mirrors `useAuth` (loading/error/toast); invalidates cache after mutations.
-- [ ] 7.3 `lib/validations/appointments.ts` (RHF + Zod).
+- [x] 7.1 `store/bookingStore.ts` — Zustand, session-only (no `persist`).
+- [x] 7.2 `hooks/useBooking.ts` — mirrors `useAuth` (loading/error/toast); invalidates cache after mutations.
+- [x] 7.3 `lib/validations/appointments.ts` (RHF + Zod).
 
 ## Phase 8 — Frontend components + pages (`frontend.md` §9, §10, §11)
 - [ ] 8.1 Components: `AppointmentModal`, `ServiceList`, `StaffSelector`, `AppointmentCalendar`.
