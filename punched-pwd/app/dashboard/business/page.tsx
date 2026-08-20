@@ -26,7 +26,6 @@ import {
   ChevronRight,
   Sparkles,
   Flame,
-  TrendingUp,
   CircleCheck,
 } from "lucide-react";
 import { MomentumRing } from "@/components/business/DashboardPrimitives";

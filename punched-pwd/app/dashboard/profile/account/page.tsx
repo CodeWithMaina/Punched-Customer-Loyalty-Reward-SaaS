@@ -100,7 +100,7 @@ export default function AccountInfoPage() {
           <input
             type="date"
             value={form.dateOfBirth ? String(form.dateOfBirth) : ""}
-            onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value as any }))}
+            onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
             max={new Date().toISOString().split("T")[0]}
             className="w-full border border-[var(--border)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-[var(--surface)]"
           />

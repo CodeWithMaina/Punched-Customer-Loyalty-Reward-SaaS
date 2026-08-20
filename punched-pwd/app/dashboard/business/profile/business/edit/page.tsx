@@ -34,7 +34,7 @@ function Field({ label, icon, value, onChange, placeholder, type = "text", requi
 
 export default function BusinessProfileEditPage() {
   useRoleGuard("Business");
-  const [business, setBusiness] = useState<Business | null>(null);
+  const [, setBusiness] = useState<Business | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
@@ -50,7 +50,7 @@ export default function BusinessProfileEditPage() {
         setForm({
           name: b.name ?? "", category: b.category ?? "", location: b.location ?? "",
           phoneNumber: b.phoneNumber ?? "", email: b.email ?? "", description: b.description ?? "",
-          logoUrl: b.logoUrl ?? "", mpesaNumber: (b as any).mpesaNumber ?? "",
+          logoUrl: b.logoUrl ?? "", mpesaNumber: b.mpesaNumber ?? "",
         });
       }
       setIsLoading(false);

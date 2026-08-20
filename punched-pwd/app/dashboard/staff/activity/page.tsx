@@ -272,7 +272,7 @@ export default function StaffActivityPage() {
                   : "text-[var(--brand-text)]"
               }`}
             >
-              Today's goal
+              Today&apos;s goal
             </p>
 
             <div className="mt-2 flex items-baseline gap-1.5">

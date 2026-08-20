@@ -192,7 +192,7 @@ export default function BusinessAnalyticsPage() {
                     tickFormatter={(h: number) => h % 3 === 0 ? `${h}:00` : ""} />
                   <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={25} allowDecimals={false} />
                   <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid var(--border)" }}
-                    labelFormatter={(h: any) => `${h}:00 - ${Number(h) + 1}:00`} />
+                    labelFormatter={(h) => `${h}:00 - ${Number(h) + 1}:00`} />
                   <Line type="monotone" dataKey="stamps" stroke="var(--brand)" strokeWidth={2.5} dot={false} name="Stamps" />
                   <Line type="monotone" dataKey="redemptions" stroke="#10B981" strokeWidth={2.5} dot={false} name="Redemptions" />
                 </LineChart>
@@ -250,7 +250,7 @@ export default function BusinessAnalyticsPage() {
                       interval={Math.max(0, Math.floor(analytics.engagementTrends.length / 6))} />
                     <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={25} allowDecimals={false} />
                     <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid var(--border)" }}
-                      labelFormatter={(d: any) => new Date(d).toLocaleDateString("en", { month: "short", day: "numeric" })} />
+                      labelFormatter={(d) => new Date(String(d)).toLocaleDateString("en", { month: "short", day: "numeric" })} />
                     <Area type="monotone" dataKey="stamps" stroke="var(--brand)" fill="var(--brand)" fillOpacity={0.1} strokeWidth={2} name="Stamps" />
                     <Area type="monotone" dataKey="redemptions" stroke="#10B981" fill="#10B981" fillOpacity={0.1} strokeWidth={2} name="Redemptions" />
                     <Area type="monotone" dataKey="enrollments" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.1} strokeWidth={2} name="Enrollments" />
@@ -373,7 +373,7 @@ export default function BusinessAnalyticsPage() {
                       interval={Math.max(0, Math.floor(analytics.customerGrowth.length / 5))} />
                     <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={30} allowDecimals={false} />
                     <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid var(--border)" }}
-                      labelFormatter={(d: any) => new Date(d).toLocaleDateString("en", { month: "short", day: "numeric" })} />
+                      labelFormatter={(d) => new Date(String(d)).toLocaleDateString("en", { month: "short", day: "numeric" })} />
                     <Area type="monotone" dataKey="total" stroke="var(--brand)" fill="var(--brand)" fillOpacity={0.15} strokeWidth={2} name="Total" />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -526,8 +526,8 @@ export default function BusinessAnalyticsPage() {
                     <BarChart data={analytics.traffic.peakHours.slice().sort((a, b) => a.hour - b.hour)} layout="vertical" margin={{ left: 28 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="hour" tickFormatter={(h: any) => Fmt.formatHour(h)} tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid var(--border)" }} labelFormatter={(h: any) => Fmt.formatHour(h)} />
+                      <YAxis type="category" dataKey="hour" tickFormatter={(h: number) => Fmt.formatHour(h)} tick={{ fontSize: 9, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid var(--border)" }} labelFormatter={(h) => (typeof h === "number" ? Fmt.formatHour(h) : "")} />
                       <Bar dataKey="stampCount" fill="var(--brand)" radius={[0, 4, 4, 0]} name="Stamps" />
                     </BarChart>
                   </ResponsiveContainer>

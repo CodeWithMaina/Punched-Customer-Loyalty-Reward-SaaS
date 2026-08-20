@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/authStore";
 import { referralsApi } from "@/lib/api/referrals";
 import type { ReferralLink, Referral, ReferralStats, ReferralStatusType } from "@/types";
 import {
@@ -31,7 +30,6 @@ const STATUS_CONFIG: Record<ReferralStatusType, { label: string; color: string; 
 
 export default function ReferralPage() {
   const router = useRouter();
-  const { user } = useAuthStore();
 
   const [links, setLinks] = useState<ReferralLink[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);

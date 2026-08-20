@@ -40,7 +40,7 @@ export default function SupportPage() {
         </Link>
         <div>
           <h1 className="text-lg font-bold text-[var(--text-primary)]">Support</h1>
-          <p className="text-xs text-[var(--text-tertiary)]">We're here to help</p>
+          <p className="text-xs text-[var(--text-tertiary)]">We&apos;re here to help</p>
         </div>
       </div>
 

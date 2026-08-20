@@ -98,6 +98,7 @@ export interface Business {
   email?: string;
   description?: string;
   logoUrl?: string;
+  mpesaNumber?: string;
   ownerId?: string;
   defaultDailyGoal?: number;
   loyaltyProgram?: LoyaltyProgram;

@@ -101,7 +101,7 @@ export default function BusinessProfileViewPage() {
         <InfoRow icon={MapPin} label="Location" value={b?.location ?? ""} />
         <InfoRow icon={Phone} label="Phone" value={b?.phoneNumber ?? ""} />
         <InfoRow icon={Mail} label="Email" value={b?.email ?? ""} />
-        <InfoRow icon={Hash} label="M-Pesa Paybill / Till" value={(b as any)?.mpesaNumber ?? ""} />
+        <InfoRow icon={Hash} label="M-Pesa Paybill / Till" value={b?.mpesaNumber ?? ""} />
         <InfoRow icon={FileText} label="Description" value={b?.description ?? ""} />
       </div>
     </div>

@@ -11,14 +11,11 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  Trash2,
   MapPin,
   Users,
   Stamp,
   Gift,
 } from "lucide-react";
-import toast from "react-hot-toast";
-
 export default function AdminBusinesses() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuthStore();
@@ -52,17 +49,6 @@ export default function AdminBusinesses() {
     }
     fetchBusinesses();
   }, [user, authLoading, router, fetchBusinesses]);
-
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete business "${name}"? This action cannot be undone.`)) return;
-    const res = await adminApi.deleteBusiness(id);
-    if (res.success) {
-      toast.success("Business deleted");
-      fetchBusinesses();
-    } else {
-      toast.error(res.error?.message || "Failed to delete");
-    }
-  };
 
   if (authLoading) {
     return (

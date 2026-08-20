@@ -13,7 +13,6 @@ import {
   Loader2,
   QrCode,
   RefreshCw,
-  CheckCircle,
   Gift,
   Wifi,
   WifiOff,

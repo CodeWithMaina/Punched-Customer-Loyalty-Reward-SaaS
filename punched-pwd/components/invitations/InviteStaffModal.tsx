@@ -76,7 +76,7 @@ export function InviteStaffModal({
                 Invite a Staff Member
               </h2>
               <p className="text-xs text-[var(--text-tertiary)]">
-                They'll get an email to join your team.
+                They&apos;ll get an email to join your team.
               </p>
             </div>
           </div>
@@ -92,7 +92,7 @@ export function InviteStaffModal({
 
         <div className="mt-4 rounded-xl bg-[var(--accent-light)] p-3 text-xs leading-relaxed text-[var(--accent-text)]">
           Staff can scan customer QR codes and award stamps. They cannot edit
-          your programs or view financial data. Use the staff member's email —
+          your programs or view financial data. Use the staff member&apos;s email —
           no user ID needed.
         </div>
 
