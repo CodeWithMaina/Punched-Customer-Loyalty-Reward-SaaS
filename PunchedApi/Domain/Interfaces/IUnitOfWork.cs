@@ -50,6 +50,24 @@ public interface IUnitOfWork : IDisposable
     /// <summary>Repository for StaffInvitation entities.</summary>
     IRepository<StaffInvitation> StaffInvitations { get; }
 
+    /// <summary>Repository for Appointment entities.</summary>
+    IRepository<Appointment> Appointments { get; }
+
+    /// <summary>Repository for AppointmentResource entities.</summary>
+    IRepository<AppointmentResource> AppointmentResources { get; }
+
+    /// <summary>Repository for AppointmentStatusHistory entities.</summary>
+    IRepository<AppointmentStatusHistory> AppointmentStatusHistory { get; }
+
+    /// <summary>Repository for ServiceCatalogItem entities.</summary>
+    IRepository<ServiceCatalogItem> ServiceCatalogItems { get; }
+
+    /// <summary>Repository for StaffShift entities.</summary>
+    IRepository<StaffShift> StaffShifts { get; }
+
+    /// <summary>Repository for StaffServiceAssignment entities.</summary>
+    IRepository<StaffServiceAssignment> StaffServiceAssignments { get; }
+
     /// <summary>
     /// Commits all pending changes to the database.
     /// </summary>

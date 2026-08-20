@@ -8,7 +8,7 @@ import { adminApi } from "@/lib/api/admin";
 import type { AdminBusinessSummary } from "@/types";
 import {
   Loader2, Store, ArrowLeft, MapPin, Users, Stamp, Gift,
-  UserCheck, CreditCard, Calendar, Mail, Trash2, TrendingUp, BarChart3,
+  UserCheck, CreditCard, Calendar, Mail, Trash2, BarChart3,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -171,7 +171,7 @@ export default function AdminBusinessDetail() {
       </div>
 
       {/* Business Health */}
-      <BusinessHealthCard biz={biz} stampRate={stampRate} redemptionRate={redemptionRate} />
+      <BusinessHealthCard biz={biz} />
 
       {/* Actions */}
       <div className="flex items-center gap-3 pt-2">
@@ -187,7 +187,7 @@ export default function AdminBusinessDetail() {
   );
 }
 
-function BusinessHealthCard({ biz, stampRate, redemptionRate }: { biz: AdminBusinessSummary; stampRate: string; redemptionRate: string }) {
+function BusinessHealthCard({ biz }: { biz: AdminBusinessSummary }) {
   // Score: 0-100 based on having customers, stamps, staff, programs, redemptions
   const factors = [
     { label: "Has customers", ok: biz.totalCustomers > 0, weight: 25 },

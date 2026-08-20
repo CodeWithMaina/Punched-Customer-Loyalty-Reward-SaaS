@@ -605,7 +605,7 @@ export default function PunchedLanding() {
             <Reveal delay={140}>
               <p className="pk-sub">
                 Punched replaces the paper punch card with a live, cardless
-                loyalty system. Staff scan, the stamp lands on the customer's
+                loyalty system. Staff scan, the stamp lands on the customer&apos;s
                 phone in under a second, and the reward unlocks itself.
               </p>
             </Reveal>
@@ -654,7 +654,7 @@ export default function PunchedLanding() {
         <div className="pk-wrap">
           <Reveal>
             <div className="pk-kicker">built for the counter, not a boardroom</div>
-            <h2 className="pk-h2">Everything a local business needs, nothing it doesn't.</h2>
+            <h2 className="pk-h2">Everything a local business needs, nothing it doesn&apos;t.</h2>
           </Reveal>
           <div className="pk-features">
             {FEATURES.map((f, i) => (
@@ -695,7 +695,7 @@ export default function PunchedLanding() {
               </div>
               <div>
                 <CountUp to={1} prefix="<" suffix="s" />
-                <div className="pk-stat-label">For a stamp to appear on the customer's phone</div>
+                <div className="pk-stat-label">For a stamp to appear on the customer&apos;s phone</div>
               </div>
               <div>
                 <CountUp to={0} />

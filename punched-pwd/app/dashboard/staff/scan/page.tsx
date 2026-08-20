@@ -141,7 +141,7 @@ export default function StaffScanPage() {
         </h1>
 
         <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          Scan the customer's code to give them a stamp.
+          Scan the customer&apos;s code to give them a stamp.
         </p>
       </header>
 
@@ -153,7 +153,7 @@ export default function StaffScanPage() {
 
         <div className="min-w-0">
           <p className="text-[11px] text-[var(--text-tertiary)]">
-            You're scanning for
+            You&apos;re scanning for
           </p>
 
           <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
@@ -249,7 +249,7 @@ export default function StaffScanPage() {
           </div>
 
           <h2 className="mt-4 text-base font-semibold text-red-800">
-            Couldn't add the stamp
+            Couldn&apos;t add the stamp
           </h2>
 
           <p className="mt-1 text-sm leading-5 text-red-700">
@@ -271,7 +271,7 @@ export default function StaffScanPage() {
         !result &&
         !error && (
           <p className="mt-5 text-center text-xs text-[var(--text-tertiary)]">
-            Only scan the customer's loyalty QR code.
+            Only scan the customer&apos;s loyalty QR code.
           </p>
         )}
     </main>

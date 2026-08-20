@@ -22,35 +22,35 @@
   - **Run:** `dotnet build PunchedApi`
 
 ## Phase 2 — Backend DTOs + validators (`backend.md` §6, §7)
-- [ ] 2.1 `Application/DTOs/AppointmentDTOs.cs`: `CreateAppointmentRequest`, `CreateAppointmentOnBehalfRequest`, `RescheduleRequest`, `CancelRequest`, `AppointmentResponse` (services snapshot list), `AvailabilitySlotResponse`, `PaginatedResponse`.
-- [ ] 2.2 `Application/Validators/AppointmentValidators.cs` (FluentValidation): `serviceIds` min 1, future `scheduledAt`, staff-assignment membership, overlap-aware client hint.
-- [ ] 2.3 Service DTOs + validators if absent (`ServiceDTOs.cs`, `ServiceValidators.cs`).
+- [x] 2.1 `Application/DTOs/AppointmentDTOs.cs`: `CreateAppointmentRequest`, `CreateAppointmentOnBehalfRequest`, `RescheduleRequest`, `CancelRequest`, `AppointmentResponse` (services snapshot list), `AvailabilitySlotResponse`, `PaginatedResponse`.
+- [x] 2.2 `Application/Validators/AppointmentValidators.cs` (FluentValidation): `serviceIds` min 1, future `scheduledAt`, staff-assignment membership, overlap-aware client hint.
+- [x] 2.3 Service DTOs + validators if absent (`ServiceDTOs.cs`, `ServiceValidators.cs`).
 
 ## Phase 3 — Backend services (`backend.md` §3, §8)
-- [ ] 3.1 `Application/Interfaces/IAppointmentService.cs`: `CreateAsync`, `RescheduleAsync`, `CancelAsync`, `ChangeStatusAsync`, `GetMineAsync`, `GetBusinessCalendarAsync`, `GetStaffCalendarAsync`.
-- [ ] 3.2 `Application/Services/AppointmentService.cs`: resolve business from `userId` (Customer/Staff/Business), `EndAt = scheduledAt + Σ durations`, insert status-history row, **transactional overlap check → 409**, commit via `IUnitOfWork`.
-- [ ] 3.3 `IAppointmentAvailabilityService` + impl: working windows × staff-service assignment × busy subtraction → 30-min buckets.
-- [ ] 3.4 `IServiceCatalogService` + impl (owner CRUD).
+- [x] 3.1 `Application/Interfaces/IAppointmentService.cs`: `CreateAsync`, `RescheduleAsync`, `CancelAsync`, `ChangeStatusAsync`, `GetMineAsync`, `GetBusinessCalendarAsync`, `GetStaffCalendarAsync`.
+- [x] 3.2 `Application/Services/AppointmentService.cs`: resolve business from `userId` (Customer/Staff/Business), `EndAt = scheduledAt + Σ durations`, insert status-history row, **transactional overlap check → 409**, commit via `IUnitOfWork`.
+- [x] 3.3 `IAppointmentAvailabilityService` + impl: working windows × staff-service assignment × busy subtraction → 30-min buckets.
+- [x] 3.4 `IServiceCatalogService` + impl (owner CRUD).
 
 ## Phase 4 — Backend controllers + DI (`backend.md` §7)
-- [ ] 4.1 `API/Controllers/AppointmentController.cs`: role-segregated routes + `[Authorize(Roles="Customer|Business|Staff")]` + 409 on conflict.
-- [ ] 4.2 `API/Controllers/ServiceController.cs` (owner CRUD).
-- [ ] 4.3 Register services + AutoMapper `AppointmentProfile` in `Program.cs`.
+- [x] 4.1 `API/Controllers/AppointmentController.cs`: role-segregated routes + `[Authorize(Roles="Customer|Business|Staff")]` + 409 on conflict.
+- [x] 4.2 `API/Controllers/ServiceController.cs` (owner CRUD).
+- [x] 4.3 Register services + AutoMapper `AppointmentProfile` in `Program.cs`.
   - **Run:** `dotnet build PunchApi`
 
 ## Phase 5 — Backend tests (`backend.md` §10; xunit + Moq + Sqlite in-memory)
-- [ ] 5.1 Overlap→409 test; EndAt math test; multi-tenant scoping tests; status-history insertion test.
-- [ ] 5.2 Availability subtraction (busy ranges + `is_working=false` + assignment) test.
+- [x] 5.1 Overlap→409 test; EndAt math test; multi-tenant scoping tests; status-history insertion test.
+- [x] 5.2 Availability subtraction (busy ranges + `is_working=false` + assignment) test.
   - **Run:** `dotnet test --filter "FullyQualified~Appointment"`
 
 ## Phase 6 — Frontend types + API clients (`frontend.md` §4, §5)
-- [ ] 6.1 Add `ServiceCatalogItem`/`Appointment`/`AvailabilitySlot`/`AppointmentFormData` to `punched-pwd/types/index.ts`.
-- [ ] 6.2 `lib/api/appointments.ts` + `lib/api/services.ts` (reuse `apiClient` + `cachedFetch`/`invalidateCache`; TTLs per frontend.md).
+- [x] 6.1 Add `ServiceCatalogItem`/`Appointment`/`AvailabilitySlot`/`AppointmentFormData` to `punched-pwd/types/index.ts`.
+- [x] 6.2 `lib/api/appointments.ts` + `lib/api/services.ts` (reuse `apiClient` + `cachedFetch`/`invalidateCache`; TTLs per frontend.md).
 
 ## Phase 7 — Frontend store + hook + validation (`frontend.md` §6, §7, §8)
-- [ ] 7.1 `store/bookingStore.ts` — Zustand, session-only (no `persist`).
-- [ ] 7.2 `hooks/useBooking.ts` — mirrors `useAuth` (loading/error/toast); invalidates cache after mutations.
-- [ ] 7.3 `lib/validations/appointments.ts` (RHF + Zod).
+- [x] 7.1 `store/bookingStore.ts` — Zustand, session-only (no `persist`).
+- [x] 7.2 `hooks/useBooking.ts` — mirrors `useAuth` (loading/error/toast); invalidates cache after mutations.
+- [x] 7.3 `lib/validations/appointments.ts` (RHF + Zod).
 
 ## Phase 8 — Frontend components + pages (`frontend.md` §9, §10, §11)
 - [ ] 8.1 Components: `AppointmentModal`, `ServiceList`, `StaffSelector`, `AppointmentCalendar`.

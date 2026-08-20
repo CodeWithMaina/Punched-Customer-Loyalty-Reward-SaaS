@@ -7,7 +7,7 @@ import { loyaltyApi } from "@/lib/api/loyalty";
 import type { LoyaltyProgram, CreateLoyaltyProgramRequest, UpdateLoyaltyProgramRequest } from "@/types";
 import toast from "react-hot-toast";
 import {
-  ArrowLeft, Loader2, Gift, Plus, Pencil, Trash2, Check, X, Info,
+  ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Info,
 } from "lucide-react";
 
 function NumField({ label, hint, value, onChange, min, max }: {

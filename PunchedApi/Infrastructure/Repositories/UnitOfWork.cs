@@ -28,6 +28,12 @@ public class UnitOfWork : IUnitOfWork
     private IRepository<Referral>? _referrals;
     private IRepository<Notification>? _notifications;
     private IRepository<StaffInvitation>? _staffInvitations;
+    private IRepository<Appointment>? _appointments;
+    private IRepository<AppointmentResource>? _appointmentResources;
+    private IRepository<AppointmentStatusHistory>? _appointmentStatusHistory;
+    private IRepository<ServiceCatalogItem>? _serviceCatalogItems;
+    private IRepository<StaffShift>? _staffShifts;
+    private IRepository<StaffServiceAssignment>? _staffServiceAssignments;
 
     public UnitOfWork(ApplicationDbContext context)
     {
@@ -89,6 +95,30 @@ public class UnitOfWork : IUnitOfWork
     /// <inheritdoc />
     public IRepository<StaffInvitation> StaffInvitations =>
         _staffInvitations ??= new Repository<StaffInvitation>(_context);
+
+    /// <inheritdoc />
+    public IRepository<Appointment> Appointments =>
+        _appointments ??= new Repository<Appointment>(_context);
+
+    /// <inheritdoc />
+    public IRepository<AppointmentResource> AppointmentResources =>
+        _appointmentResources ??= new Repository<AppointmentResource>(_context);
+
+    /// <inheritdoc />
+    public IRepository<AppointmentStatusHistory> AppointmentStatusHistory =>
+        _appointmentStatusHistory ??= new Repository<AppointmentStatusHistory>(_context);
+
+    /// <inheritdoc />
+    public IRepository<ServiceCatalogItem> ServiceCatalogItems =>
+        _serviceCatalogItems ??= new Repository<ServiceCatalogItem>(_context);
+
+    /// <inheritdoc />
+    public IRepository<StaffShift> StaffShifts =>
+        _staffShifts ??= new Repository<StaffShift>(_context);
+
+    /// <inheritdoc />
+    public IRepository<StaffServiceAssignment> StaffServiceAssignments =>
+        _staffServiceAssignments ??= new Repository<StaffServiceAssignment>(_context);
 
     /// <inheritdoc />
     public async Task<int> SaveChangesAsync()

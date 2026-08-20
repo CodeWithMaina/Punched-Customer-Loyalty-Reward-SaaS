@@ -98,6 +98,7 @@ export interface Business {
   email?: string;
   description?: string;
   logoUrl?: string;
+  mpesaNumber?: string;
   ownerId?: string;
   defaultDailyGoal?: number;
   loyaltyProgram?: LoyaltyProgram;
@@ -920,3 +921,119 @@ export interface RegisterBusinessResponse {
   message: string;
   business?: Business | null;
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  BOOKING — appointments, service catalog, availability
+//  Mirrors backend DTOs (backend.md §8 / AppointmentDTOs.cs).
+//  Dates are ISO-UTC strings; ids/GUIDs are strings.
+// ═══════════════════════════════════════════════════════════════
+
+/** A service offered by a business (public/owner views). */
+export interface ServiceCatalogItemResponse {
+  id: string;
+  businessId: string;
+  name: string;
+  durationMinutes: number;
+  price: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+/** Creates a new catalog service. */
+export interface CreateServiceRequest {
+  name: string;
+  durationMinutes: number;
+  price: number;
+}
+
+/** Partially updates a catalog service (only provided fields applied). */
+export interface UpdateServiceRequest {
+  name?: string;
+  durationMinutes?: number;
+  price?: number;
+  isActive?: boolean;
+}
+
+/** A single bookable slot produced by the availability engine. */
+export interface AvailabilitySlotResponse {
+  startAtUtc: string;
+  endAtUtc: string;
+  staffUserId: string;
+  staffName: string;
+  serviceIds: string[];
+}
+
+/** Immutable snapshot of a service at booking time. */
+export interface AppointmentServiceSnapshot {
+  serviceCatalogItemId: string;
+  name: string;
+  durationMinutes: number;
+  price: number;
+  sortOrder: number;
+}
+
+/** Lowercase appointment lifecycle statuses per backend.md §8. */
+export type AppointmentStatus =
+  | "draft"
+  | "pending"
+  | "confirmed"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "no_show";
+
+/** Full appointment view. */
+export interface AppointmentResponse {
+  id: string;
+  businessId: string;
+  customerId: string;
+  staffUserId?: string | null;
+  scheduledAt: string;
+  endAt: string;
+  status: AppointmentStatus;
+  services: AppointmentServiceSnapshot[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Customer self-service booking. customerId is always forced server-side. */
+export interface CreateAppointmentRequest {
+  businessId: string;
+  serviceIds: string[];
+  staffUserId?: string;
+  scheduledAt: string;
+  note?: string;
+}
+
+/** Reschedules an existing appointment; serviceIds/staffUserId optional. */
+export interface RescheduleAppointmentRequest {
+  scheduledAt: string;
+  serviceIds?: string[];
+  staffUserId?: string;
+  note?: string;
+}
+
+/** Cancels an existing appointment. */
+export interface CancelAppointmentRequest {
+  note?: string;
+}
+
+/** Business/Staff booking on behalf of a customer. */
+export interface CreateAppointmentOnBehalfRequest {
+  businessId: string;
+  serviceIds: string[];
+  staffUserId?: string;
+  scheduledAt: string;
+  note?: string;
+  customerId: string;
+}
+
+/** Wizard booking form model (session-only — never persisted). */
+export interface AppointmentFormData {
+  businessId: string;
+  serviceIds: string[];
+  staffUserId?: string;
+  scheduledAt: string | null;
+  note?: string;
+}
+

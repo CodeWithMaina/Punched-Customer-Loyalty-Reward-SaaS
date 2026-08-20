@@ -26,7 +26,7 @@ const REWARD_TYPES: { value: ReferralRewardType; label: string; description: str
 export default function BusinessReferralPage() {
   useRoleGuard("Business");
   const [program, setProgram] = useState<ReferralProgram | null>(null);
-  const [businessId, setBusinessId] = useState<string | null>(null);
+  const [, setBusinessId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState<UpsertReferralProgramRequest>({
@@ -201,7 +201,7 @@ export default function BusinessReferralPage() {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[var(--text-secondary)] block">Reward Type</label>
             <div className="grid grid-cols-3 gap-2">
-              {REWARD_TYPES.map(({ value, label, description }) => (
+              {REWARD_TYPES.map(({ value, label }) => (
                 <button
                   key={value}
                   type="button"

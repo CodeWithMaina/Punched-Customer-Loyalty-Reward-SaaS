@@ -70,7 +70,7 @@ export default function CustomerDetailPage() {
       } else {
         setNotFound(true);
       }
-      const req = (bizRes?.data as any)?.loyaltyProgram?.stampsRequired ?? 0;
+      const req = bizRes?.data?.loyaltyProgram?.stampsRequired ?? 0;
       setStampsRequired(req);
       if (statsRes?.success && statsRes.data) setPeriodStats(statsRes.data);
       setIsLoading(false);

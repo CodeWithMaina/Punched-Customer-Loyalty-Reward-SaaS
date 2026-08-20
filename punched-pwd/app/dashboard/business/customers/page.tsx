@@ -42,7 +42,7 @@ function escapeCsvField(v?: string | number | null): string {
   return s;
 }
 
-function downloadCsv(customers: BusinessCustomer[], stampsRequired: number) {
+function downloadCsv(customers: BusinessCustomer[]) {
   const header = "Name,Email,Phone,DateOfBirth,Gender,TotalStamps,LifetimeStamps,TotalRedemptions,EnrolledAt,LastStampAt";
   const rows = customers.map((c) =>
     [
@@ -89,7 +89,7 @@ export default function BusinessCustomersPage() {
 
   useEffect(() => {
     businessesApi.getMine().then((biz) => {
-      const req = (biz.data as any)?.loyaltyProgram?.stampsRequired ?? 0;
+      const req = biz.data?.loyaltyProgram?.stampsRequired ?? 0;
       setStampsRequired(req);
     });
   }, []);
@@ -145,7 +145,7 @@ export default function BusinessCustomersPage() {
           <p className="text-xs text-[var(--text-tertiary)]">{totalCount} total</p>
         </div>
         <button
-          onClick={() => downloadCsv(data, stampsRequired)}
+          onClick={() => downloadCsv(data)}
           disabled={data.length === 0}
           title="Export as CSV"
           className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand bg-brand-surface px-3 py-2 rounded-xl hover:bg-brand-light transition-colors disabled:opacity-40"

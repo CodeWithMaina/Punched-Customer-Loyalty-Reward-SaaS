@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeStore, THEMES } from "@/store/themeStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,7 +33,6 @@ function calcAge(dob: string): number {
 }
 
 export default function AdminProfilePage() {
-  const router = useRouter();
   const { user } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
   const { logout } = useAuth();

@@ -10,7 +10,8 @@
    Font: Inter (sans), Space Grotesk (display)
    ═══════════════════════════════════════════════════════════════ */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+/* @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"); */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Space+Mono:wght@400;700&family=Space+Grotesk:wght@500;600;700&display=swap");
 
 /* ── Blue Theme (default) ──────────────────────────────────── */
 :root,
@@ -46,6 +47,187 @@
   --text-secondary: #6B7280;
   --text-tertiary: #9CA3AF;
   --text-muted: #D1D5DB;
+}
+/* ── Obsidian Punch Theme ────────────────────────────────────
+   Atmospheric Brutalism
+   Deep black surfaces
+   Monochromatic typography
+   Red "Punch" accent
+   Sharp geometric UI
+   No shadows / no gradients / no blur
+   ─────────────────────────────────────────────────────────── */
+
+[data-theme="obsidian"] {
+  /* ── Brand / Primary ─────────────────────────────────────── */
+
+  --brand: #C9C6C5;
+  --brand-hover: #E2E2E2;
+  --brand-dark: #A1A1A1;
+  --brand-light: #333535;
+  --brand-surface: #1A1C1C;
+  --brand-text: #E2E2E2;
+  --brand-ring: rgba(226, 226, 226, 0.18);
+
+  /* ── Accent / Punch ─────────────────────────────────────── */
+
+  --accent: #FF3B30;
+  --accent-hover: #FF5A52;
+  --accent-light: #3A1715;
+  --accent-text: #FFB4AB;
+
+  /* ── Semantic ───────────────────────────────────────────── */
+
+  --success: #4ADE80;
+  --success-light: #14351F;
+  --success-text: #86EFAC;
+
+  /* ── Base ───────────────────────────────────────────────── */
+
+  --background: #0A0A0A;
+  --foreground: #E2E2E2;
+
+  --surface: #121414;
+  --surface-raised: #1A1C1C;
+
+  --border: #333333;
+  --border-light: #1A1C1C;
+
+  --text-primary: #E2E2E2;
+  --text-secondary: #C4C7C7;
+  --text-tertiary: #A1A1A1;
+  --text-muted: #666666;
+
+  /* ── Obsidian Surface System ────────────────────────────── */
+
+  --surface-dim: #121414;
+  --surface-bright: #37393A;
+
+  --surface-container-lowest: #0C0F0F;
+  --surface-container-low: #1A1C1C;
+  --surface-container: #1E2020;
+  --surface-container-high: #282A2B;
+  --surface-container-highest: #333535;
+
+  /* ── On Surface ─────────────────────────────────────────── */
+
+  --on-surface: #E2E2E2;
+  --on-surface-variant: #C4C7C7;
+
+  --inverse-surface: #E2E2E2;
+  --inverse-on-surface: #2F3131;
+
+  /* ── Borders ────────────────────────────────────────────── */
+
+  --outline: #8E9192;
+  --outline-variant: #444748;
+
+  --border-low-viz: #333333;
+
+  /* ── Primary ────────────────────────────────────────────── */
+
+  --surface-tint: #C9C6C5;
+
+  --primary: #C9C6C5;
+  --on-primary: #313030;
+  --primary-container: #0A0A0A;
+  --on-primary-container: #7B7979;
+  --inverse-primary: #5F5E5E;
+
+  /* ── Secondary ──────────────────────────────────────────── */
+
+  --secondary: #C8C6C5;
+  --on-secondary: #313030;
+  --secondary-container: #474746;
+  --on-secondary-container: #B7B5B4;
+
+  /* ── Tertiary ───────────────────────────────────────────── */
+
+  --tertiary: #C8C6C5;
+  --on-tertiary: #303030;
+  --tertiary-container: #0A0A0A;
+  --on-tertiary-container: #7A7979;
+
+  /* ── Error ──────────────────────────────────────────────── */
+
+  --error: #FFB4AB;
+  --on-error: #690005;
+  --error-container: #93000A;
+  --on-error-container: #FFDAD6;
+
+  /* ── Fixed Colors ───────────────────────────────────────── */
+
+  --primary-fixed: #E5E2E1;
+  --primary-fixed-dim: #C9C6C5;
+  --on-primary-fixed: #1C1B1B;
+  --on-primary-fixed-variant: #474646;
+
+  --secondary-fixed: #E5E2E1;
+  --secondary-fixed-dim: #C8C6C5;
+  --on-secondary-fixed: #1C1B1B;
+  --on-secondary-fixed-variant: #474646;
+
+  --tertiary-fixed: #E4E2E1;
+  --tertiary-fixed-dim: #C8C6C5;
+  --on-tertiary-fixed: #1B1C1C;
+  --on-tertiary-fixed-variant: #474646;
+
+  /* ── Punch ──────────────────────────────────────────────── */
+
+  --accent-punch: #FF3B30;
+
+  /* ── Additional Text ───────────────────────────────────── */
+
+  --text-dim: #A1A1A1;
+
+  /* ── Obsidian Typography ───────────────────────────────── */
+
+  --font-display: "Plus Jakarta Sans", sans-serif;
+  --font-body: "Space Mono", monospace;
+  --font-label: "Plus Jakarta Sans", sans-serif;
+
+  --display-xl-size: 80px;
+  --display-xl-line-height: 80px;
+  --display-xl-weight: 800;
+  --display-xl-spacing: -0.04em;
+
+  --headline-lg-size: 40px;
+  --headline-lg-line-height: 48px;
+  --headline-lg-weight: 700;
+  --headline-lg-spacing: -0.02em;
+
+  --headline-sm-size: 24px;
+  --headline-sm-line-height: 32px;
+  --headline-sm-weight: 600;
+  --headline-sm-spacing: -0.01em;
+
+  --body-lg-size: 16px;
+  --body-lg-line-height: 24px;
+
+  --body-sm-size: 14px;
+  --body-sm-line-height: 20px;
+
+  --label-size: 12px;
+  --label-line-height: 16px;
+  --label-weight: 700;
+  --label-spacing: 0.15em;
+
+  /* ── Spacing ────────────────────────────────────────────── */
+
+  --spacing-unit: 4px;
+  --gutter: 24px;
+  --margin-mobile: 20px;
+  --margin-desktop: 64px;
+  --section-gap: 160px;
+  --container-padding: 32px;
+
+  /* ── Shape ──────────────────────────────────────────────── */
+
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-full: 0px;
 }
 
 /* ── Green Theme ───────────────────────────────────────────── */
