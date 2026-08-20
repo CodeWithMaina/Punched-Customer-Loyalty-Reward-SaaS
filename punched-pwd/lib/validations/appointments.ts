@@ -43,3 +43,21 @@ export const cancelSchema = z.object({
 export type CreateAppointmentForm = z.infer<typeof createAppointmentSchema>;
 export type RescheduleAppointmentForm = z.infer<typeof rescheduleSchema>;
 export type CancelAppointmentForm = z.infer<typeof cancelSchema>;
+
+// ═══════════════════════════════════════════════════════════════
+// Service catalog form schema (mirrors frontend.md §8 / backend.md)
+// name: 1–120 chars; durationMinutes: int 1–1440; price: >= 0
+// ═══════════════════════════════════════════════════════════════
+export const serviceCatalogSchema = z.object({
+  name: z.string().min(1, "Name is required").max(120, "Name must be 120 characters or fewer"),
+  durationMinutes: z
+    .number({ invalid_type_error: "Duration must be a number" })
+    .int("Duration must be a whole number")
+    .min(1, "Duration must be at least 1 minute")
+    .max(1440, "Duration cannot exceed 1440 minutes (24 hours)"),
+  price: z
+    .number({ invalid_type_error: "Price must be a number" })
+    .min(0, "Price cannot be negative"),
+});
+
+export type ServiceCatalogForm = z.infer<typeof serviceCatalogSchema>;

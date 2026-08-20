@@ -17,6 +17,8 @@ export interface BookingState {
   selectedStaffId: string | null;
   slot: AvailabilitySlotResponse | null;
   note: string;
+  /** Wizard step: 1=Services, 2=Staff, 3=Time, 4=Review */
+  currentStep: number;
 }
 
 export interface BookingActions {
@@ -28,6 +30,12 @@ export interface BookingActions {
   setSlot: (slot: AvailabilitySlotResponse) => void;
   removeSlot: () => void;
   setNote: (note: string) => void;
+  /** Direct step setter (1–4). */
+  setStep: (step: number) => void;
+  /** Advance one step, respecting guards (empty cart / no slot). Bails when blocked. */
+  nextStep: () => void;
+  /** Go back one step (never below 1). */
+  prevStep: () => void;
   reset: () => void;
 }
 
@@ -39,6 +47,7 @@ export const useBookingStore = create<BookingStore>()((set) => ({
   selectedStaffId: null,
   slot: null,
   note: "",
+  currentStep: 1,
 
   setBusiness: (id) => set({ businessId: id }),
   setServices: (ids) => set({ serviceIds: ids }),
@@ -49,10 +58,27 @@ export const useBookingStore = create<BookingStore>()((set) => ({
         : [...s.serviceIds, id],
     })),
   clearServices: () => set({ serviceIds: [] }),
-  setStaff: (id) => set({ selectedStaffId: id }),
+  setStaff: (id) => set({ selectedStaffId: id, slot: null }),
   setSlot: (slot) => set({ slot }),
   removeSlot: () => set({ slot: null }),
   setNote: (note) => set({ note: note.slice(0, 500) }),
+  setStep: (step) => set({ currentStep: Math.min(4, Math.max(1, step)) }),
+  nextStep: () =>
+    set((s) => {
+      // Guards: cannot leave the Services step with an empty cart, cannot
+      // leave the Time step without a selected slot, cannot pass Review.
+      const blocked =
+        (s.currentStep === 1 && s.serviceIds.length === 0) ||
+        (s.currentStep === 3 && !s.slot) ||
+        s.currentStep >= 4;
+      return blocked
+        ? { currentStep: s.currentStep }
+        : { currentStep: s.currentStep + 1 };
+    }),
+  prevStep: () =>
+    set((s) => ({
+      currentStep: Math.max(1, s.currentStep - 1),
+    })),
   reset: () =>
     set({
       businessId: null,
@@ -60,5 +86,6 @@ export const useBookingStore = create<BookingStore>()((set) => ({
       selectedStaffId: null,
       slot: null,
       note: "",
+      currentStep: 1,
     }),
 }));
