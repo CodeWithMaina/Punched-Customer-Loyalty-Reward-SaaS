@@ -5,11 +5,15 @@ import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
 import { loyaltyApi } from "@/lib/api/loyalty";
+import { appointmentsApi } from "@/lib/api/appointments";
+import { servicesApi } from "@/lib/api/services";
 import type {
+  AppointmentResponse,
   Business,
   BusinessCustomer,
   BusinessDashboardResponse,
   LoyaltyProgram,
+  ServiceCatalogItemResponse,
   StaffMember,
   StaffMini,
 } from "@/types";
@@ -27,6 +31,8 @@ import {
   Sparkles,
   Flame,
   CircleCheck,
+  CalendarDays,
+  Calendar,
 } from "lucide-react";
 import { MomentumRing } from "@/components/business/DashboardPrimitives";
 
@@ -46,6 +52,9 @@ export default function BusinessOverviewPage() {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [appointments, setAppointments] = useState<AppointmentResponse[]>([]);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
+  const [services, setServices] = useState<ServiceCatalogItemResponse[]>([]);
 
   /*
    * Phase 1:
@@ -99,6 +108,24 @@ export default function BusinessOverviewPage() {
       if (staffRes?.success && staffRes.data) {
         setStaff(staffRes.data);
       }
+    });
+  }, [isLoading, notFound]);
+
+  useEffect(() => {
+    if (isLoading || notFound) return;
+    Promise.all([
+      appointmentsApi
+        .getBusinessAppointments({ pageSize: 5 })
+        .catch(() => null),
+      servicesApi.getMyServices().catch(() => null),
+    ]).then(([apptRes, svcRes]) => {
+      if (apptRes?.success && apptRes.data) {
+        setAppointments(apptRes.data.items ?? []);
+      }
+      if (svcRes?.success && svcRes.data) {
+        setServices(svcRes.data);
+      }
+      setAppointmentsLoading(false);
     });
   }, [isLoading, notFound]);
 
@@ -417,6 +444,103 @@ export default function BusinessOverviewPage() {
             tone="default"
           />
         </section>
+        {/* ═══════════════════════════════════════════════════════
+            APPOINTMENTS
+            Today's / Upcoming appointments with status badges.
+            ═══════════════════════════════════════════════════════ */}
+
+        <section className="mb-5 w-full">
+          <div className="mb-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-brand-surface">
+                <CalendarDays className="h-3.5 w-3.5 text-brand" />
+              </div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                Appointments
+              </p>
+            </div>
+            <Link
+              href="/dashboard/business/appointments"
+              className="flex items-center gap-1 text-[11px] font-semibold text-brand"
+            >
+              View all <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          {services.length === 0 ? (
+            <Link
+              href="/dashboard/business/profile/services"
+              className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-[var(--border-light)] bg-[var(--surface)] p-4 transition-colors hover:bg-[var(--surface-raised)]"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-surface">
+                <Calendar className="h-5 w-5 text-brand" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                  Set up your services to accept bookings
+                </p>
+                <p className="truncate text-xs text-[var(--text-tertiary)]">
+                  Add services customers can book →
+                </p>
+              </div>
+            </Link>
+          ) : appointmentsLoading ? (
+            <div className="space-y-2.5">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="h-14 rounded-2xl bg-[var(--surface-raised)] animate-pulse" />
+              ))}
+            </div>
+          ) : appointments.length === 0 ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] p-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-surface">
+                <Calendar className="h-5 w-5 text-brand" />
+              </div>
+              <p className="text-sm text-[var(--text-secondary)]">
+                No upcoming appointments yet.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {appointments.map((a) => (
+                <Link
+                  key={a.id}
+                  href={`/dashboard/business/appointments/${a.id}`}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.025)] transition-colors hover:bg-[var(--surface-raised)]"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-surface">
+                    <Calendar className="h-5 w-5 text-brand" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                      {a.services?.[0]?.name ?? "Appointment"}
+                    </p>
+                    <p className="truncate text-xs text-[var(--text-tertiary)]">
+                      {new Date(a.scheduledAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}
+                      {" "}•{" "}
+                      {new Date(a.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${
+                    a.status === "confirmed" || a.status === "completed"
+                      ? "bg-green-100 text-green-800"
+                      : a.status === "in_progress"
+                      ? "bg-blue-100 text-blue-800"
+                      : a.status === "cancelled" || a.status === "no_show"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-brand-surface text-brand"
+                  }`}>
+                    {a.status === "in_progress"
+                      ? "In Progress"
+                      : a.status[0].toUpperCase() + a.status.slice(1).replace("_", " ")}
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+
 
         {/* ═══════════════════════════════════════════════════════
             QUICK ACTIONS

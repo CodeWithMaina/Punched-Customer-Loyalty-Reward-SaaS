@@ -26,6 +26,8 @@ import {
   TrendingUp,
   Store,
   Zap,
+  CalendarDays,
+
 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -112,6 +114,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       exact: false,
     },
     {
+      href: "/dashboard/appointments",
+      label: "Appointments",
+      icon: CalendarDays,
+      exact: false,
+    },
+
+    {
       href: "/dashboard/cards",
       label: "Rewards",
       icon: Award,
@@ -155,6 +164,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       exact: false,
     },
     {
+      href: "/dashboard/business/appointments",
+      label: "Appointments",
+      icon: CalendarDays,
+      exact: false,
+    },
+
+    {
       href: "/dashboard/business/profile",
       label: "Settings",
       icon: User,
@@ -173,6 +189,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       icon: BarChart2,
       exact: false,
     },
+    {
+      href: "/dashboard/staff/appointments",
+      label: "Appointments",
+      icon: CalendarDays,
+      exact: false,
+    },
+
     {
       href: "/dashboard/staff/scan",
       label: "Scan",
@@ -200,6 +223,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       icon: BarChart2,
       exact: false,
     },
+    {
+      href: "/dashboard/staff/appointments",
+      label: "Appointments",
+      icon: CalendarDays,
+      exact: false,
+    },
+
     {
       href: "/dashboard/profile",
       label: "Profile",

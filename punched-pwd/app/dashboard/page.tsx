@@ -5,14 +5,27 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { loyaltyApi } from "@/lib/api/loyalty";
-import type { LoyaltyCard } from "@/types";
-import { Search, Loader2, Store, CheckCircle, QrCode, ChevronRight, Sparkles } from "lucide-react";
+import { appointmentsApi } from "@/lib/api/appointments";
+import type { AppointmentResponse, LoyaltyCard } from "@/types";
+import {
+  Search,
+  Loader2,
+  Store,
+  CheckCircle,
+  QrCode,
+  ChevronRight,
+  Sparkles,
+  CalendarDays,
+  Clock,
+} from "lucide-react";
 
 export default function CustomerDashboardPage() {
   const router = useRouter();
   const { user, isLoading } = useAuthStore();
   const [cards, setCards] = useState<LoyaltyCard[]>([]);
   const [cardsLoading, setCardsLoading] = useState(true);
+  const [appointments, setAppointments] = useState<AppointmentResponse[]>([]);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
 
   useEffect(() => {
     if (isLoading) return;
@@ -28,6 +41,14 @@ export default function CustomerDashboardPage() {
       .finally(() => setCardsLoading(false));
   }, [user]);
 
+  useEffect(() => {
+    if (user?.role !== "Customer") return;
+    appointmentsApi
+      .getMyAppointments({ upcoming: true })
+      .then((res) => { if (res.success && res.data) setAppointments(res.data); })
+      .finally(() => setAppointmentsLoading(false));
+  }, [user]);
+
   if (isLoading || user?.role !== "Customer") {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -37,6 +58,13 @@ export default function CustomerDashboardPage() {
   }
 
   const firstName = user?.fullName?.split(" ")[0] ?? "there";
+
+  const now = new Date();
+  const upcomingAppointments = appointments.filter(
+    (a) =>
+      new Date(a.scheduledAt) > now &&
+      (a.status === "pending" || a.status === "confirmed")
+  );
 
   return (
     <div className="max-w-lg mx-auto">
@@ -53,6 +81,69 @@ export default function CustomerDashboardPage() {
             <span className="text-sm text-[var(--text-muted)]">Search businesses, cafes, or service</span>
           </div>
         </Link>
+      </div>
+
+      {/* Upcoming Appointments */}
+      <div className="px-4 pb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-brand" />
+            Upcoming Appointments
+          </h3>
+          <Link href="/dashboard/appointments" className="text-xs text-brand font-semibold hover:text-brand-hover transition-colors">
+            See all →
+          </Link>
+        </div>
+
+        {appointmentsLoading ? (
+          <div className="space-y-3">
+            <div className="h-16 bg-[var(--surface-raised)] rounded-2xl animate-pulse" />
+          </div>
+        ) : upcomingAppointments.length === 0 ? (
+          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-6 text-center space-y-3">
+            <CalendarDays className="h-10 w-10 text-[var(--text-muted)] mx-auto" />
+            <p className="text-sm text-[var(--text-secondary)]">No upcoming appointments</p>
+            <Link
+              href="/dashboard/appointments/new"
+              className="inline-block bg-brand text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-brand-hover transition-colors"
+            >
+              Book an appointment →
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {upcomingAppointments.map((a) => (
+              <Link key={a.id} href={`/dashboard/appointments/${a.id}`} className="block">
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4 hover:bg-[var(--surface-raised)] transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-brand-surface flex items-center justify-center flex-shrink-0">
+                      <Clock className="h-5 w-5 text-brand" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                        {a.services?.[0]?.name ?? "Appointment"}
+                      </p>
+                      <p className="text-xs text-[var(--text-tertiary)]">
+                        {new Date(a.scheduledAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}
+                        {" "}•{" "}
+                        {new Date(a.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                      a.status === "confirmed" || a.status === "completed"
+                        ? "bg-green-100 text-green-800"
+                        : a.status === "cancelled" || a.status === "no_show"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-brand-surface text-brand"
+                    }`}>
+                      {a.status === "pending" ? "Pending" : a.status === "confirmed" ? "Confirmed" : a.status}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Active Stacks */}

@@ -40,6 +40,8 @@ export type StaffAppointmentsQuery = {
   status?: string;
   from?: string;
   to?: string;
+  page?: number;
+  pageSize?: number;
 };
 
 export type AvailabilityQuery = {

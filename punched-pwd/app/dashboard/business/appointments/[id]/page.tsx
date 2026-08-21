@@ -10,13 +10,15 @@ import type { AppointmentResponse, Business } from "@/types";
 import { Calendar, Loader2, User } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = {
-  booked: "Booked", confirmed: "Confirmed", completed: "Completed",
-  cancelled: "Cancelled", no_show: "No Show",
+  draft: "Draft", pending: "Pending", confirmed: "Confirmed", completed: "Completed",
+  in_progress: "In Progress", cancelled: "Cancelled", no_show: "No Show",
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  booked: "bg-brand-surface text-brand",
+  draft: "bg-[var(--surface-raised)] text-[var(--text-tertiary)]",
+  pending: "bg-amber-100 text-amber-800",
   confirmed: "bg-blue-100 text-blue-800",
+  in_progress: "bg-blue-100 text-blue-800",
   completed: "bg-green-100 text-green-800",
   cancelled: "bg-red-100 text-red-800",
   no_show: "bg-orange-100 text-orange-800",

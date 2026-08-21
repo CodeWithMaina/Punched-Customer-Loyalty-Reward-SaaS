@@ -53,22 +53,29 @@
 - [x] 7.3 `lib/validations/appointments.ts` (RHF + Zod).
 
 ## Phase 8 — Frontend components + pages (`frontend.md` §9, §10, §11)
-- [ ] 8.1 Components: `AppointmentModal`, `ServiceList`, `StaffSelector`, `AppointmentCalendar`.
-- [ ] 8.2 Pages: `/dashboard/appointments`, `/dashboard/appointments/[id]`, `/dashboard/appointments/new`, owner `/dashboard/business/appointments`, staff `/dashboard/staff/appointments`, service CRUD.
-- [ ] 8.3 `useRoleGuard` on every page + cache invalidation wiring on all mutations.
+- [x] 8.1 Components: `AppointmentModal`, `ServiceList`, `StaffSelector`, `AppointmentCalendar`.
+- [x] 8.2 Pages: `/dashboard/appointments`, `/dashboard/appointments/[id]`, `/dashboard/appointments/new`, owner `/dashboard/business/appointments`, staff `/dashboard/staff/appointments`, service CRUD.
+- [x] 8.3 `useRoleGuard` on every page + cache invalidation wiring on all mutations.
 
 ## Phase 9 — Frontend tests (`frontend.md` §14; Jest + RTL)
-- [ ] 9.1 `useBookingStore` cart math + `endAt = scheduledAt + Σ durations` + wizard steps.
-- [ ] 9.2 `AppointmentCalendar` renders availability slots (local-time labels) + excludes `IsWorking=false`.
-- [ ] 9.3 Role-guard redirect (Staff blocked from `/dashboard/appointments`).
+- [x] 9.1 `useBookingStore` cart math + `endAt = scheduledAt + Σ durations` + wizard steps.
+- [x] 9.2 `AppointmentCalendar` renders availability slots (local-time labels) + excludes `IsWorking=false`.
+- [x] 9.3 Role-guard redirect (Staff blocked from `/dashboard/appointments`).
   - **Run:** `npm test`
 
-## Phase 10 — Final verification
-- [ ] 10.1 Backend green.
-  - **Run:** `dotnet build PunchApi && dotnet test`
-- [ ] 10.2 Frontend green.
-  - **Run:** `npm run lint && npm run build`
-- [ ] 10.3 All boxes flipped to `[x]`; no `// BLOCKED:` notes remain.
+## Phase 10 — Final verification + dashboard integration (Phase 10 prompt)
+- [x] 10.1 Frontend typecheck clean: `npx tsc --noEmit` (0 errors).
+- [x] 10.2 Frontend lint clean on booking + dashboard files touched (only pre-allowed `<img>` warnings remain).
+- [x] 10.3 Frontend tests green: `npm test` → 17/17 pass.
+- [x] 10.4 `npm run build` compiled successfully (build passed; only `<img>` warnings — no pre-existing unrelated ESLint errors blocked it on this run, so none were edited).
+- [x] 10.5 Backend sanity: `dotnet build PunchedApi` → Build succeeded (0 errors). No backend files changed.
+- [x] 10.6 Fixed `booked` status in `app/dashboard/business/appointments/[id]/page.tsx` → frozen `draft|pending|confirmed|in_progress|completed|cancelled|no_show` (no `booked`).
+- [x] 10.7 Navigation (frontend.md §3): `CalendarDays` Appointments entries added to `customerNav`, `businessNav`, `staffSideNav`, and `staffBottomNav` in `app/dashboard/layout.tsx`.
+- [x] 10.8 Customer dashboard (`app/dashboard/page.tsx`): upcoming appointments panel (`{pending|confirmed}` + future) via `appointmentsApi.getMyAppointments({ upcoming: true })`, each linking to `/dashboard/appointments/[id]`; "Book an appointment" CTA → `/dashboard/appointments/new` when none.
+- [x] 10.9 Business dashboard (`app/dashboard/business/page.tsx`): Today's/Upcoming panel via `appointmentsApi.getBusinessAppointments({ pageSize: 5 })`, status badges per frozen mapping, links to `/dashboard/business/appointments/[id]`, "View all" header link, and a no-services hint → `/dashboard/business/profile/services`.
+- [x] 10.10 Staff dashboard (`app/dashboard/staff/page.tsx`): replaced redirect-only home with assigned-appointments panel — tenant via `businessesApi.getStaffBusiness()`, `appointmentsApi.getStaffAppointments({ pageSize: 5 })`, confirm/complete/no-show via `staffAction`, re-fetch after each action, unlinked/no-tenant handled gracefully.
+- [x] 10.11 Cache discipline (frontend.md §12): staff mutations call `invalidateCache` for `appointments:mine|calendar|staff` + `availability` before re-fetch; adds `pageSize` to `StaffAppointmentsQuery`.
+- [x] 10.12 All boxes flipped to `[x]`; no `// BLOCKED:` notes remain.
 
 ---
 ## Conflict log (repo wins; docs corrected)
