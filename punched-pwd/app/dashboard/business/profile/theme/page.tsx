@@ -20,6 +20,13 @@ const THEMES = [
     primary: "#16a34a",
     surface: "#f0fdf4",
   },
+  {
+    id: "obsidian" as const,
+    label: "Obsidian",
+    description: "Atmospheric brutalism",
+    primary: "#C9C6C5",
+    surface: "#1a1c1c",
+  },
 ];
 
 export default function ThemePage() {

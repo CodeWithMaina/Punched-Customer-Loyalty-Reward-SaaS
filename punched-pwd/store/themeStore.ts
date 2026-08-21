@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type ThemeName = "blue" | "green" | "purple" | "amber" | "slate";
+export type ThemeName = "blue" | "green" | "purple" | "amber" | "slate" | "obsidian";
 
 export const THEMES: { value: ThemeName; label: string; primary: string; accent: string }[] = [
   { value: "blue",   label: "Ocean Blue",    primary: "#2563EB", accent: "#F59E0B" },
@@ -8,9 +8,10 @@ export const THEMES: { value: ThemeName; label: string; primary: string; accent:
   { value: "purple", label: "Royal Purple",  primary: "#7C3AED", accent: "#EC4899" },
   { value: "amber",  label: "Golden Amber",  primary: "#D97706", accent: "#0EA5E9" },
   { value: "slate",  label: "Midnight Slate", primary: "#475569", accent: "#0EA5E9" },
+  { value: "obsidian", label: "Obsidian",    primary: "#C9C6C5", accent: "#FF3B30" },
 ];
 
-const VALID_THEMES = new Set<ThemeName>(["blue", "green", "purple", "amber", "slate"]);
+const VALID_THEMES = new Set<ThemeName>(["blue", "green", "purple", "amber", "slate", "obsidian"]);
 
 interface ThemeState {
   theme: ThemeName;
