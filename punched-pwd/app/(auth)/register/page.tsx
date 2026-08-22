@@ -9,12 +9,6 @@ import { RegisterForm } from "@/components/auth/RegisterForm";
 export default function RegisterPage() {
   return (
     <div>
-      <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-1">
-        Sign Up with Email
-      </h2>
-      <p className="text-sm text-[var(--text-secondary)] mb-6">
-        Create your account to start earning rewards.
-      </p>
       <RegisterForm />
     </div>
   );

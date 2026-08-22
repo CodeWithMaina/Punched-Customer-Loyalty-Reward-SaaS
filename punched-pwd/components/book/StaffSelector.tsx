@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { businessesApi } from "@/lib/api/businesses";
 import type { StaffMember } from "@/types";
-import { User, Users } from "lucide-react";
+import { User, Users, Check } from "lucide-react";
 
 interface StaffSelectorProps {
   businessId: string;
@@ -45,7 +45,7 @@ export function StaffSelector({
         {Array.from({ length: 3 }).map((_, i) => (
           <div
             key={i}
-            className="h-14 bg-[var(--surface-raised)] rounded-2xl border border-[var(--border-light)] animate-pulse"
+            className="h-16 bg-[var(--surface-raised)] border border-[var(--border)] animate-pulse"
           />
         ))}
       </div>
@@ -54,7 +54,7 @@ export function StaffSelector({
 
   if (error) {
     return (
-      <p className="text-sm text-[var(--text-secondary)] py-4 text-center">
+      <p className="font-mono text-sm text-[var(--text-secondary)] py-4 text-center" style={{ fontFamily: "'Space Mono', monospace" }}>
         {error}
       </p>
     );
@@ -65,63 +65,75 @@ export function StaffSelector({
   }
 
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`space-y-3 ${className}`} role="radiogroup" aria-label="Preferred staff">
       {/* Any available option */}
       <button
         type="button"
+        role="radio"
+        aria-checked={selectedStaffId === null}
         onClick={() => onSelect(null)}
-        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+        className={`relative w-full flex items-center gap-3 p-3 border text-left transition-all ${
           selectedStaffId === null
-            ? "border-brand bg-brand-surface ring-1 ring-brand/20"
-            : "border-[var(--border-light)] bg-[var(--surface)] hover:bg-[var(--surface-raised)]"
+            ? "border-[var(--text-primary)] bg-[var(--surface-raised)]"
+            : "border-[var(--border)] bg-[var(--background)] hover:border-[var(--text-secondary)]"
         }`}
       >
-        <div className="h-9 w-9 rounded-xl bg-brand-surface flex items-center justify-center flex-shrink-0">
-          <Users className="h-5 w-5 text-brand" />
+        <div className="h-10 w-10 border border-[var(--border)] bg-[var(--surface-raised)] flex items-center justify-center flex-shrink-0">
+          <Users className="h-5 w-5 text-brand" strokeWidth={1.5} />
         </div>
-        <div className="flex-1 text-left">
+        <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-[var(--text-primary)]">
             Any available
           </p>
-          <p className="text-xs text-[var(--text-tertiary)]">
+          <p className="font-mono text-xs text-[var(--text-tertiary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>
             We&apos;ll find the next available staff member
           </p>
         </div>
+        {selectedStaffId === null && (
+          <Check className="h-4 w-4 text-brand flex-shrink-0" />
+        )}
       </button>
 
       {/* Individual staff */}
-      {staff.map((s) => (
-        <button
-          key={s.userId}
-          type="button"
-          onClick={() => onSelect(s.userId)}
-          className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-            selectedStaffId === s.userId
-              ? "border-brand bg-brand-surface ring-1 ring-brand/20"
-              : "border-[var(--border-light)] bg-[var(--surface)] hover:bg-[var(--surface-raised)]"
-          }`}
-        >
-          <div className="h-9 w-9 rounded-xl bg-[var(--surface-raised)] flex items-center justify-center overflow-hidden flex-shrink-0">
-            {s.avatarUrl ? (
-              <img
-                src={s.avatarUrl}
-                alt={s.fullName}
-                className="h-full w-full object-cover rounded-xl"
-              />
-            ) : (
-              <User className="h-5 w-5 text-[var(--text-tertiary)]" />
-            )}
-          </div>
-          <div className="flex-1 text-left min-w-0">
-            <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
-              {s.fullName}
-            </p>
-            <p className="text-xs text-[var(--text-tertiary)] truncate">
-              {s.stampsIssued} stamps issued
-            </p>
-          </div>
-        </button>
-      ))}
+      {staff.map((s) => {
+        const isSelected = selectedStaffId === s.userId;
+        return (
+          <button
+            key={s.userId}
+            type="button"
+            role="radio"
+            aria-checked={isSelected}
+            onClick={() => onSelect(s.userId)}
+            className={`relative w-full flex items-center gap-3 p-3 border text-left transition-all ${
+              isSelected
+                ? "border-[var(--text-primary)] bg-[var(--surface-raised)]"
+                : "border-[var(--border)] bg-[var(--background)] hover:border-[var(--text-secondary)]"
+            }`}
+          >
+            <div className="h-10 w-10 border border-[var(--border)] flex items-center justify-center overflow-hidden flex-shrink-0">
+              {s.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={s.avatarUrl}
+                  alt={s.fullName}
+                  className="h-full w-full object-cover grayscale opacity-80"
+                />
+              ) : (
+                <User className="h-5 w-5 text-[var(--text-tertiary)]" strokeWidth={1.5} />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                {s.fullName}
+              </p>
+              <p className="font-mono text-xs text-[var(--text-tertiary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>
+                {s.stampsIssued} stamps issued
+              </p>
+            </div>
+            {isSelected && <Check className="h-4 w-4 text-brand flex-shrink-0" />}
+          </button>
+        );
+      })}
     </div>
   );
 }

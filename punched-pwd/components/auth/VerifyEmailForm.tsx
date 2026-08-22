@@ -92,46 +92,66 @@ export function VerifyEmailForm() {
 
   return (
     <div className="space-y-6">
-      {/* Header with icon */}
-      <div className="text-center">
-        <div className="mx-auto h-14 w-14 bg-brand-surface rounded-2xl flex items-center justify-center mb-4">
-          <Mail className="h-7 w-7 text-brand" />
+      {/* Header */}
+      <div className="border-b border-[var(--border)] pb-6">
+        <div className="w-14 h-14 border border-[var(--border)] bg-[var(--surface-raised)] flex items-center justify-center mb-4">
+          <Mail className="h-7 w-7 text-brand" strokeWidth={1.5} />
         </div>
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">Check your email</h2>
-        <p className="text-sm text-[var(--text-secondary)] mt-2">We sent a 6-digit code to</p>
-        <p className="text-sm font-semibold text-[var(--text-primary)] mt-0.5">{email}</p>
+        <h2
+          className="text-2xl md:text-[32px] font-bold tracking-tight text-[var(--text-primary)]"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          Check your email
+        </h2>
+        <p className="font-mono text-sm text-[var(--text-tertiary)] mt-2" style={{ fontFamily: "'Space Mono', monospace" }}>
+          We sent a 6-digit code to{" "}
+          <span className="font-bold text-[var(--text-secondary)]">{email}</span>
+        </p>
       </div>
 
       {/* Error banner */}
       {error && (
-        <div className="bg-danger-light text-danger text-sm font-medium px-4 py-3 rounded-2xl text-center animate-scale-in">
+        <div
+          className="border border-accent/40 bg-[var(--accent-light)] text-accent-text font-mono text-sm px-4 py-3 text-center animate-scale-in"
+          style={{ fontFamily: "'Space Mono', monospace" }}
+        >
           {error}
         </div>
       )}
 
       {/* 6-digit code input — larger touch targets */}
-      <div className="flex justify-center gap-2.5 xs:gap-3" onPaste={handlePaste}>
-        {code.map((digit, index) => (
-          <input
-            key={index}
-            ref={(el) => {
-              inputRefs.current[index] = el;
-            }}
-            type="text"
-            inputMode="numeric"
-            maxLength={1}
-            value={digit}
-            onChange={(e) => handleChange(index, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(index, e)}
-            className={`w-11 h-14 xs:w-12 xs:h-16 text-center text-xl font-bold border-2 rounded-xl
-              bg-[var(--surface)] text-[var(--text-primary)]
-              focus:border-brand focus:ring-2 focus:ring-[var(--brand-ring)]
-              transition-all duration-200 outline-none
-              ${digit ? "border-brand bg-brand-surface" : error ? "border-danger" : "border-[var(--border)]"}
-            `}
-            autoFocus={index === 0}
-          />
-        ))}
+      <div className="flex flex-col gap-3">
+        <label
+          className="block text-[12px] tracking-[0.15em] font-bold uppercase text-[var(--text-secondary)]"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          Authentication Code
+        </label>
+        <div className="flex justify-center gap-2 xs:gap-3" onPaste={handlePaste}>
+          {code.map((digit, index) => (
+            <input
+              key={index}
+              ref={(el) => {
+                inputRefs.current[index] = el;
+              }}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              aria-label={`Digit ${index + 1}`}
+              value={digit}
+              onChange={(e) => handleChange(index, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(index, e)}
+              className={`w-full max-w-[48px] h-16 xs:h-16 text-center font-mono text-xl font-bold rounded-none
+                bg-transparent border-0 border-b outline-none transition-all duration-200
+                focus:bg-[var(--surface-raised)]
+                ${digit ? "border-brand" : error ? "border-accent" : "border-[var(--border)]"}
+                ${digit ? "focus:border-brand" : "focus:border-[var(--text-primary)]"}
+              `}
+              style={{ fontFamily: "'Space Mono', monospace", color: "var(--text-primary)" }}
+              autoFocus={index === 0}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Verify button */}
@@ -142,32 +162,37 @@ export function VerifyEmailForm() {
         isLoading={isLoading}
         disabled={code.join("").length !== CODE_LENGTH}
         onClick={handleSubmit}
+        className="rounded-none uppercase tracking-widest font-bold border border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--background)] hover:bg-transparent hover:text-[var(--text-primary)] shadow-none hover:shadow-none"
       >
-        Verify Email
+        Verify Email →
       </Button>
 
       {/* Resend code */}
       <div className="text-center space-y-2">
-        <p className="text-sm text-[var(--text-secondary)]">Didn&apos;t receive the code?</p>
+        <p className="font-mono text-sm text-[var(--text-secondary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
+          Didn&apos;t receive the code?
+        </p>
         <button
           type="button"
           onClick={handleResend}
           disabled={countdown > 0}
-          className={`text-sm font-semibold transition-colors ${
+          className={`font-mono text-sm font-semibold underline underline-offset-4 transition-colors ${
             countdown > 0
-              ? "text-[var(--text-muted)] cursor-not-allowed"
-              : "text-brand hover:text-brand-hover active:scale-[0.98]"
+              ? "text-[var(--text-muted)] cursor-not-allowed no-underline"
+              : "text-brand active:scale-[0.98]"
           }`}
+          style={{ fontFamily: "'Space Mono', monospace" }}
         >
           {countdown > 0 ? `Resend code in ${countdown}s` : "Resend code"}
         </button>
       </div>
 
       {/* Back to register */}
-      <div className="text-center">
+      <div className="text-center border-t border-[var(--border)] pt-5">
         <Link
           href="/register"
-          className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          className="inline-flex items-center gap-1.5 font-mono text-sm text-[var(--text-secondary)] hover:text-brand transition-colors"
+          style={{ fontFamily: "'Space Mono', monospace" }}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Change email

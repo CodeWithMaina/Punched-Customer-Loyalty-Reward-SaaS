@@ -1,9 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
-//  Auth Layout — Mobile-first PWA with 60-30-10 theming
-//  30% brand header → 60% white card content
+//  Auth Layout — Atmospheric Brutalism "void" shell
+//  Ghost-card content on the themed background with a structural
+//  watermark. Adapts to the active theme via CSS variables.
 // ═══════════════════════════════════════════════════════════════
-
-import { CreditCard } from "lucide-react";
 
 export default function AuthLayout({
   children,
@@ -11,32 +10,37 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[var(--background)] flex flex-col">
-      {/* 30% — Brand header with curved bottom */}
-      <div className="bg-brand pt-16 pb-12 px-5 text-center relative overflow-hidden">
-        {/* Subtle background shapes */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute -top-12 -right-12 w-48 h-48 bg-white rounded-full" />
-          <div className="absolute top-8 -left-8 w-32 h-32 bg-white rounded-full" />
-        </div>
-
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="h-12 w-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-3">
-            <CreditCard className="h-6 w-6 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white font-display tracking-tight">
-            PUNCHED
-          </h1>
-          <p className="text-xs text-white/60 mt-1 font-medium">Loyalty Rewards</p>
-        </div>
+    <div className="relative min-h-screen bg-[var(--background)] flex flex-col overflow-x-hidden">
+      {/* Structural watermark */}
+      <div
+        aria-hidden
+        className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center opacity-[0.03] select-none"
+      >
+        <span
+          className="font-extrabold tracking-tighter text-[var(--text-primary)] text-[20vw] whitespace-nowrap -rotate-12"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          PUNCHED
+        </span>
       </div>
 
-      {/* 60% — Content card overlaps header */}
-      <div className="flex-1 px-5 -mt-5">
-        <div className="w-full max-w-md mx-auto bg-[var(--surface)] rounded-3xl shadow-elevated p-6 sm:p-8 mb-8 animate-fade-in">
-          {children}
-        </div>
-      </div>
+      {/* Slim top bar */}
+      <header className="relative z-10 h-12 w-full border-b border-[var(--border)] flex items-center justify-between px-5">
+        <span
+          className="text-lg font-bold tracking-tighter text-[var(--text-primary)]"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          PUNCHED.
+        </span>
+        <span className="text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">
+          Loyalty Rewards
+        </span>
+      </header>
+
+      {/* Content canvas */}
+      <main className="relative z-10 flex-1 flex flex-col justify-center px-5 py-12">
+        <div className="w-full max-w-md mx-auto animate-fade-in">{children}</div>
+      </main>
     </div>
   );
 }

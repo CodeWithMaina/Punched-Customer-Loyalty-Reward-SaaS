@@ -74,21 +74,52 @@ export function QRScanner({ onScan, isActive }: QRScannerProps) {
   }, [isActive]);
 
   return (
-    <div className="relative w-full aspect-square max-w-sm mx-auto rounded-2xl overflow-hidden bg-black">
-      <video ref={videoRef} className="w-full h-full object-cover" />
-      {/* Scan frame overlay */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-48 h-48 border-2 border-white/70 rounded-xl relative">
-          {/* Corner decorations */}
-          {[
-            "top-0 left-0 border-t-4 border-l-4 rounded-tl-lg",
-            "top-0 right-0 border-t-4 border-r-4 rounded-tr-lg",
-            "bottom-0 left-0 border-b-4 border-l-4 rounded-bl-lg",
-            "bottom-0 right-0 border-b-4 border-r-4 rounded-br-lg",
-          ].map((cls, i) => (
-            <div key={i} className={`absolute w-6 h-6 border-brand ${cls}`} />
-          ))}
+    <div className="relative w-full aspect-square max-w-md mx-auto border border-[var(--border)] bg-black overflow-hidden">
+      <style>{`
+        @keyframes scanline {
+          0% { top: 0%; }
+          50% { top: calc(100% - 1px); }
+          100% { top: 0%; }
+        }
+      `}</style>
+      <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" />
+      {/* Dark scrim for instrumentation contrast */}
+      <div className="absolute inset-0 bg-black/40" aria-hidden />
+      {/* Instrumentation overlay */}
+      <div className="absolute inset-5 pointer-events-none" aria-hidden>
+        {/* Corner brackets */}
+        {[
+          "top-0 left-0 border-t-[3px] border-l-[3px]",
+          "top-0 right-0 border-t-[3px] border-r-[3px]",
+          "bottom-0 left-0 border-b-[3px] border-l-[3px]",
+          "bottom-0 right-0 border-b-[3px] border-r-[3px]",
+        ].map((cls, i) => (
+          <div key={i} className={`absolute w-10 h-10 border-[var(--text-primary)] ${cls}`} />
+        ))}
+        {/* Reticle + scan line */}
+        <div className="absolute inset-0 m-auto w-3/4 h-3/4 border border-[var(--border)]">
+          <div
+            className="absolute left-0 right-0 h-px bg-[var(--text-primary)] opacity-80"
+            style={{ animation: "scanline 2s linear infinite", boxShadow: "0 0 8px var(--brand-ring)" }}
+          />
         </div>
+      </div>
+      {/* Reticle center label */}
+      <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+        <span className="font-mono text-[11px] tracking-[0.3em] uppercase text-[var(--text-primary)] opacity-50" style={{ fontFamily: "'Space Mono', monospace" }}>
+          Target Acquisition
+        </span>
+      </div>
+      {/* Status readouts */}
+      <div className="absolute -top-3 -left-3 z-10 font-mono text-[8px] tracking-[0.2em] uppercase text-[var(--text-primary)] opacity-40" style={{ fontFamily: "'Space Mono', monospace" }}>
+        SYS_READY
+      </div>
+      <div className="absolute -bottom-3 -right-3 z-10 font-mono text-[8px] tracking-[0.2em] uppercase text-[var(--text-primary)] opacity-40" style={{ fontFamily: "'Space Mono', monospace" }}>
+        ENCRYPTED_LINK
+      </div>
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+        <span className="w-1.5 h-1.5 bg-[var(--accent)] rounded-full animate-pulse" />
+        <span className="font-mono text-[9px] tracking-[0.2em] text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>REC</span>
       </div>
     </div>
   );

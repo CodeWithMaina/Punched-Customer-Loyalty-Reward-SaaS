@@ -127,43 +127,54 @@ export default function AdminUserDetail() {
   ];
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-5 pb-24">
+    <div className="p-5 md:p-8 max-w-4xl mx-auto space-y-6 pb-24">
       {/* Back */}
       <Link
         href="/dashboard/admin/users"
-        className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-secondary)] transition-colors"
+        className="inline-flex items-center gap-2 self-start border border-[var(--border)] px-4 py-2 text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-secondary)] hover:border-brand hover:text-brand transition-colors"
+        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
       >
         <ArrowLeft className="h-4 w-4" /> Users
       </Link>
 
       {/* Hero Card */}
-      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden">
-        <div className="bg-gradient-to-r from-brand to-brand-hover px-5 py-8 text-white">
-          <div className="flex items-start gap-4">
+      <div className="border border-[var(--border)] bg-[var(--surface-raised)] relative overflow-hidden">
+        <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-white/10" />
+        <div className="px-5 md:px-8 py-8">
+          <div className="flex items-start gap-4 md:gap-6">
             {profile.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={profile.avatarUrl}
                 alt={profile.fullName}
-                className="h-16 w-16 rounded-2xl object-cover border-2 border-white/30 flex-shrink-0"
+                className="h-16 w-16 object-cover border border-[var(--border)] grayscale hover:grayscale-0 transition-all flex-shrink-0"
               />
             ) : (
-              <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 text-2xl font-bold">
+              <div
+                className="h-16 w-16 border border-[var(--border)] bg-brand-surface flex items-center justify-center flex-shrink-0 text-2xl font-extrabold text-brand"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
                 {initial}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl md:text-2xl font-bold truncate">{profile.fullName}</h1>
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
+              <h1
+                className="text-xl md:text-[32px] font-bold tracking-tight truncate text-[var(--text-primary)]"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                {profile.fullName}
+              </h1>
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 bg-[var(--background)] border border-[var(--border)] px-3 py-1 text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-primary)]">
                   <RoleIcon className="h-3 w-3" />
                   {profile.role}
                 </span>
                 {profile.isVerified ? (
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] tracking-[0.15em] uppercase font-bold text-ok-text border border-ok/40 bg-ok-light">
                     <CheckCircle className="h-3 w-3" /> Verified
                   </span>
                 ) : (
-                  <span className="bg-red-400/30 px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] tracking-[0.15em] uppercase font-bold text-accent-text border border-accent/40 bg-[var(--accent-light)]">
                     <XCircle className="h-3 w-3" /> Unverified
                   </span>
                 )}
@@ -173,17 +184,17 @@ export default function AdminUserDetail() {
         </div>
 
         {/* Details */}
-        <div className="divide-y divide-[var(--border-light)]">
+        <ul className="border-t border-[var(--border)] font-mono text-sm" style={{ fontFamily: "'Space Mono', monospace" }}>
           {details.map((d) => (
-            <div key={d.label} className="px-5 py-3.5 flex items-center gap-3">
-              <d.icon className="h-4 w-4 text-[var(--text-tertiary)] flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">{d.label}</p>
-                <p className="text-sm text-[var(--text-primary)] truncate">{d.value}</p>
-              </div>
-            </div>
+            <li key={d.label} className="px-5 md:px-8 py-4 flex items-center gap-3 border-b border-[var(--border-light)] last:border-b-0">
+              <d.icon className="h-4 w-4 text-[var(--text-tertiary)] flex-shrink-0" strokeWidth={1.5} />
+              <span className="w-24 md:w-32 flex-shrink-0 text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.15em]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                {d.label}
+              </span>
+              <span className="flex-1 min-w-0 text-[var(--text-primary)] truncate">{d.value}</span>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
 
       {/* Edit Form */}

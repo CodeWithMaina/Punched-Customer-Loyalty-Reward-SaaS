@@ -33,16 +33,26 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Header */}
-      <div className="text-center mb-2">
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">Welcome back</h2>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">Sign in to your account</p>
+      <div className="mb-2 border-b border-[var(--border)] pb-6">
+        <h2
+          className="text-2xl md:text-[32px] font-bold tracking-tight text-[var(--text-primary)]"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          Welcome back
+        </h2>
+        <p className="font-mono text-sm text-[var(--text-tertiary)] mt-2" style={{ fontFamily: "'Space Mono', monospace" }}>
+          Authenticate to enter the workspace.
+        </p>
       </div>
 
       {/* Error banner */}
       {error && (
-        <div className="bg-danger-light text-danger text-sm font-medium px-4 py-3 rounded-2xl animate-scale-in">
+        <div
+          className="border border-accent/40 bg-[var(--accent-light)] text-accent-text font-mono text-sm px-4 py-3 animate-scale-in"
+          style={{ fontFamily: "'Space Mono', monospace" }}
+        >
           {error}
         </div>
       )}
@@ -69,10 +79,11 @@ export function LoginForm() {
       />
 
       {/* Forgot password */}
-      <div className="text-right -mt-1">
+      <div className="text-right -mt-2">
         <Link
           href="/forgot-password"
-          className="text-xs text-[var(--text-secondary)] hover:text-brand font-medium"
+          className="font-mono text-xs text-[var(--text-secondary)] hover:text-brand underline underline-offset-4"
+          style={{ fontFamily: "'Space Mono', monospace" }}
         >
           Forgot password?
         </Link>
@@ -85,6 +96,7 @@ export function LoginForm() {
         size="lg"
         isLoading={isLoading}
         disabled={!isValid}
+        className="rounded-none uppercase tracking-widest font-bold border border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--background)] hover:bg-transparent hover:text-[var(--text-primary)] shadow-none hover:shadow-none"
       >
         Sign In
       </Button>
@@ -92,29 +104,26 @@ export function LoginForm() {
       {/* Divider */}
       <div className="relative py-1">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-[var(--border-light)]" />
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="bg-[var(--surface)] px-3 text-[var(--text-tertiary)]">or</span>
+          <div className="w-full border-t border-[var(--border)]" />
         </div>
       </div>
 
       {/* Link to register */}
-      <p className="text-center text-sm text-[var(--text-secondary)]">
+      <p className="text-center font-mono text-sm text-[var(--text-secondary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
-          className="text-brand font-semibold hover:text-brand-hover"
+          className="text-brand font-semibold underline underline-offset-4"
         >
           Sign up
         </Link>
       </p>
 
       {/* Business owner? */}
-      <p className="text-center text-sm text-[var(--text-secondary)]">
+      <p className="text-center font-mono text-sm text-[var(--text-secondary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
         <Link
           href="/business-register"
-          className="text-brand font-semibold hover:text-brand-hover"
+          className="text-brand font-semibold underline underline-offset-4"
         >
           Register a business
         </Link>

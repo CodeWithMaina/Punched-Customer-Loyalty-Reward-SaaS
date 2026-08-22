@@ -55,16 +55,26 @@ export function RegisterForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Header */}
-      <div className="text-center mb-2">
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">Create account</h2>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">Start earning rewards today</p>
+      <div className="mb-2 border-b border-[var(--border)] pb-6">
+        <h2
+          className="text-2xl md:text-[32px] font-bold tracking-tight text-[var(--text-primary)]"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          Client Sign Up
+        </h2>
+        <p className="font-mono text-sm text-[var(--text-tertiary)] mt-2" style={{ fontFamily: "'Space Mono', monospace" }}>
+          Create your account to start earning rewards.
+        </p>
       </div>
 
       {/* Error banner */}
       {error && (
-        <div className="bg-danger-light text-danger text-sm font-medium px-4 py-3 rounded-2xl animate-scale-in">
+        <div
+          className="border border-accent/40 bg-[var(--accent-light)] text-accent-text font-mono text-sm px-4 py-3 animate-scale-in"
+          style={{ fontFamily: "'Space Mono', monospace" }}
+        >
           {error}
         </div>
       )}
@@ -95,13 +105,13 @@ export function RegisterForm() {
       <input type="hidden" value="Customer" {...register("role")} />
 
       {/* Business owner? */}
-      <div className="rounded-2xl border border-[var(--border-light)] bg-[var(--surface-raised)] p-4">
+      <div className="border border-[var(--border)] bg-[var(--surface-raised)] p-4">
         <div className="flex items-center gap-3">
           <Store className="h-5 w-5 text-brand flex-shrink-0" />
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="font-mono text-sm text-[var(--text-secondary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
             <Link
               href="/business-register"
-              className="text-brand font-semibold hover:text-brand-hover"
+              className="text-brand font-semibold underline underline-offset-4"
             >
               Own a business?
             </Link>{" "}
@@ -124,20 +134,16 @@ export function RegisterForm() {
       {/* Password strength indicator */}
       {password.length > 0 && (
         <div className="space-y-2.5 animate-fade-in">
-          {/* Progress bar */}
-          <div className="w-full h-1.5 bg-[var(--border-light)] rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                strengthPercent <= 25
-                  ? "bg-danger"
-                  : strengthPercent <= 50
-                  ? "bg-accent"
-                  : strengthPercent <= 75
-                  ? "bg-brand"
-                  : "bg-ok"
-              }`}
-              style={{ width: `${strengthPercent}%` }}
-            />
+          {/* Segmented strength meter */}
+          <div className="flex gap-1 h-1 w-full">
+            {[25, 50, 75, 100].map((step) => (
+              <div
+                key={step}
+                className={`flex-1 transition-colors duration-500 ${
+                  strengthPercent >= step ? "bg-brand" : "bg-[var(--border)]"
+                }`}
+              />
+            ))}
           </div>
 
           {/* Requirements checklist */}
@@ -145,7 +151,8 @@ export function RegisterForm() {
             {requirements.map((req) => (
               <div
                 key={req.label}
-                className="flex items-center gap-1.5 text-xs"
+                className="flex items-center gap-1.5 font-mono text-xs"
+                style={{ fontFamily: "'Space Mono', monospace" }}
               >
                 {req.met ? (
                   <Check className="h-3.5 w-3.5 text-ok flex-shrink-0" />
@@ -170,23 +177,24 @@ export function RegisterForm() {
         size="lg"
         isLoading={isLoading}
         disabled={!isValid}
+        className="rounded-none uppercase tracking-widest font-bold border border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--background)] hover:bg-transparent hover:text-[var(--text-primary)] shadow-none hover:shadow-none"
       >
         Create Account
       </Button>
 
       {/* Link to login */}
-      <p className="text-center text-sm text-[var(--text-secondary)]">
+      <p className="text-center font-mono text-sm text-[var(--text-secondary)] pt-4 border-t border-[var(--border)]" style={{ fontFamily: "'Space Mono', monospace" }}>
         Already have an account?{" "}
         <Link
           href="/login"
-          className="text-brand font-semibold hover:text-brand-hover"
+          className="text-brand font-semibold underline underline-offset-4"
         >
-          Sign in
+          Log in
         </Link>
       </p>
 
       {/* Staff note */}
-      <p className="text-center text-xs text-[var(--text-tertiary)]">
+      <p className="text-center font-mono text-xs text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
         Joining a business as staff? Use the invitation link sent to you by your
         business owner.
       </p>

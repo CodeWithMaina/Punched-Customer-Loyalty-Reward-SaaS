@@ -9,11 +9,9 @@ import { QRScanner } from "@/components/loyalty/QRScanner";
 import { StampSuccessOverlay } from "@/components/loyalty/StampSuccessOverlay";
 import {
   Loader2,
-  AlertCircle,
+  QrCode,
   ScanLine,
   Store,
-  Camera,
-  X,
 } from "lucide-react";
 
 export default function StaffScanPage() {
@@ -109,17 +107,20 @@ export default function StaffScanPage() {
 
   if (notLinked) {
     return (
-      <main className="min-h-[70vh] flex items-center justify-center px-6">
-        <div className="w-full max-w-sm text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent-light)]">
-            <Store className="h-6 w-6 text-[var(--accent)]" />
+      <main className="min-h-[70vh] flex items-center justify-center px-5">
+        <div className="w-full max-w-sm text-center border border-[var(--border)] bg-[var(--surface-raised)] p-8">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center border border-[var(--border)] bg-[var(--background)]">
+            <Store className="h-6 w-6 text-accent" />
           </div>
 
-          <h1 className="text-lg font-semibold text-[var(--text-primary)]">
+          <h1
+            className="text-lg font-bold uppercase tracking-tight text-[var(--text-primary)]"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
             Business not linked
           </h1>
 
-          <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+          <p className="mt-2 font-mono text-sm leading-6 text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
             Ask your business manager to link your staff account before
             scanning customer QR codes.
           </p>
@@ -129,34 +130,45 @@ export default function StaffScanPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-lg px-4 pb-10">
+    <main className="relative mx-auto w-full max-w-lg px-5 pb-10">
+      {/* Watermark */}
+      <div
+        aria-hidden
+        className="fixed inset-0 pointer-events-none flex items-center justify-center overflow-hidden opacity-[0.03] z-0 select-none"
+      >
+        <span
+          className="font-extrabold leading-none tracking-tighter text-[var(--text-primary)] text-[30vw] whitespace-nowrap"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          SCAN
+        </span>
+      </div>
+
+      <div className="relative z-10">
       {/* Header */}
       <header className="pt-6 pb-5">
-        <p className="text-sm font-medium text-brand">
-          Customer check-in
-        </p>
+        <p className="text-[12px] tracking-[0.15em] uppercase font-bold text-brand">Stamp Station</p>
 
-        <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-          Scan a QR code
+        <h1
+          className="mt-1 text-2xl font-bold uppercase tracking-tight text-[var(--text-primary)]"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          Scan Customer QR
         </h1>
-
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          Scan the customer&apos;s code to give them a stamp.
-        </p>
       </header>
 
       {/* Business */}
-      <div className="mb-5 flex items-center gap-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] px-4 py-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-surface">
+      <div className="mb-6 flex items-center gap-3 border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-[var(--border)] bg-[var(--background)]">
           <Store className="h-4 w-4 text-brand" />
         </div>
 
         <div className="min-w-0">
-          <p className="text-[11px] text-[var(--text-tertiary)]">
-            You&apos;re scanning for
+          <p className="text-[11px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">
+            Scanning for
           </p>
 
-          <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+          <p className="truncate font-mono text-sm font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
             {businessName}
           </p>
         </div>
@@ -167,18 +179,22 @@ export default function StaffScanPage() {
         !isAwarding &&
         !result &&
         !error && (
-          <section className="rounded-3xl border border-[var(--border-light)] bg-[var(--surface)] p-5">
-            <div className="flex aspect-square max-h-[320px] items-center justify-center rounded-3xl bg-[var(--brand-surface)]">
-              <div className="text-center">
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-[var(--brand)] shadow-sm">
-                  <ScanLine className="h-9 w-9 text-white" />
-                </div>
+          <section>
+            <div className="relative aspect-square border border-[var(--border)] bg-[var(--surface-raised)] flex items-center justify-center overflow-hidden">
+              {["top-0 left-0 border-t-[3px] border-l-[3px]", "top-0 right-0 border-t-[3px] border-r-[3px]", "bottom-0 left-0 border-b-[3px] border-l-[3px]", "bottom-0 right-0 border-b-[3px] border-r-[3px]"].map((cls, i) => (
+                <div key={i} aria-hidden className={`absolute w-10 h-10 border-[var(--border)] ${cls}`} />
+              ))}
+              <div className="text-center px-6">
+                <ScanLine className="h-10 w-10 text-brand mx-auto mb-4" strokeWidth={1.5} />
 
-                <p className="mt-5 text-base font-semibold text-[var(--text-primary)]">
-                  Ready to scan
+                <p
+                  className="text-lg font-semibold tracking-wide text-[var(--text-primary)]"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  Ready to Scan
                 </p>
 
-                <p className="mt-1 max-w-[220px] text-xs leading-5 text-[var(--text-secondary)]">
+                <p className="mt-2 max-w-[240px] mx-auto font-mono text-xs leading-5 text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
                   Ask the customer to show their loyalty QR code.
                 </p>
               </div>
@@ -186,49 +202,39 @@ export default function StaffScanPage() {
 
             <button
               onClick={() => setIsScanning(true)}
-              className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-2xl bg-brand py-4 text-sm font-semibold text-white transition-colors hover:bg-brand-hover active:scale-[0.99]"
+              className="mt-4 w-full bg-[var(--text-primary)] text-[var(--background)] py-4 font-mono text-sm uppercase tracking-widest font-bold border border-transparent hover:bg-transparent hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] transition-colors"
+              style={{ fontFamily: "'Space Mono', monospace" }}
             >
-              <Camera className="h-5 w-5" />
-              Start scanning
+              Start Scanning
             </button>
           </section>
         )}
 
       {/* Scanner */}
       {isScanning && (
-        <section>
-          <div className="overflow-hidden rounded-3xl bg-black">
-            <QRScanner
-              onScan={handleScan}
-              isActive={isScanning}
-            />
-          </div>
+        <section className="flex flex-col gap-5">
+          <QRScanner
+            onScan={handleScan}
+            isActive={isScanning}
+          />
 
-          <div className="mt-4 flex items-center justify-center">
-            <button
-              onClick={closeScanner}
-              className="flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--border-light)]"
-            >
-              <X className="h-4 w-4" />
-              Cancel
-            </button>
-          </div>
+          <button
+            onClick={closeScanner}
+            className="w-full bg-transparent text-[var(--text-secondary)] py-3 font-mono text-sm uppercase tracking-[0.3em] border border-[var(--border)] hover:border-[var(--text-primary)] hover:text-[var(--text-primary)] transition-colors"
+            style={{ fontFamily: "'Space Mono', monospace" }}
+          >
+            Cancel
+          </button>
         </section>
       )}
 
       {/* Awarding */}
       {isAwarding && (
-        <section className="rounded-3xl border border-[var(--border-light)] bg-[var(--surface)] px-6 py-14 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-surface">
-            <Loader2 className="h-6 w-6 animate-spin text-brand" />
-          </div>
+        <section className="border border-[var(--border)] bg-[var(--surface-raised)] px-6 py-14 text-center flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-brand" />
 
-          <h2 className="mt-5 text-base font-semibold text-[var(--text-primary)]">
-            Adding stamp
-          </h2>
-
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Just a moment...
+          <p className="font-mono text-xs tracking-[0.15em] uppercase text-[var(--text-secondary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
+            Awarding stamp...
           </p>
         </section>
       )}
@@ -243,25 +249,40 @@ export default function StaffScanPage() {
 
       {/* Error */}
       {error && (
-        <section className="rounded-3xl border border-red-100 bg-red-50 p-6 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white">
-            <AlertCircle className="h-6 w-6 text-red-500" />
+        <section className="relative border border-accent/40 bg-[var(--surface-raised)] overflow-hidden">
+          <div aria-hidden className="absolute top-0 inset-x-0 h-px bg-accent/50" />
+
+          <div className="p-8 flex flex-col items-center text-center gap-5">
+            <div className="relative w-20 h-20 border border-[var(--border)] flex items-center justify-center">
+              <QrCode className="h-10 w-10 text-[var(--text-tertiary)] opacity-60" strokeWidth={1.25} />
+              <div aria-hidden className="absolute w-[110%] h-[2px] bg-accent -rotate-45 shadow-[0_0_12px_var(--accent)]" />
+            </div>
+
+            <div>
+              <p className="font-mono text-[11px] tracking-[0.2em] uppercase text-accent mb-2" style={{ fontFamily: "'Space Mono', monospace" }}>
+                System Alert
+              </p>
+
+              <h2
+                className="text-xl md:text-2xl font-bold uppercase tracking-tight text-[var(--text-primary)]"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                Invalid Code
+              </h2>
+            </div>
+
+            <p className="font-mono text-sm leading-relaxed text-[var(--text-tertiary)] border-y border-[var(--border)] py-4" style={{ fontFamily: "'Space Mono', monospace" }}>
+              {error}
+            </p>
+
+            <button
+              onClick={reset}
+              className="w-full bg-[var(--text-primary)] text-[var(--background)] py-3.5 font-mono text-sm uppercase tracking-widest font-bold border border-transparent hover:bg-transparent hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] transition-colors"
+              style={{ fontFamily: "'Space Mono', monospace" }}
+            >
+              Try Again
+            </button>
           </div>
-
-          <h2 className="mt-4 text-base font-semibold text-red-800">
-            Couldn&apos;t add the stamp
-          </h2>
-
-          <p className="mt-1 text-sm leading-5 text-red-700">
-            {error}
-          </p>
-
-          <button
-            onClick={reset}
-            className="mt-5 w-full rounded-2xl bg-white py-3 text-sm font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-100"
-          >
-            Try again
-          </button>
         </section>
       )}
 
@@ -270,10 +291,11 @@ export default function StaffScanPage() {
         !isAwarding &&
         !result &&
         !error && (
-          <p className="mt-5 text-center text-xs text-[var(--text-tertiary)]">
+          <p className="mt-5 text-center font-mono text-xs text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
             Only scan the customer&apos;s loyalty QR code.
           </p>
         )}
+      </div>
     </main>
   );
 }

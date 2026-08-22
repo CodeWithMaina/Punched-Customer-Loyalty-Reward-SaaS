@@ -127,69 +127,91 @@ export default function CustomerDetailPage() {
         : "New";
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 pb-10">
+    <div className="max-w-lg mx-auto px-5 py-6 pb-10">
       <Link
         href="/dashboard/business/customers"
-        className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-secondary)] mb-5"
+        className="inline-flex items-center gap-2 border border-[var(--border)] px-4 py-2 text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-secondary)] hover:border-brand hover:text-brand transition-colors mb-6"
+        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
       >
         <ChevronLeft className="h-4 w-4" />
         Customers
       </Link>
 
-      <div className={`rounded-2xl p-5 mb-4 ${rewardReady ? "bg-gradient-to-br from-amber-500 to-orange-500" : "bg-gradient-to-br from-brand to-brand-hover"}`}>
+      {/* Stamp progress — tactical bar */}
+      <div className={`border p-5 mb-5 relative overflow-hidden ${rewardReady ? "border-accent/40" : "border-[var(--border)] bg-[var(--surface-raised)]"}`}>
+        <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-white/10" />
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-white/70 uppercase tracking-widest">Customer Progress</p>
-            <p className="text-4xl font-bold text-white leading-none mt-1">{customer.totalStamps}</p>
-            <p className="text-xs text-white/80 mt-1">
+            <p className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">Customer Progress</p>
+            <p
+              className={`text-[40px] leading-none font-extrabold tracking-tight mt-1 ${rewardReady ? "text-accent" : "text-[var(--text-primary)]"}`}
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              {customer.totalStamps}
+            </p>
+            <p className="font-mono text-xs text-[var(--text-tertiary)] mt-1" style={{ fontFamily: "'Space Mono', monospace" }}>
               {stampsRequired > 0 ? `Current cycle out of ${stampsRequired}` : "No active loyalty threshold"}
             </p>
           </div>
-          <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center">
-            {rewardReady ? <Trophy className="h-7 w-7 text-white" /> : <Stamp className="h-7 w-7 text-white" />}
+          <div className="h-14 w-14 border border-[var(--border)] flex items-center justify-center">
+            {rewardReady ? <Trophy className="h-7 w-7 text-accent" strokeWidth={1.25} /> : <Stamp className="h-7 w-7 text-brand" strokeWidth={1.25} />}
           </div>
         </div>
         {stampsRequired > 0 && (
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1.5">
-              <p className="text-xs text-white/80">Reward progress</p>
-              <p className="text-xs font-bold text-white">{Math.round(progress)}%</p>
+              <p className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">Reward progress</p>
+              <p className="font-mono text-xs font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Space Mono', monospace" }}>{Math.round(progress)}%</p>
             </div>
-            <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
-              <div className="h-full bg-[var(--surface)] rounded-full transition-all duration-700" style={{ width: `${progress}%` }} />
+            <div className="h-2 bg-[var(--surface-container-high, var(--border-light))] relative overflow-hidden">
+              <div
+                aria-hidden
+                className="absolute inset-y-0 opacity-10"
+                style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 10px, var(--text-primary) 10px, var(--text-primary) 20px)" }}
+              />
+              <div
+                className={`absolute left-0 top-0 bottom-0 transition-all duration-700 ${rewardReady ? "bg-accent" : "bg-brand"}`}
+                style={{ width: `${progress}%` }}
+              />
             </div>
-            <p className="text-[11px] text-white/75 mt-2">
+            <p className="font-mono text-xs text-[var(--text-tertiary)] mt-2" style={{ fontFamily: "'Space Mono', monospace" }}>
               {rewardReady ? "Reward can be redeemed now." : `${stampsLeft} stamp${stampsLeft !== 1 ? "s" : ""} to next reward.`}
             </p>
           </div>
         )}
       </div>
 
-      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-5 mb-4">
+      {/* Identity card */}
+      <div className="border border-[var(--border)] bg-[var(--surface-raised)] p-5 mb-5">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-gradient-to-br from-brand-surface to-brand-light flex items-center justify-center text-brand text-2xl font-bold flex-shrink-0 border-2 border-brand/10">
+          <div className="h-16 w-16 border-2 border-[var(--border)] bg-brand-surface flex items-center justify-center text-brand text-2xl font-extrabold flex-shrink-0 overflow-hidden grayscale hover:grayscale-0 transition-all"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             {customer.avatarUrl ? (
-              <img
-                src={customer.avatarUrl}
-                alt={customer.fullName}
-                className="h-full w-full object-cover rounded-full"
-              />
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={customer.avatarUrl} alt={customer.fullName} className="h-full w-full object-cover" />
             ) : (
               customer.fullName.charAt(0).toUpperCase()
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-[var(--text-primary)] truncate">{customer.fullName}</h1>
+            <h1
+              className="text-xl md:text-2xl font-bold tracking-tight text-[var(--text-primary)] truncate"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              {customer.fullName}
+            </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <Mail className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
-              <p className="text-sm text-[var(--text-tertiary)] truncate">{customer.email}</p>
+              <Mail className="h-3 w-3 text-[var(--text-tertiary)] flex-shrink-0" />
+              <p className="font-mono text-xs text-[var(--text-tertiary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>{customer.email}</p>
             </div>
             <div className="mt-2 flex items-center gap-2">
-              <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full ${rewardReady ? "text-amber-700 bg-amber-50 border border-accent" : "text-brand bg-brand-surface"}`}>
-                {rewardReady ? <Award className="h-3.5 w-3.5" /> : <Flame className="h-3.5 w-3.5" />}
+              <span
+                className={`inline-flex items-center gap-1 text-[10px] tracking-[0.15em] uppercase font-bold px-2.5 py-1 border ${rewardReady ? "text-accent-text border-accent/40 bg-[var(--accent-light)]" : "text-brand border-brand/40 bg-brand-surface"}`}
+              >
+                {rewardReady ? <Award className="h-3 w-3" /> : <Flame className="h-3 w-3" />}
                 {rewardReady ? "Reward Ready" : `${stampsLeft} to reward`}
               </span>
-              <span className="inline-flex items-center text-[11px] font-bold text-[var(--text-secondary)] bg-[var(--border-light)] px-2.5 py-1 rounded-full">
+              <span className="inline-flex items-center text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-secondary)] border border-[var(--border)] px-2.5 py-1">
                 {loyaltyTier} Tier
               </span>
             </div>

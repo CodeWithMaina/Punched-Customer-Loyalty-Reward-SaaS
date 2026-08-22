@@ -31,7 +31,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+          <label
+            className="block text-[12px] tracking-[0.15em] font-bold uppercase text-[var(--text-secondary)] mb-2"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
             {label}
           </label>
         )}
@@ -40,23 +43,23 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             type={inputType}
             className={cn(
-              "w-full h-13 px-4 bg-[var(--surface)] border rounded-xl",
+              "w-full py-3 px-1 bg-transparent border-0 border-b rounded-none",
               "text-[var(--text-primary)] placeholder-[var(--text-muted)] text-base",
-              "focus:border-brand focus:ring-2 focus:ring-[var(--brand-ring)]",
-              "transition-all duration-200 outline-none",
+              "font-mono outline-none focus:ring-0",
+              "focus:border-[var(--text-primary)] focus:bg-[var(--surface-raised)]",
+              "transition-all duration-200",
               error
-                ? "border-danger focus:border-danger focus:ring-danger/20"
+                ? "border-accent focus:border-accent"
                 : "border-[var(--border)]",
-              isPassword && showPasswordToggle && "pr-12",
+              isPassword && showPasswordToggle && "pr-10",
               className
             )}
-            style={{ height: "3.25rem" }}
             {...props}
           />
           {isPassword && showPasswordToggle && (
             <button
               type="button"
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors p-1"
+              className="absolute right-1 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors p-1"
               onClick={() => setShowPassword(!showPassword)}
               tabIndex={-1}
               aria-label={showPassword ? "Hide password" : "Show password"}
@@ -70,11 +73,11 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error && (
-          <p className="mt-1.5 text-xs text-danger font-medium">{error}</p>
+          <p className="mt-1.5 font-mono text-xs text-accent">{error}</p>
         )}
         {extraHint && !error && (
           <p
-            className={`mt-1.5 text-xs font-medium ${
+            className={`mt-1.5 font-mono text-xs ${
               extraHint.tone === "ok"
                 ? "text-ok-text"
                 : "text-[var(--text-secondary)]"

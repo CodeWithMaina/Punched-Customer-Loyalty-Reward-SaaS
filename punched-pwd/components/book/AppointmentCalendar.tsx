@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { appointmentsApi } from "@/lib/api/appointments";
 import { useBookingStore } from "@/store/bookingStore";
 import type { AvailabilitySlotResponse } from "@/types";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { Sunrise, Sun, Moon } from "lucide-react";
 
 interface AppointmentCalendarProps {
   businessId: string;
@@ -13,6 +13,11 @@ interface AppointmentCalendarProps {
   className?: string;
 }
 
+/**
+ * Date scroller + grouped time-slot grid for the booking wizard.
+ * Fetches availability server-side for the selected day; slots are bucketed
+ * into Morning / Afternoon / Evening for the brutalist time grid.
+ */
 export function AppointmentCalendar({
   businessId,
   serviceIds,
@@ -70,107 +75,129 @@ export function AppointmentCalendar({
 
   if (loading) {
     return (
-      <div className={`space-y-3 ${className}`}>
-        <div className="h-12 bg-[var(--surface-raised)] rounded-xl animate-pulse" />
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-14 bg-[var(--surface-raised)] rounded-xl animate-pulse" />
-        ))}
+      <div className={`space-y-4 ${className}`}>
+        <div className="h-20 border border-[var(--border)] bg-[var(--surface-raised)] animate-pulse" />
+        <div className="grid grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-11 border border-[var(--border)] bg-[var(--surface-raised)] animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <p className="text-sm text-[var(--text-secondary)] py-6 text-center">
+      <p
+        className="font-mono text-sm text-[var(--text-secondary)] py-6 text-center"
+        style={{ fontFamily: "'Space Mono', monospace" }}
+      >
         {error}
       </p>
     );
   }
 
+  // Group slots into day-part buckets for the time grid
+  const groups: { label: string; icon: typeof Sunrise; items: AvailabilitySlotResponse[] }[] = [
+    { label: "Morning", icon: Sunrise, items: [] },
+    { label: "Afternoon", icon: Sun, items: [] },
+    { label: "Evening", icon: Moon, items: [] },
+  ];
+  for (const s of daySlots) {
+    const h = new Date(s.startAtUtc).getHours();
+    if (h < 12) groups[0].items.push(s);
+    else if (h < 17) groups[1].items.push(s);
+    else groups[2].items.push(s);
+  }
+
   return (
     <div className={className}>
-      <div className="flex items-center gap-2 mb-4 overflow-x-auto">
-        <button
-          onClick={() => {
-            const d = new Date(selectedDate);
-            d.setDate(d.getDate() - 1);
-            setSelectedDate(d.toISOString().slice(0, 10));
-          }}
-          className="p-1 rounded-lg hover:bg-[var(--surface-raised)] transition-colors flex-shrink-0"
-        >
-          <ChevronLeft className="h-4 w-4 text-[var(--text-secondary)]" />
-        </button>
-        <div className="flex gap-1.5 overflow-x-auto py-1">
-          {dateRange.map((date) => {
-            const d = new Date(date);
-            const isSelected = date === selectedDate;
-            const isToday =
-              date === new Date().toISOString().slice(0, 10);
-            return (
-              <button
-                key={date}
-                onClick={() => setSelectedDate(date)}
-                className={`flex flex-col items-center px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                  isSelected
-                    ? "bg-brand text-white"
-                    : isToday
-                      ? "bg-[var(--surface-raised)] text-[var(--text-primary)]"
-                      : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-raised)]"
-                } flex-shrink-0`}
+      {/* Date scroller */}
+      <p className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] mb-3">
+        Select Date
+      </p>
+      <div
+        className="flex overflow-x-auto gap-2 pb-2 -mx-5 px-5"
+        style={{ scrollbarWidth: "none" }}
+        role="group"
+        aria-label="Select date"
+      >
+        {dateRange.map((date) => {
+          const d = new Date(date);
+          const isSelected = date === selectedDate;
+          return (
+            <button
+              key={date}
+              onClick={() => setSelectedDate(date)}
+              aria-pressed={isSelected}
+              className={`flex-shrink-0 w-16 h-20 flex flex-col items-center justify-center gap-1 border transition-colors ${
+                isSelected
+                  ? "border-[var(--text-primary)] bg-[var(--text-primary)]"
+                  : "border-[var(--border)] hover:border-[var(--text-primary)]"
+              }`}
+            >
+              <span
+                className={`text-[10px] tracking-[0.15em] uppercase font-bold ${isSelected ? "text-[var(--background)]" : "text-[var(--text-tertiary)]"}`}
               >
-                <span>{d.toLocaleDateString([], { weekday: "short" })}</span>
-                <span>{d.getDate()}</span>
-              </button>
-            );
-          })}
-        </div>
-        <button
-          onClick={() => {
-            const d = new Date(selectedDate);
-            d.setDate(d.getDate() + 1);
-            setSelectedDate(d.toISOString().slice(0, 10));
-          }}
-          className="p-1 rounded-lg hover:bg-[var(--surface-raised)] transition-colors flex-shrink-0"
-        >
-          <ChevronRight className="h-4 w-4 text-[var(--text-secondary)]" />
-        </button>
+                {d.toLocaleDateString([], { weekday: "short" })}
+              </span>
+              <span
+                className={`text-xl font-bold ${isSelected ? "text-[var(--background)]" : "text-[var(--text-primary)]"}`}
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                {d.getDate()}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
+      {/* Time slots */}
+      <p className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] mb-4 mt-8">
+        Select Time
+      </p>
+
       {daySlots.length === 0 ? (
-        <p className="text-sm text-[var(--text-tertiary)] py-8 text-center">
+        <p
+          className="font-mono text-sm text-[var(--text-tertiary)] py-8 text-center"
+          style={{ fontFamily: "'Space Mono', monospace" }}
+        >
           No available slots for this day.
         </p>
       ) : (
-        <div className="space-y-2">
-          {daySlots.map((s, i) => {
-            const isSelected = slot?.startAtUtc === s.startAtUtc;
-            return (
-              <button
-                key={i}
-                onClick={() => setSlot(s)}
-                className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
-                  isSelected
-                    ? "border-brand bg-brand-surface ring-1 ring-brand/20"
-                    : "border-[var(--border-light)] bg-[var(--surface)] hover:bg-[var(--surface-raised)]"
-                }`}
-              >
-                <div className="h-9 w-9 rounded-xl bg-brand-surface flex items-center justify-center flex-shrink-0">
-                  <Clock className="h-5 w-5 text-brand" />
+        <div className="space-y-7">
+          {groups.map(({ label, icon: Icon, items }) =>
+            items.length === 0 ? null : (
+              <div key={label}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Icon className="h-4 w-4 text-[var(--text-tertiary)]" strokeWidth={1.5} />
+                  <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">
+                    {label}
+                  </span>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">
-                    {formatTime(s.startAtUtc)} - {formatTime(s.endAtUtc)}
-                  </p>
-                  <p className="text-xs text-[var(--text-tertiary)]">
-                    with {s.staffName}
-                  </p>
+                <div className="grid grid-cols-2 xs:grid-cols-3 md:grid-cols-4 gap-3">
+                  {items.map((s, i) => {
+                    const isSelected = slot?.startAtUtc === s.startAtUtc;
+                    return (
+                      <button
+                        key={`${s.startAtUtc}-${i}`}
+                        onClick={() => setSlot(s)}
+                        aria-pressed={isSelected}
+                        className={`py-3 font-mono text-sm text-center border transition-colors ${
+                          isSelected
+                            ? "border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--background)] font-bold"
+                            : "border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--text-primary)]"
+                        }`}
+                        style={{ fontFamily: "'Space Mono', monospace" }}
+                      >
+                        {formatTime(s.startAtUtc)}
+                      </button>
+                    );
+                  })}
                 </div>
-                {isSelected && (
-                  <div className="h-2 w-2 rounded-full bg-brand flex-shrink-0" />
-                )}
-              </button>
-            );
-          })}
+              </div>
+            )
+          )}
         </div>
       )}
     </div>

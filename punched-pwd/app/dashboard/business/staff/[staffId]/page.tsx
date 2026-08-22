@@ -7,12 +7,11 @@ import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
 import type { AnalyticsPeriod, StaffMemberAnalyticsResponse, StampDto } from "@/types";
 import {
-  Loader2, Mail, User, Shield, ChevronLeft, ScanLine, RefreshCw,
-  Stamp, Users, Flame, Trophy, Clock3, CalendarDays, TrendingUp,
-  BarChart3,
+  Loader2, User, Shield, ChevronLeft, RefreshCw,
+  Stamp, Trophy, QrCode,
 } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 
 function timeAgo(dateStr: string): string {
@@ -117,9 +116,16 @@ export default function StaffDetailPage() {
   if (!analytics) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 px-4">
-        <User className="h-12 w-12 text-[var(--text-muted)]" />
-        <p className="text-[var(--text-secondary)] font-medium">Staff member not found</p>
-        <Link href="/dashboard/business/staff" className="text-sm text-brand font-semibold">
+        <div className="border border-[var(--border)] bg-[var(--surface-raised)] p-5">
+          <User className="h-10 w-10 text-[var(--text-muted)]" />
+        </div>
+        <p className="text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-secondary)]">
+          Staff member not found
+        </p>
+        <Link
+          href="/dashboard/business/staff"
+          className="border border-[var(--border)] px-4 py-2 text-[12px] tracking-[0.15em] uppercase font-bold text-brand hover:bg-brand hover:text-[var(--surface)] transition-colors"
+        >
           ← Back to staff
         </Link>
       </div>
@@ -129,11 +135,6 @@ export default function StaffDetailPage() {
   const { stampsIssued, customersServed, totalStampsAllTime, totalCustomersAllTime } = analytics;
 
   const heroValue = period === "all" ? totalStampsAllTime : stampsIssued;
-  const heroSubLabel =
-    period === "all" ? "total stamps issued (all time)" :
-    period === "today" ? "stamps issued today" :
-    period === "7d" ? "stamps issued – last 7 days" :
-    "stamps issued – last 30 days";
   const dailyGoal = analytics.dailyGoal ?? 25;
   const dailyProgress = period === "today" ? Math.min((stampsIssued / dailyGoal) * 100, 100) : 100;
   const goalReached = period === "today" && stampsIssued >= dailyGoal;
@@ -144,249 +145,342 @@ export default function StaffDetailPage() {
   const efficiency = customersServed > 0 ? Math.round((stampsIssued / customersServed) * 10) / 10 : 0;
 
   return (
-    <div className="max-w-lg mx-auto pb-12">
-      <div className="px-5 pt-5 pb-4">
-        <Link href="/dashboard/business/staff" className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-secondary)]">
-          <ChevronLeft className="h-4 w-4" />Staff
-        </Link>
+    <div className="relative overflow-x-hidden min-h-screen pb-12">
+      {/* Watermark */}
+      <div
+        aria-hidden
+        className="hidden md:block absolute top-24 right-0 font-extrabold leading-none select-none pointer-events-none z-0"
+        style={{
+          fontFamily: "'Plus Jakarta Sans', sans-serif",
+          fontSize: "340px",
+          color: "var(--text-primary)",
+          opacity: 0.02,
+        }}
+      >
+        PUNCH
       </div>
 
-      {/* ── Hero performance card ────────────────────────────── */}
-      <div className={`mx-5 mb-5 rounded-2xl p-5 ${goalReached ? "bg-gradient-to-br from-green-500 to-emerald-600" : "bg-gradient-to-br from-brand to-brand-hover"}`}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-white/70 text-xs font-bold uppercase tracking-widest">
-              {analytics.fullName.split(" ")[0]}&apos;s Performance
-            </p>
-            <p className={`text-white text-4xl font-bold mt-1 leading-none transition-opacity ${isPeriodLoading ? "opacity-40" : "opacity-100"}`}>
-              {heroValue}
-            </p>
-            <p className="text-white/70 text-xs mt-1">{heroSubLabel}</p>
-          </div>
-          <div className="h-16 w-16 rounded-2xl bg-white/15 flex items-center justify-center">
-            {goalReached ? <Trophy className="h-8 w-8 text-white" /> : <Stamp className="h-8 w-8 text-white" />}
-          </div>
-        </div>
-
-        {/* Period tabs */}
-        <div className="bg-white/15 rounded-xl p-1 flex gap-1 mb-3">
-          {PERIODS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => setPeriod(p.value)}
-              className={`flex-1 text-xs font-bold py-1.5 rounded-lg transition-all ${
-                period === p.value ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-card" : "text-white/80 hover:text-white"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        {period === "today" && (
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-white/70 text-xs">Daily goal: {dailyGoal} stamps</p>
-              <p className="text-white text-xs font-bold">{Math.round(dailyProgress)}%</p>
-            </div>
-            <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
-              <div className="h-full bg-[var(--surface)] rounded-full transition-all duration-700" style={{ width: `${dailyProgress}%` }} />
-            </div>
-            <p className="text-white/70 text-xs mt-2">
-              {goalReached ? "Goal reached! Great work" : `${dailyGoal - stampsIssued} more to hit today's goal`}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* ── Identity card ────────────────────────────────────── */}
-      <div className="mx-5 mb-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-5">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-full bg-brand-surface text-brand text-xl font-bold flex items-center justify-center flex-shrink-0 overflow-hidden border-3 border-brand/10">
-            {analytics.avatarUrl
-              ? <img src={analytics.avatarUrl} alt={analytics.fullName} className="h-full w-full object-cover rounded-full" />
-              : analytics.fullName.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-[var(--text-primary)] truncate">{analytics.fullName}</h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Mail className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
-              <p className="text-xs text-[var(--text-tertiary)] truncate">{analytics.email}</p>
-            </div>
-            <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold text-brand bg-brand-surface px-2.5 py-0.5 rounded-full">
-              <Shield className="h-3 w-3" />Staff Member
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Stat grid ────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 px-5 mb-5">
-        {[
-          { label: period === "today" ? "Today" : period === "7d" ? "7 Days" : period === "30d" ? "30 Days" : "All Time", value: stampsIssued, icon: CalendarDays, color: "text-brand", bg: "bg-brand-surface" },
-          { label: "Customers Served", value: customersServed, icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "All-Time Stamps", value: totalStampsAllTime, icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
-          { label: "All-Time Customers", value: totalCustomersAllTime, icon: TrendingUp, color: "text-purple-600", bg: "bg-purple-50" },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className={`bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4 flex items-center gap-3 transition-opacity ${isPeriodLoading ? "opacity-50" : "opacity-100"}`}>
-            <div className={`${bg} h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0`}>
-              <Icon className={`h-5 w-5 ${color}`} />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-[var(--text-primary)] leading-none">{value}</p>
-              <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide mt-0.5">{label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Actionable Insights ──────────────────────────────── */}
-      {(period === "7d" || period === "30d") && (
-        <div className="mx-5 mb-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <BarChart3 className="h-4 w-4 text-brand" />
-            <p className="text-sm font-bold text-[var(--text-primary)]">Insights</p>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between bg-[var(--surface-raised)] rounded-xl px-3 py-2.5">
-              <span className="text-xs text-[var(--text-secondary)]">Avg stamps/day</span>
-              <span className="text-sm font-bold text-[var(--text-primary)]">{avgPerDay}</span>
-            </div>
-            <div className="flex items-center justify-between bg-[var(--surface-raised)] rounded-xl px-3 py-2.5">
-              <span className="text-xs text-[var(--text-secondary)]">Stamps per customer</span>
-              <span className="text-sm font-bold text-[var(--text-primary)]">{efficiency}</span>
-            </div>
-            <div className="flex items-center justify-between bg-[var(--surface-raised)] rounded-xl px-3 py-2.5">
-              <span className="text-xs text-[var(--text-secondary)]">Unique customers</span>
-              <span className="text-sm font-bold text-[var(--text-primary)]">{customersServed}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Stamp activity chart ─────────────────────────────── */}
-      {dailyData.length > 1 && (
-        <div className="mx-5 mb-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-4 w-4 text-brand" />
-            <p className="text-sm font-bold text-[var(--text-primary)]">Stamp Activity</p>
-          </div>
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dailyData} barCategoryGap="20%">
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={25} allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid #e5e7eb" }}
-                  cursor={{ fill: "rgba(0,0,0,0.04)" }}
-                />
-                <Bar dataKey="stamps" fill="var(--brand)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-            {/* ── Recent activity (fetched from the activity-feed endpoint) ── */}
-      <div className="px-5 mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
-            Recent Activity
-          </p>
-          <button
-            type="button"
-            aria-label="Refresh activity"
-            onClick={loadRecentStamps}
-            disabled={isStampsLoading}
-            className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-light)] disabled:opacity-50 transition-colors"
+      <div className="relative z-10 max-w-[1440px] mx-auto px-5 md:px-8 lg:px-16 py-6 md:py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-10">
+        {/* ── Left column: profile & goal ───────────────────────── */}
+        <div className="lg:col-span-4 flex flex-col gap-8">
+          <Link
+            href="/dashboard/business/staff"
+            className="inline-flex items-center gap-2 self-start border border-[var(--border)] px-4 py-2.5 text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-brand transition-colors"
           >
-            <RefreshCw className={`h-4 w-4 ${isStampsLoading ? "animate-spin" : ""}`} />
-          </button>
+            <ChevronLeft className="h-4 w-4" />
+            Staff
+          </Link>
+
+          {/* Profile card */}
+          <section className="border border-[var(--border)] bg-[var(--surface-raised)] p-8 flex flex-col items-center text-center relative overflow-hidden group">
+            <div
+              aria-hidden
+              className="absolute inset-x-0 bottom-0 h-1/3 pointer-events-none transition-opacity duration-500 opacity-0 group-hover:opacity-100"
+              style={{ background: "linear-gradient(to top, var(--brand-surface), transparent)" }}
+            />
+            <div className="relative w-28 h-28 mb-5">
+              <div className="w-full h-full rounded-full overflow-hidden border-2 border-[var(--border)] bg-brand-surface flex items-center justify-center grayscale hover:grayscale-0 transition-all duration-500">
+                {analytics.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={analytics.avatarUrl} alt={analytics.fullName} className="w-full h-full object-cover" />
+                ) : (
+                  <span
+                    className="text-4xl font-extrabold text-brand"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
+                    {analytics.fullName.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-[var(--background)] border border-[var(--border)] rounded-full p-1.5 flex items-center justify-center">
+                <Shield className="h-3 w-3 text-brand" />
+              </div>
+            </div>
+            <h1
+              className={`text-2xl md:text-[32px] font-bold tracking-tight text-[var(--text-primary)] mb-2 ${isPeriodLoading ? "opacity-40" : ""}`}
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              {analytics.fullName}
+            </h1>
+            <p className="font-mono text-xs text-[var(--text-tertiary)] mb-4 break-all" style={{ fontFamily: "'Space Mono', monospace" }}>
+              {analytics.email}
+            </p>
+            <div className="bg-[var(--surface-container-high, var(--surface))] border border-[var(--border)] px-3 py-1 flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${isPeriodLoading ? "" : "animate-pulse"} bg-brand`} />
+              <span className="text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-primary)]">
+                Staff Member
+              </span>
+            </div>
+          </section>
+
+          {/* Daily Goal */}
+          <section className="border border-[var(--border)] bg-[var(--background)] p-6">
+            <div className="flex justify-between items-center border-b border-[var(--border)] pb-4 mb-5">
+              <h2
+                className="text-lg font-semibold tracking-tight text-[var(--text-primary)]"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                Daily Goal
+              </h2>
+              {goalReached && <Trophy className="h-4 w-4 text-brand" />}
+            </div>
+            <div className="flex justify-between font-mono text-xs mb-3" style={{ fontFamily: "'Space Mono', monospace" }}>
+              <span className="text-[var(--text-tertiary)]">Current Progress</span>
+              <span className={`font-bold ${goalReached ? "text-ok" : "text-[var(--text-primary)]"}`}>
+                {period === "today" ? stampsIssued : dailyGoal} / {dailyGoal}
+              </span>
+            </div>
+            {period === "today" ? (
+              <>
+                <div className="w-full h-2 bg-[var(--surface-container-high, var(--border-light))] relative overflow-hidden">
+                  <div className="absolute inset-y-0 opacity-10" style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 10px, var(--text-primary) 10px, var(--text-primary) 20px)" }} />
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 transition-all duration-700 ${goalReached ? "bg-ok" : "bg-brand"}`}
+                    style={{ width: `${dailyProgress}%` }}
+                  />
+                </div>
+                <p className="text-right text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] mt-3">
+                  {Math.round(dailyProgress)}% COMPLETED
+                </p>
+                {!goalReached && (
+                  <p className="font-mono text-xs text-[var(--text-secondary)] mt-1" style={{ fontFamily: "'Space Mono', monospace" }}>
+                    {dailyGoal - stampsIssued} more to hit today&apos;s goal
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="font-mono text-xs text-[var(--text-tertiary)] mt-1" style={{ fontFamily: "'Space Mono', monospace" }}>
+                Switch to &quot;Today&quot; to track today&apos;s progress.
+              </p>
+            )}
+          </section>
+
+          {/* Attribution note */}
+          <section className="bg-brand-surface border border-brand/20 p-4 flex items-start gap-3">
+            <QrCode className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
+            <p className="font-mono text-xs leading-relaxed text-[var(--text-secondary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
+              Stamps are attributed to the exact staff or business account that scanned the customer QR.
+            </p>
+          </section>
         </div>
 
-        {isStampsLoading && recentStamps.length === 0 ? (
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden divide-y divide-[var(--border-light)]">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3.5">
-                <div className="h-9 w-9 rounded-full bg-[var(--border-light)] animate-pulse flex-shrink-0" />
-                <div className="flex-1 min-w-0 space-y-1.5">
-                  <div className="h-3.5 w-3/5 rounded bg-[var(--border-light)] animate-pulse" />
-                  <div className="h-3 w-1/3 rounded bg-[var(--border-light)] animate-pulse" />
-                </div>
-                <div className="h-3 w-8 rounded bg-[var(--border-light)] animate-pulse flex-shrink-0" />
+        {/* ── Right column: metrics & analytics ─────────────────── */}
+        <div className="lg:col-span-8 flex flex-col gap-8">
+          {/* Overview grid */}
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: period === "today" ? "Today's Stamps" : period === "7d" ? "7-Day Stamps" : period === "30d" ? "30-Day Stamps" : "All-Time Stamps", value: heroValue },
+              { label: "Customers Served", value: customersServed },
+              { label: "All-Time Stamps", value: totalStampsAllTime },
+              { label: "All-Time Customers", value: totalCustomersAllTime },
+            ].map(({ label, value }) => (
+              <div key={label} className={`border border-[var(--border)] bg-[var(--surface-raised)] p-5 flex flex-col gap-2 hover:bg-brand-surface transition-colors ${isPeriodLoading ? "opacity-50" : ""}`}>
+                <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">{label}</span>
+                <span
+                  className="text-[32px] md:text-[40px] font-extrabold leading-none tracking-tight text-[var(--text-primary)]"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  {value}
+                </span>
               </div>
             ))}
-          </div>
-        ) : recentStamps.length === 0 ? (
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-8 text-center">
-            <Stamp className="h-8 w-8 text-[var(--text-muted)] mx-auto mb-2" />
-            <p className="text-sm text-[var(--text-tertiary)]">No activity recorded yet</p>
-          </div>
-        ) : (
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden divide-y divide-[var(--border-light)]">
-            {recentStamps.map((stamp) => (
-              <div key={stamp.id} className="flex items-center gap-3 px-4 py-3.5">
-                <div className="h-9 w-9 rounded-full bg-brand-surface flex items-center justify-center overflow-hidden flex-shrink-0">
-                  <span className="text-sm font-bold text-brand">
-                    {stamp.customerName.charAt(0).toUpperCase()}
+          </section>
+
+          {/* Actionable Insights */}
+          {(period === "7d" || period === "30d") && (
+            <section className="border border-[var(--border)] bg-[var(--background)] p-6">
+              <h2
+                className="text-lg font-semibold tracking-tight text-[var(--text-primary)] border-b border-[var(--border)] pb-4 mb-4"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                Insights
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs" style={{ fontFamily: "'Space Mono', monospace" }}>
+                {[
+                  { label: "Avg Stamps / Day", value: avgPerDay },
+                  { label: "Stamps Per Customer", value: efficiency },
+                  { label: "Unique Customers", value: customersServed },
+                ].map(({ label, value }) => (
+                  <div key={label} className="p-4 border border-[var(--border)] bg-[var(--surface-raised)]">
+                    <div className="text-[var(--text-tertiary)] mb-1">{label}</div>
+                    <div className="text-xl font-bold text-[var(--text-primary)]">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Stamp Activity chart + period selector */}
+          <section className="border border-[var(--border)] bg-[var(--background)] p-6 flex flex-col">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[var(--border)] pb-4 mb-6 gap-4">
+              <h2
+                className="text-lg font-semibold tracking-tight text-[var(--text-primary)]"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                Stamp Activity
+              </h2>
+              <div className="flex gap-2" role="group" aria-label="Analytics period">
+                {PERIODS.map((p) => (
+                  <button
+                    key={p.value}
+                    onClick={() => setPeriod(p.value)}
+                    aria-pressed={period === p.value}
+                    className={`px-3 py-1 text-[12px] tracking-[0.15em] uppercase font-bold border transition-colors ${
+                      period === p.value
+                        ? "bg-brand text-[var(--background)] border-brand"
+                        : "bg-transparent text-[var(--text-tertiary)] border-[var(--border)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={`relative h-64 border border-[var(--border)] bg-[var(--surface-raised)] transition-opacity ${isPeriodLoading ? "opacity-40" : ""}`}>
+              {dailyData.length > 1 ? (
+                <div className="h-full p-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={dailyData} margin={{ top: 12, right: 12, bottom: 4, left: -16 }}>
+                      <CartesianGrid stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--text-tertiary)", fontFamily: "'Space Mono', monospace" }} axisLine={{ stroke: "var(--border)" }} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "var(--text-tertiary)", fontFamily: "'Space Mono', monospace" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: 0,
+                          fontSize: 12,
+                          background: "var(--surface-raised)",
+                          border: "1px solid var(--border)",
+                          color: "var(--text-primary)",
+                          fontFamily: "'Space Mono', monospace",
+                        }}
+                        cursor={{ stroke: "var(--border)" }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="stamps"
+                        stroke="var(--brand)"
+                        strokeWidth={2}
+                        dot={{ r: 2, fill: "var(--brand)", strokeWidth: 0 }}
+                        activeDot={{ r: 4 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="font-mono text-xs text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
+                    Not enough activity data for this period
                   </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{stamp.customerName}</p>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        stamp.source === "enrollment"
-                          ? "bg-[var(--accent-light)] text-[var(--accent-text)]"
-                          : "bg-brand-surface text-brand"
-                      }`}
-                    >
-                      {stamp.source === "enrollment" ? "Welcome" : "Scan"}
-                    </span>
-                    {stamp.rewardDescription ? (
-                      <span className="text-[10px] text-[var(--text-tertiary)]">
-                        {stamp.rewardDescription}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-[10px] text-[var(--text-tertiary)]">{timeAgo(stamp.timestamp)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Capabilities & restrictions ──────────────────────── */}
-      <div className="mx-5 mb-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card p-4">
-        <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest mb-3">What they can do</p>
-        <div className="space-y-3">
-          {[
-            { icon: ScanLine, label: "Scan customer QR codes", description: "Award stamps on every visit" },
-            { icon: Shield, label: "Verified access", description: "Identity tied to their Punched account" },
-          ].map(({ icon: Icon, label, description }) => (
-            <div key={label} className="flex items-start gap-3">
-              <div className="h-8 w-8 rounded-xl bg-brand-surface flex items-center justify-center flex-shrink-0">
-                <Icon className="h-4 w-4 text-brand" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">{label}</p>
-                <p className="text-xs text-[var(--text-tertiary)]">{description}</p>
-              </div>
+              )}
             </div>
-          ))}
-        </div>
-      </div>
+          </section>
 
-      {/* Attribution note */}
-      <div className="mx-5 bg-brand-surface border border-brand/10 rounded-2xl p-4 flex items-start gap-3">
-        <Clock3 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-brand/80 leading-relaxed">
-          Stamps are attributed to the exact staff or business account that scanned the customer QR.
-        </p>
+          {/* Recent Activity */}
+          <section className="border border-[var(--border)] bg-[var(--background)] flex flex-col">
+            <div className="flex justify-between items-center border-b border-[var(--border)] px-6 py-4">
+              <h2
+                className="text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                Recent Activity
+              </h2>
+              <button
+                type="button"
+                aria-label="Refresh activity"
+                onClick={loadRecentStamps}
+                disabled={isStampsLoading}
+                className="p-1 text-[var(--text-secondary)] hover:text-brand disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw className={`h-4 w-4 ${isStampsLoading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+
+            {isStampsLoading && recentStamps.length === 0 ? (
+              <ul className="px-6 py-6 flex flex-col gap-5">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <li key={i} className="flex items-center gap-4">
+                    <div className="h-8 w-8 bg-[var(--surface-container-high, var(--border-light))] animate-pulse flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-3/5 bg-[var(--surface-container-high, var(--border-light))] animate-pulse" />
+                      <div className="h-2 w-1/4 bg-[var(--surface-container-high, var(--border-light))] animate-pulse" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : recentStamps.length === 0 ? (
+              <div className="p-10 text-center">
+                <Stamp className="h-8 w-8 text-[var(--text-muted)] mx-auto mb-3" />
+                <p className="font-mono text-xs text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
+                  No activity recorded yet
+                </p>
+              </div>
+            ) : (
+              <ul className="px-6 py-6 flex flex-col gap-5">
+                {recentStamps.map((stamp, idx) => (
+                  <li key={stamp.id} className="contents">
+                    <div className="flex items-start gap-4">
+                      <span
+                        className={`mt-0.5 ${stamp.source === "enrollment" ? "text-[var(--text-tertiary)]" : "text-brand"}`}
+                      >
+                        <QrCode className="h-[18px] w-[18px]" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-mono text-sm text-[var(--text-primary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>
+                          Scanned loyalty card for <span className="font-bold">{stamp.customerName}</span>.
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span
+                            className={`text-[12px] tracking-[0.15em] uppercase font-bold px-2 py-0.5 border ${
+                              stamp.source === "enrollment"
+                                ? "text-[var(--text-secondary)] border-[var(--border)]"
+                                : "text-brand border-brand/40"
+                            }`}
+                          >
+                            {stamp.source === "enrollment" ? "Welcome" : "Scan"}
+                          </span>
+                          {stamp.rewardDescription ? (
+                            <span className="font-mono text-[11px] text-[var(--text-tertiary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>
+                              {stamp.rewardDescription}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="font-mono text-[11px] text-[var(--text-tertiary)] mt-1" style={{ fontFamily: "'Space Mono', monospace" }}>
+                          {timeAgo(stamp.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                    {idx < recentStamps.length - 1 && <div className="w-full h-px bg-[var(--border)] mt-5" aria-hidden />}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* Access Privileges */}
+          <section className="bg-[var(--surface-raised)] p-6 md:p-8">
+            <h3 className="text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] mb-4">
+              Staff Access
+            </h3>
+            <div className="flex flex-col gap-2">
+              {[
+                { icon: QrCode, label: "Scan Stamps", description: "Award stamps on every visit", enabled: true },
+                { icon: Shield, label: "Verified Access", description: "Identity tied to their Punched account", enabled: true },
+              ].map(({ icon: Icon, label, description }) => (
+                <div key={label} className="flex items-center justify-between gap-3 py-1">
+                  <span className="flex items-center gap-3 min-w-0">
+                    <Icon className="h-4 w-4 text-brand flex-shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block font-mono text-sm text-[var(--text-primary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>{label}</span>
+                      <span className="block font-mono text-[11px] text-[var(--text-tertiary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>{description}</span>
+                    </span>
+                  </span>
+                  <span className="text-brand flex-shrink-0" aria-hidden>✓</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );
