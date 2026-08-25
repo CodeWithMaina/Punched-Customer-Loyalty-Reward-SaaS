@@ -282,11 +282,12 @@ public class AdminService : IAdminService
                 .Take(10)
                 .ToListAsync();
 
-            // Engagement breakdown (based on stamps in last 30d)
+            // Engagement breakdown (based on stamps in last 30d), scoped to the
+            // selected customer set so we never group the entire stamps table.
             var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
             var allCustomerIds = await customers.Select(u => u.Id).ToListAsync();
             var recentStampCounts = await _context.Stamps
-                .Where(s => s.CreatedAt >= thirtyDaysAgo)
+                .Where(s => s.CreatedAt >= thirtyDaysAgo && allCustomerIds.Contains(s.Card.CustomerId))
                 .GroupBy(s => s.Card.CustomerId)
                 .Select(g => new { CustomerId = g.Key, Count = g.Count() })
                 .ToListAsync();
@@ -542,12 +543,13 @@ public class AdminService : IAdminService
 
             if (!string.IsNullOrWhiteSpace(search))
             {
-                var s = search.ToLower();
-                query = query.Where(u => u.FullName.ToLower().Contains(s) || u.Email.ToLower().Contains(s));
+                var pattern = $"%{search}%";
+                query = query.Where(u => EF.Functions.ILike(u.FullName, pattern) || EF.Functions.ILike(u.Email, pattern));
             }
 
             var totalCount = await query.CountAsync();
             var items = await query
+                .AsNoTracking()
                 .OrderByDescending(u => u.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -709,12 +711,12 @@ public class AdminService : IAdminService
             var query = _context.Businesses.Include(b => b.Owner).AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(category))
-                query = query.Where(b => b.Category.ToLower() == category.ToLower());
+                query = query.Where(b => EF.Functions.ILike(b.Category, category));
 
             if (!string.IsNullOrWhiteSpace(search))
             {
-                var s = search.ToLower();
-                query = query.Where(b => b.Name.ToLower().Contains(s) || b.Location.ToLower().Contains(s));
+                var pattern = $"%{search}%";
+                query = query.Where(b => EF.Functions.ILike(b.Name, pattern) || (b.Location != null && EF.Functions.ILike(b.Location, pattern)));
             }
 
             var totalCount = await query.CountAsync();
@@ -824,12 +826,12 @@ public class AdminService : IAdminService
     {
         try
         {
-            var query = _context.Redemptions.Include(r => r.Business).Include(r => r.Card).ThenInclude(c => c.Program).AsQueryable();
+            var query = _context.Redemptions.AsNoTracking().Include(r => r.Business).Include(r => r.Card).ThenInclude(c => c.Program).AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(search))
             {
-                var s = search.ToLower();
-                query = query.Where(r => r.Business.Name.ToLower().Contains(s));
+                var pattern = $"%{search}%";
+                query = query.Where(r => EF.Functions.ILike(r.Business.Name, pattern));
             }
 
             var totalCount = await query.CountAsync();
@@ -871,10 +873,22 @@ public class AdminService : IAdminService
 
         var q = _context.ApiEventLogs.Where(x => x.CreatedAt >= since);
 
-        var total = await q.CountAsync();
-        var error5xx = await q.CountAsync(x => x.StatusCode >= 500);
-        var error4xx = await q.CountAsync(x => x.StatusCode >= 400 && x.StatusCode < 500);
-        var avgDuration = await q.Select(x => (double?)x.DurationMs).AverageAsync() ?? 0d;
+        // Single-scan conditional aggregate instead of four separate COUNT/AVERAGE scans.
+        var stats = await q
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                Error5xx = g.Count(x => x.StatusCode >= 500),
+                Error4xx = g.Count(x => x.StatusCode >= 400 && x.StatusCode < 500),
+                AvgDuration = g.Average(x => (double?)x.DurationMs)
+            })
+            .SingleOrDefaultAsync();
+
+        var total = stats?.Total ?? 0;
+        var error5xx = stats?.Error5xx ?? 0;
+        var error4xx = stats?.Error4xx ?? 0;
+        var avgDuration = stats?.AvgDuration ?? 0d;
         var errorRate = total > 0 ? ((double)(error4xx + error5xx) / total) * 100d : 0d;
 
                 return ApiResponse<AdminApiHealthResponse>.Ok(new AdminApiHealthResponse

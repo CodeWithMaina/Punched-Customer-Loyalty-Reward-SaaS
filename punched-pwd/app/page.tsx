@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   CalendarDays,
   Users,
@@ -9,6 +10,7 @@ import {
   BadgeCheck,
   ArrowRight,
 } from "lucide-react";
+import { FeatureSheet, type FeatureInfo } from "@/components/landing/FeatureSheet";
 
 /* ============================================================
    PUNCHED — Atmospheric Brutalism landing page.
@@ -22,15 +24,67 @@ const MONO = "'Space Mono', monospace";
 
 const MARQUEE_WORDS = ["AURORA", "LUMEN", "ELITE", "STARK", "VANGUARD", "NOVA"];
 
-const MODULES = [
-  { label: "Appointments", icon: CalendarDays, href: "/login" },
-  { label: "Clients", icon: Users, href: "/login" },
-  { label: "Loyalty", icon: Star, href: "/login" },
-  { label: "Stamp Cards", icon: QrCode, href: "/login" },
-  { label: "Staff", icon: BadgeCheck, href: "/login" },
+const FEATURES: FeatureInfo[] = [
+  {
+    label: "Appointments",
+    icon: CalendarDays,
+    summary:
+      "A live scheduling board for your business. See today at a glance, navigate week by week, and act on bookings in one tap.",
+    benefits: [
+      "Current-time timeline so you always know what's happening now",
+      "Confirm, complete or reschedule bookings without phone calls",
+      "Customers self-book only into real availability — no double booking",
+    ],
+  },
+  {
+    label: "Clients",
+    icon: Users,
+    summary:
+      "Every customer who walks in becomes a profile with their visit history, stamps and rewards attached.",
+    benefits: [
+      "Full visit history per customer",
+      "Spot your regulars and your dormant customers",
+      "Book on behalf of walk-ins in seconds",
+    ],
+  },
+  {
+    label: "Loyalty",
+    icon: Star,
+    summary:
+      "Digital stamp cards that replace paper punch cards. Customers collect stamps by QR scan and redeem rewards automatically.",
+    benefits: [
+      "Set any N-stamps → reward rule per program",
+      "Fraud-resistant QR stamping",
+      "Reward progress visible to customers in their own PWA",
+    ],
+  },
+  {
+    label: "Stamp Cards",
+    icon: QrCode,
+    summary:
+      "Each business gets a unique stamp QR. A single scan awards a stamp and updates every linked loyalty card instantly.",
+    benefits: [
+      "One scan = one verified visit",
+      "Works offline-tolerantly on the customer's phone",
+      "No hardware, cards or printers to buy",
+    ],
+  },
+  {
+    label: "Staff",
+    icon: BadgeCheck,
+    summary:
+      "Invite staff by email and give each one a scoped calendar where they confirm and complete their own appointments.",
+    benefits: [
+      "Email invitations — no shared logins",
+      "Staff see only their own schedule",
+      "Owners keep full oversight of the whole calendar",
+    ],
+  },
 ];
 
 export default function LandingPage() {
+  const [activeFeature, setActiveFeature] = useState<FeatureInfo | null>(null);
+
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)] flex flex-col relative overflow-x-hidden">
       <style>{`
@@ -124,52 +178,27 @@ export default function LandingPage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          {/* Feature nav pills */}
+          {/* Feature nav pills — open the feature experience */}
           <div className="flex flex-wrap justify-center gap-3 md:gap-4 pt-8 w-full max-w-4xl mx-auto">
-            {MODULES.map(({ label, icon: Icon }) => (
-              <Link
-                key={label}
-                href="/login"
-                className="flex items-center gap-2 rounded-full border border-[var(--border)] px-5 py-2.5 text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] transition-all backdrop-blur-sm"
-                style={{ fontFamily: HEADLINE }}
-              >
-                <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
-                {label}
-              </Link>
-            ))}
+            {FEATURES.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <button
+                  key={feature.label}
+                  onClick={() => setActiveFeature(feature)}
+                  aria-haspopup="dialog"
+                  className="flex items-center gap-2 rounded-full border border-[var(--border)] px-5 py-2.5 text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] transition-all backdrop-blur-sm active:scale-95 motion-reduce:active:scale-100"
+                  style={{ fontFamily: HEADLINE }}
+                >
+                  <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  {feature.label}
+                </button>
+              );
+            })}
           </div>
         </section>
 
-        {/* ── System Architecture modules ──────────────────── */}
-        <section id="modules" className="w-full px-5 py-24 z-10">
-          <h2
-            className="text-[10px] tracking-[0.3em] uppercase font-bold text-[var(--text-tertiary)] mb-12 pl-2"
-            style={{ fontFamily: HEADLINE }}
-          >
-            System Architecture
-          </h2>
-          <div className="max-w-5xl mx-auto flex flex-col border-t border-[var(--border)]">
-            {MODULES.map(({ label, icon: Icon, href }) => (
-              <Link
-                key={label}
-                href={href}
-                className="group flex justify-between items-center py-6 border-b border-[var(--border)] hover:bg-[var(--surface-raised)] transition-colors duration-300 px-2"
-              >
-                <span
-                  className="uppercase text-base md:text-lg group-hover:pl-2 transition-all duration-300 text-[var(--text-primary)]"
-                  style={{ fontFamily: HEADLINE }}
-                >
-                  {label}
-                </span>
-                <Icon
-                  className="h-5 w-5 text-[var(--text-tertiary)] group-hover:text-brand transition-colors"
-                  strokeWidth={1.25}
-                />
-              </Link>
-            ))}
-          </div>
-
-          {/* Enterprise teaser */}
+        {/* Enterprise teaser */}
           <div className="max-w-5xl mx-auto mt-16 border border-[var(--border)] p-6 md:p-10 relative overflow-hidden">
             <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-white/10" />
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -196,7 +225,6 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-        </section>
       </main>
 
       {/* ── Footer ─────────────────────────────────────────── */}
@@ -218,6 +246,9 @@ export default function LandingPage() {
           <Link href="/enterprise" className="hover:text-[var(--text-primary)] underline-offset-4 hover:underline transition-colors">Enterprise</Link>
         </nav>
       </footer>
+
+      {/* Feature information experience (mobile sheet / desktop modal) */}
+      <FeatureSheet feature={activeFeature} onClose={() => setActiveFeature(null)} />
     </div>
   );
 }

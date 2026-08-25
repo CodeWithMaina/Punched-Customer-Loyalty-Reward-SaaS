@@ -54,6 +54,9 @@ module.exports = {
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
         display: ["Space Grotesk", "sans-serif"],
+        /* Atmospheric Brutalism body face (already imported in globals.css) */
+        mono: ["Space Mono", "ui-monospace", "monospace"],
+        headline: ["Plus Jakarta Sans", "sans-serif"],
       },
       boxShadow: {
         card: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03)",

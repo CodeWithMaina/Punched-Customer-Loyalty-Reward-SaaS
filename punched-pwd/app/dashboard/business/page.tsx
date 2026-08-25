@@ -95,7 +95,7 @@ export default function BusinessOverviewPage() {
     Promise.all([
       businessesApi.getMyCustomers().catch(() => null),
       loyaltyApi.listPrograms().catch(() => null),
-      businessesApi.getMyStaff({ sort: "stamps" }).catch(() => null),
+      businessesApi.getMyStaff({ sortBy: "stamps", sortDirection: "desc" }).catch(() => null),
     ]).then(([custRes, progRes, staffRes]) => {
       if (custRes?.success && custRes.data) {
         setCustomers(custRes.data.items);
@@ -106,7 +106,7 @@ export default function BusinessOverviewPage() {
       }
 
       if (staffRes?.success && staffRes.data) {
-        setStaff(staffRes.data);
+        setStaff(staffRes.data.items);
       }
     });
   }, [isLoading, notFound]);

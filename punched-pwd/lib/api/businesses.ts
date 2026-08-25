@@ -11,13 +11,17 @@ import type {
   BusinessDashboardResponse,
   BusinessAnalyticsResponse,
   BusinessAnalyticsComparisonResponse,
+  CustomerActivityFeedResponse,
+  CustomerOverviewResponse,
   CustomerPeriodStatsResponse,
   MessageResponse,
   StaffBusinessResponse,
   StaffAnalyticsResponse,
   StaffActivityFeedResponse,
   StaffActivityQuery,
+  StaffListResponse,
   StaffMember,
+  StaffOverviewResponse,
   StaffMemberAnalyticsResponse,
   StampDto,
   NotificationDto,
@@ -68,6 +72,22 @@ export const businessesApi = {
       .get<ApiResponse<BusinessCustomer>>(`/businesses/me/customers/${customerId}`)
       .then((r) => r.data),
 
+  getCustomerOverview: () =>
+    apiClient
+      .get<ApiResponse<CustomerOverviewResponse>>("/businesses/me/customers/overview")
+      .then((r) => r.data),
+
+  getCustomerActivity: (
+    customerId: string,
+    params?: { page?: number; pageSize?: number }
+  ) =>
+    apiClient
+      .get<ApiResponse<CustomerActivityFeedResponse>>(
+        `/businesses/me/customers/${customerId}/activity`,
+        { params: params ?? undefined }
+      )
+      .then((r) => r.data),
+
   getDashboard: () =>
     cachedFetch("biz:dashboard", () =>
       apiClient
@@ -81,11 +101,25 @@ export const businessesApi = {
       .get<ApiResponse<StaffBusinessResponse>>("/businesses/staff/my-business")
       .then((r) => r.data),
 
-  getMyStaff: (params?: { search?: string; sort?: string }) =>
+  getMyStaff: (params?: {
+    search?: string;
+    status?: "active" | "inactive";
+    activity?: "today" | "week" | "idle";
+    goalStatus?: "met" | "behind" | "none";
+    sortBy?: "name" | "stamps" | "recent" | "goal" | "added";
+    sortDirection?: "asc" | "desc";
+    page?: number;
+    pageSize?: number;
+  }) =>
     apiClient
-      .get<ApiResponse<StaffMember[]>>("/businesses/me/staff", {
+      .get<ApiResponse<StaffListResponse>>("/businesses/me/staff", {
         params: params ?? undefined,
       })
+      .then((r) => r.data),
+
+  getStaffOverview: () =>
+    apiClient
+      .get<ApiResponse<StaffOverviewResponse>>("/businesses/me/staff/overview")
       .then((r) => r.data),
 
   setBusinessDailyGoal: (dailyGoal?: number) =>

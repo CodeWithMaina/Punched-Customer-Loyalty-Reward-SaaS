@@ -1,487 +1,624 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
-import type { AnalyticsPeriod, StaffMemberAnalyticsResponse, StampDto } from "@/types";
+import type {
+  AnalyticsPeriod,
+  StaffMemberAnalyticsResponse,
+  StaffActivityItem,
+} from "@/types";
+import toast from "react-hot-toast";
 import {
-  Loader2, User, Shield, ChevronLeft, RefreshCw,
-  Stamp, Trophy, QrCode,
+  ArrowLeft,
+  ArrowUpRight,
+  Check,
+  Mail,
+  Pencil,
+  QrCode,
+  ShieldCheck,
+  Stamp,
 } from "lucide-react";
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from "recharts";
+import { ErrorState } from "@/components/ui/States";
+import { Tabs } from "@/components/ui/Tabs";
+import { GoalProgress, ActivityBadge } from "../_components/GoalProgress";
+import { EditGoalModal } from "../_components/EditGoalModal";
+
+const RECENT_COUNT = 5;
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
+
+  if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;
+
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
+
   const days = Math.floor(hrs / 24);
   return days === 1 ? "Yesterday" : `${days}d ago`;
 }
 
 const PERIODS: { label: string; value: AnalyticsPeriod }[] = [
   { label: "Today", value: "today" },
-  { label: "7D", value: "7d" },
-  { label: "30D", value: "30d" },
-  { label: "All", value: "all" },
+  { label: "7 days", value: "7d" },
+  { label: "30 days", value: "30d" },
+  { label: "All time", value: "all" },
 ];
+
+function SectionLabel({
+  icon: Icon,
+  children,
+}: {
+  icon: typeof Stamp;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--text-secondary)]">
+      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--brand)]/10 text-[var(--brand)]">
+        <Icon className="h-3.5 w-3.5" />
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="min-w-0 rounded-xl border border-[var(--border-light,var(--border))] bg-[var(--background)] p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+        {label}
+      </p>
+
+      <p className="mt-2 font-headline text-3xl font-extrabold tabular-nums tracking-[-0.04em] text-[var(--text-primary)]">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ActivityRow({ item }: { item: StaffActivityItem }) {
+  const isStamp = item.activityType === "stamp";
+
+  return (
+    <li className="relative flex gap-3 px-5 py-4 transition-colors hover:bg-[var(--surface-container-low,var(--surface-raised))] sm:px-6">
+      {/* Timeline connector */}
+      <span
+        aria-hidden
+        className="absolute bottom-0 left-[31px] top-12 w-px bg-[var(--border-light,var(--border))]"
+      />
+
+      <div
+        className={[
+          "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+          isStamp
+            ? "bg-[var(--brand-surface)] text-[var(--brand)]"
+            : "bg-[var(--accent-light)] text-[var(--accent-text)]",
+        ].join(" ")}
+      >
+        {isStamp ? (
+          <Stamp className="h-3.5 w-3.5" />
+        ) : (
+          <Check className="h-3.5 w-3.5" />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1 pt-0.5">
+        <p className="text-sm leading-5 text-[var(--text-primary)]">
+          {isStamp ? "Stamp issued" : "Reward redeemed"}{" "}
+          <span className="font-semibold">for {item.customerName}</span>
+          {isStamp && item.stampNumber > 0 && (
+            <span className="text-[var(--text-tertiary)]">
+              {" "}· Stamp {item.stampNumber}
+            </span>
+          )}
+        </p>
+
+        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+          {timeAgo(item.stampedAt)}
+        </p>
+      </div>
+    </li>
+  );
+}
 
 export default function StaffDetailPage() {
   useRoleGuard("Business");
+
   const { staffId } = useParams<{ staffId: string }>();
 
-  const [analytics, setAnalytics] = useState<StaffMemberAnalyticsResponse | null>(null);
-  const [recentStamps, setRecentStamps] = useState<StampDto[]>([]);
-  const [isStampsLoading, setIsStampsLoading] = useState(true);
-  const [period, setPeriod] = useState<AnalyticsPeriod>("all");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPeriodLoading, setIsPeriodLoading] = useState(false);
+  const [analytics, setAnalytics] =
+    useState<StaffMemberAnalyticsResponse | null>(null);
 
-  const loadRecentStamps = useCallback(async () => {
-    try {
-            const bizRes = await businessesApi.getMine();
-      if (!bizRes.success || !bizRes.data) return;
-      const stampsRes = await businessesApi.getRecentStamps(bizRes.data.id, staffId, 20);
-      if (stampsRes.success && stampsRes.data) setRecentStamps(stampsRes.data);
-    } catch {
-      /* keep existing list on transient errors */
-    } finally {
-      setIsStampsLoading(false);
-    }
+  const [period, setPeriod] = useState<AnalyticsPeriod>("all");
+  const [recentActivity, setRecentActivity] = useState<StaffActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [businessDefaultGoal, setBusinessDefaultGoal] = useState<number | null>(
+    null
+  );
+
+  const [todayStamps, setTodayStamps] = useState(0);
+  const [goalModalOpen, setGoalModalOpen] = useState(false);
+  const [savingGoal, setSavingGoal] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setIsLoading(true);
+    setError(null);
+
+    Promise.all([
+      businessesApi.getStaffMemberAnalytics(staffId, "all"),
+      businessesApi.getStaffMemberAnalytics(staffId, "today"),
+      businessesApi.getMine(),
+    ])
+      .then(([analyticsRes, todayRes, bizRes]) => {
+        if (cancelled) return;
+
+        if (analyticsRes.success && analyticsRes.data) {
+          setAnalytics(analyticsRes.data);
+        } else {
+          setError(
+            analyticsRes.error?.message ?? "Staff member not found."
+          );
+        }
+
+        if (todayRes.success && todayRes.data) {
+          setTodayStamps(todayRes.data.stampsIssued);
+        }
+
+        if (bizRes.success && bizRes.data) {
+          setBusinessDefaultGoal(bizRes.data.defaultDailyGoal ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError("Failed to load staff member.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [staffId]);
 
   useEffect(() => {
-    setIsLoading(true);
-    businessesApi.getStaffMemberAnalytics(staffId, "all")
+    if (isLoading || period === "all" || error) return;
+
+    let cancelled = false;
+
+    businessesApi
+      .getStaffMemberAnalytics(staffId, period)
       .then((res) => {
-        if (res.success && res.data) setAnalytics(res.data);
+        if (!cancelled && res.success && res.data) {
+          setAnalytics(res.data);
+        }
       })
-      .finally(() => setIsLoading(false));
+      .catch(() => undefined);
 
-    loadRecentStamps();
-  }, [staffId, loadRecentStamps]);
+    return () => {
+      cancelled = true;
+    };
+  }, [period, staffId, isLoading, error]);
 
-  // Lightweight polling refresh every 45s.
-  useEffect(() => {
-    const t = setInterval(loadRecentStamps, 45_000);
-    return () => clearInterval(t);
-  }, [loadRecentStamps]);
+  const loadRecentActivity = useCallback(() => {
+    let cancelled = false;
 
-  useEffect(() => {
-    if (isLoading) return;
-    setIsPeriodLoading(true);
-    businessesApi.getStaffMemberAnalytics(staffId, period)
+    setActivityLoading(true);
+
+    businessesApi
+      .getStaffMemberActivity(staffId, {
+        page: 1,
+        pageSize: RECENT_COUNT,
+      })
       .then((res) => {
-        if (res.success && res.data) setAnalytics(res.data);
+        if (!cancelled && res.success && res.data) {
+          setRecentActivity(res.data.activity);
+        }
       })
-      .finally(() => setIsPeriodLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period]);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false);
+      });
 
-  // Build daily breakdown from recent activity
-  const dailyData = useMemo(() => {
-    if (!analytics) return [];
-    const now = new Date();
-    const dayCount = period === "today" ? 1 : period === "7d" ? 7 : period === "30d" ? 30 : 14;
-    const buckets: Record<string, number> = {};
-    for (let i = dayCount - 1; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      buckets[d.toISOString().slice(0, 10)] = 0;
+    return () => {
+      cancelled = true;
+    };
+  }, [staffId]);
+
+  useEffect(() => {
+    loadRecentActivity();
+  }, [loadRecentActivity]);
+
+  async function saveGoal(goal?: number) {
+    setSavingGoal(true);
+
+    try {
+      const res = await businessesApi.setStaffDailyGoal(staffId, goal);
+
+      if (res.success) {
+        toast.success(
+          res.data?.dailyGoalOverride
+            ? "Daily goal updated"
+            : "Personal goal removed — using business default"
+        );
+
+        setGoalModalOpen(false);
+
+        setAnalytics((a) =>
+          a
+            ? {
+                ...a,
+                dailyGoal:
+                  res.data?.dailyGoal ??
+                  businessDefaultGoal ??
+                  undefined,
+              }
+            : a
+        );
+      } else {
+        toast.error(
+          res.error?.message ?? "Failed to update goal."
+        );
+      }
+    } catch {
+      toast.error("Unexpected error.");
+    } finally {
+      setSavingGoal(false);
     }
-    analytics.recentActivity.forEach((a) => {
-      const key = new Date(a.stampedAt).toISOString().slice(0, 10);
-      if (key in buckets) buckets[key]++;
-    });
-    return Object.entries(buckets).map(([date, count]) => ({
-      label: new Date(date).toLocaleDateString("en", { weekday: "short", day: "numeric" }),
-      stamps: count,
-    }));
-  }, [analytics, period]);
+  }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-brand" />
-      </div>
-    );
-  }
-
-  if (!analytics) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 px-4">
-        <div className="border border-[var(--border)] bg-[var(--surface-raised)] p-5">
-          <User className="h-10 w-10 text-[var(--text-muted)]" />
+      <div className="mx-auto max-w-4xl px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="space-y-5 pt-6">
+          <div className="h-8 w-32 skeleton rounded-xl" />
+          <div className="h-44 skeleton rounded-3xl" />
+          <div className="h-56 skeleton rounded-3xl" />
+          <div className="h-52 skeleton rounded-3xl" />
         </div>
-        <p className="text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-secondary)]">
-          Staff member not found
-        </p>
-        <Link
-          href="/dashboard/business/staff"
-          className="border border-[var(--border)] px-4 py-2 text-[12px] tracking-[0.15em] uppercase font-bold text-brand hover:bg-brand hover:text-[var(--surface)] transition-colors"
-        >
-          ← Back to staff
-        </Link>
       </div>
     );
   }
 
-  const { stampsIssued, customersServed, totalStampsAllTime, totalCustomersAllTime } = analytics;
+  if (error || !analytics) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+        <ErrorState
+          title="Staff member not found"
+          message={
+            error ??
+            "This staff member is not part of your business."
+          }
+          onRetry={() => window.location.reload()}
+        />
+      </div>
+    );
+  }
 
-  const heroValue = period === "all" ? totalStampsAllTime : stampsIssued;
-  const dailyGoal = analytics.dailyGoal ?? 25;
-  const dailyProgress = period === "today" ? Math.min((stampsIssued / dailyGoal) * 100, 100) : 100;
-  const goalReached = period === "today" && stampsIssued >= dailyGoal;
+  const effectiveGoal = analytics.dailyGoal ?? businessDefaultGoal;
 
-  // Insights
-  const avgPerDay = period === "7d" ? Math.round(stampsIssued / 7) :
-    period === "30d" ? Math.round(stampsIssued / 30) : 0;
-  const efficiency = customersServed > 0 ? Math.round((stampsIssued / customersServed) * 10) / 10 : 0;
+  const initials = analytics.fullName
+    .split(" ")
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  const goalPercentage =
+    effectiveGoal && effectiveGoal > 0
+      ? Math.min(Math.round((todayStamps / effectiveGoal) * 100), 100)
+      : null;
 
   return (
-    <div className="relative overflow-x-hidden min-h-screen pb-12">
-      {/* Watermark */}
-      <div
-        aria-hidden
-        className="hidden md:block absolute top-24 right-0 font-extrabold leading-none select-none pointer-events-none z-0"
-        style={{
-          fontFamily: "'Plus Jakarta Sans', sans-serif",
-          fontSize: "340px",
-          color: "var(--text-primary)",
-          opacity: 0.02,
-        }}
-      >
-        PUNCH
-      </div>
+    <main className="min-h-screen pb-20">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
 
-      <div className="relative z-10 max-w-[1440px] mx-auto px-5 md:px-8 lg:px-16 py-6 md:py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-10">
-        {/* ── Left column: profile & goal ───────────────────────── */}
-        <div className="lg:col-span-4 flex flex-col gap-8">
+        {/* Back */}
+        <div className="pt-5 sm:pt-7">
           <Link
-            href="/dashboard/business/staff"
-            className="inline-flex items-center gap-2 self-start border border-[var(--border)] px-4 py-2.5 text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-brand transition-colors"
+            href="/dashboard/business/staff?view=team"
+            className="group inline-flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--brand)]"
           >
-            <ChevronLeft className="h-4 w-4" />
-            Staff
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+            Back to Team Directory
           </Link>
-
-          {/* Profile card */}
-          <section className="border border-[var(--border)] bg-[var(--surface-raised)] p-8 flex flex-col items-center text-center relative overflow-hidden group">
-            <div
-              aria-hidden
-              className="absolute inset-x-0 bottom-0 h-1/3 pointer-events-none transition-opacity duration-500 opacity-0 group-hover:opacity-100"
-              style={{ background: "linear-gradient(to top, var(--brand-surface), transparent)" }}
-            />
-            <div className="relative w-28 h-28 mb-5">
-              <div className="w-full h-full rounded-full overflow-hidden border-2 border-[var(--border)] bg-brand-surface flex items-center justify-center grayscale hover:grayscale-0 transition-all duration-500">
-                {analytics.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={analytics.avatarUrl} alt={analytics.fullName} className="w-full h-full object-cover" />
-                ) : (
-                  <span
-                    className="text-4xl font-extrabold text-brand"
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                  >
-                    {analytics.fullName.charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <div className="absolute -bottom-1 -right-1 bg-[var(--background)] border border-[var(--border)] rounded-full p-1.5 flex items-center justify-center">
-                <Shield className="h-3 w-3 text-brand" />
-              </div>
-            </div>
-            <h1
-              className={`text-2xl md:text-[32px] font-bold tracking-tight text-[var(--text-primary)] mb-2 ${isPeriodLoading ? "opacity-40" : ""}`}
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            >
-              {analytics.fullName}
-            </h1>
-            <p className="font-mono text-xs text-[var(--text-tertiary)] mb-4 break-all" style={{ fontFamily: "'Space Mono', monospace" }}>
-              {analytics.email}
-            </p>
-            <div className="bg-[var(--surface-container-high, var(--surface))] border border-[var(--border)] px-3 py-1 flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${isPeriodLoading ? "" : "animate-pulse"} bg-brand`} />
-              <span className="text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-primary)]">
-                Staff Member
-              </span>
-            </div>
-          </section>
-
-          {/* Daily Goal */}
-          <section className="border border-[var(--border)] bg-[var(--background)] p-6">
-            <div className="flex justify-between items-center border-b border-[var(--border)] pb-4 mb-5">
-              <h2
-                className="text-lg font-semibold tracking-tight text-[var(--text-primary)]"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                Daily Goal
-              </h2>
-              {goalReached && <Trophy className="h-4 w-4 text-brand" />}
-            </div>
-            <div className="flex justify-between font-mono text-xs mb-3" style={{ fontFamily: "'Space Mono', monospace" }}>
-              <span className="text-[var(--text-tertiary)]">Current Progress</span>
-              <span className={`font-bold ${goalReached ? "text-ok" : "text-[var(--text-primary)]"}`}>
-                {period === "today" ? stampsIssued : dailyGoal} / {dailyGoal}
-              </span>
-            </div>
-            {period === "today" ? (
-              <>
-                <div className="w-full h-2 bg-[var(--surface-container-high, var(--border-light))] relative overflow-hidden">
-                  <div className="absolute inset-y-0 opacity-10" style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 10px, var(--text-primary) 10px, var(--text-primary) 20px)" }} />
-                  <div
-                    className={`absolute left-0 top-0 bottom-0 transition-all duration-700 ${goalReached ? "bg-ok" : "bg-brand"}`}
-                    style={{ width: `${dailyProgress}%` }}
-                  />
-                </div>
-                <p className="text-right text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] mt-3">
-                  {Math.round(dailyProgress)}% COMPLETED
-                </p>
-                {!goalReached && (
-                  <p className="font-mono text-xs text-[var(--text-secondary)] mt-1" style={{ fontFamily: "'Space Mono', monospace" }}>
-                    {dailyGoal - stampsIssued} more to hit today&apos;s goal
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="font-mono text-xs text-[var(--text-tertiary)] mt-1" style={{ fontFamily: "'Space Mono', monospace" }}>
-                Switch to &quot;Today&quot; to track today&apos;s progress.
-              </p>
-            )}
-          </section>
-
-          {/* Attribution note */}
-          <section className="bg-brand-surface border border-brand/20 p-4 flex items-start gap-3">
-            <QrCode className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
-            <p className="font-mono text-xs leading-relaxed text-[var(--text-secondary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
-              Stamps are attributed to the exact staff or business account that scanned the customer QR.
-            </p>
-          </section>
         </div>
 
-        {/* ── Right column: metrics & analytics ─────────────────── */}
-        <div className="lg:col-span-8 flex flex-col gap-8">
-          {/* Overview grid */}
-          <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: period === "today" ? "Today's Stamps" : period === "7d" ? "7-Day Stamps" : period === "30d" ? "30-Day Stamps" : "All-Time Stamps", value: heroValue },
-              { label: "Customers Served", value: customersServed },
-              { label: "All-Time Stamps", value: totalStampsAllTime },
-              { label: "All-Time Customers", value: totalCustomersAllTime },
-            ].map(({ label, value }) => (
-              <div key={label} className={`border border-[var(--border)] bg-[var(--surface-raised)] p-5 flex flex-col gap-2 hover:bg-brand-surface transition-colors ${isPeriodLoading ? "opacity-50" : ""}`}>
-                <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">{label}</span>
+        {/* Profile hero + today's goal bento */}
+        <section className="mt-5 overflow-hidden rounded-[20px] border border-[var(--border-light,var(--border))] bg-[var(--surface)] p-5 shadow-[0_8px_24px_rgba(31,108,58,0.06)] sm:p-7">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 items-center gap-5">
+              <div className="relative shrink-0">
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-[var(--surface-container-low,var(--surface-raised))] bg-[var(--brand-surface)] text-2xl font-bold text-[var(--brand)] shadow-sm">
+                  {analytics.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={analytics.avatarUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initials
+                  )}
+                </div>
+
                 <span
-                  className="text-[32px] md:text-[40px] font-extrabold leading-none tracking-tight text-[var(--text-primary)]"
-                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  aria-label="Active staff member"
+                  className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[var(--surface)] bg-[var(--brand)] text-white"
                 >
-                  {value}
+                  <Check className="h-3.5 w-3.5" />
                 </span>
               </div>
-            ))}
-          </section>
 
-          {/* Actionable Insights */}
-          {(period === "7d" || period === "30d") && (
-            <section className="border border-[var(--border)] bg-[var(--background)] p-6">
-              <h2
-                className="text-lg font-semibold tracking-tight text-[var(--text-primary)] border-b border-[var(--border)] pb-4 mb-4"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                Insights
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs" style={{ fontFamily: "'Space Mono', monospace" }}>
-                {[
-                  { label: "Avg Stamps / Day", value: avgPerDay },
-                  { label: "Stamps Per Customer", value: efficiency },
-                  { label: "Unique Customers", value: customersServed },
-                ].map(({ label, value }) => (
-                  <div key={label} className="p-4 border border-[var(--border)] bg-[var(--surface-raised)]">
-                    <div className="text-[var(--text-tertiary)] mb-1">{label}</div>
-                    <div className="text-xl font-bold text-[var(--text-primary)]">{value}</div>
-                  </div>
-                ))}
+              <div className="min-w-0">
+                <h1 className="truncate font-headline text-2xl font-extrabold tracking-[-0.04em] text-[var(--text-primary)] sm:text-3xl">
+                  {analytics.fullName}
+                </h1>
+
+                <p className="mt-1 text-sm font-semibold text-[var(--brand)]">
+                  Staff Member
+                </p>
+
+                <p className="mt-1.5 flex items-center gap-1.5 truncate text-sm text-[var(--text-tertiary)]">
+                  <Mail className="h-4 w-4 shrink-0" />
+                  {analytics.email}
+                </p>
+
+                <div className="mt-2">
+                  <ActivityBadge
+                    lastActivityAt={
+                      recentActivity[0]?.stampedAt ?? null
+                    }
+                  />
+                </div>
               </div>
-            </section>
+            </div>
+          </div>
+
+          <div className="mt-7 flex justify-end gap-3 border-t border-[var(--border-light,var(--border))] pt-5">
+            <button
+              onClick={() => setGoalModalOpen(true)}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-5 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(31,108,58,0.15)] transition-all hover:bg-[var(--brand-hover,var(--brand))] active:scale-[0.98]"
+            >
+              <Pencil className="h-4 w-4" />
+              Manage Goal
+            </button>
+          </div>
+        </section>
+
+        {/* Today's goal */}
+        <section className="mt-5 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.025)] sm:p-7">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                Today&apos;s Shift Goal
+              </p>
+              <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+                Issue Loyalty Stamps
+              </p>
+            </div>
+
+            {goalPercentage !== null && (
+              <span
+                className={[
+                  "inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em]",
+                  goalPercentage >= 100
+                    ? "bg-[var(--success-light,var(--brand-surface))] text-[var(--success-text)]"
+                    : "bg-[var(--accent-light)] text-[var(--accent-text)]",
+                ].join(" ")}
+              >
+                {goalPercentage >= 100 ? "Goal reached" : "On track"}
+              </span>
+            )}
+
+            <button
+              onClick={() => setGoalModalOpen(true)}
+              className="rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--brand)] transition-colors hover:bg-[var(--brand)]/10"
+            >
+              Edit
+            </button>
+          </div>
+
+          <div className="mt-6 flex items-baseline gap-2">
+            <span className="font-headline text-5xl font-extrabold tracking-[-0.05em] text-[var(--accent-text,var(--text-primary))]">
+              {todayStamps}
+            </span>
+
+            <span className="font-headline text-xl font-semibold text-[var(--text-tertiary)]">
+              / {effectiveGoal ?? "—"}
+            </span>
+
+            <span className="ml-2 text-sm text-[var(--text-tertiary)]">
+              stamps issued
+            </span>
+          </div>
+
+          <div className="mt-5">
+            <GoalProgress
+              value={todayStamps}
+              goal={effectiveGoal}
+            />
+          </div>
+
+          {!effectiveGoal && (
+            <div className="mt-4 rounded-2xl bg-[var(--surface-container-low)] p-4">
+              <p className="text-xs leading-5 text-[var(--text-secondary)]">
+                Set a daily goal to start tracking this team
+                member&apos;s performance.
+              </p>
+            </div>
           )}
+        </section>
 
-          {/* Stamp Activity chart + period selector */}
-          <section className="border border-[var(--border)] bg-[var(--background)] p-6 flex flex-col">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[var(--border)] pb-4 mb-6 gap-4">
-              <h2
-                className="text-lg font-semibold tracking-tight text-[var(--text-primary)]"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                Stamp Activity
-              </h2>
-              <div className="flex gap-2" role="group" aria-label="Analytics period">
-                {PERIODS.map((p) => (
-                  <button
-                    key={p.value}
-                    onClick={() => setPeriod(p.value)}
-                    aria-pressed={period === p.value}
-                    className={`px-3 py-1 text-[12px] tracking-[0.15em] uppercase font-bold border transition-colors ${
-                      period === p.value
-                        ? "bg-brand text-[var(--background)] border-brand"
-                        : "bg-transparent text-[var(--text-tertiary)] border-[var(--border)] hover:text-[var(--text-primary)]"
-                    }`}
-                  >
-                    {p.label}
-                  </button>
+        {/* Performance */}
+        <section className="mt-5 overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_30px_rgba(0,0,0,0.025)]">
+          <div className="flex flex-col gap-4 border-b border-[var(--border-light)] p-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+            <SectionLabel icon={Stamp}>
+              Performance
+            </SectionLabel>
+
+            <Tabs
+              label="Performance period"
+              idPrefix="perf-period"
+              value={period}
+              onChange={setPeriod}
+              items={PERIODS.map((p) => ({
+                value: p.value,
+                label: p.label,
+              }))}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 divide-x divide-[var(--border-light)]">
+            <div className="p-5 sm:p-7">
+              <Metric
+                label="Stamps issued"
+                value={analytics.stampsIssued.toLocaleString()}
+              />
+            </div>
+
+            <div className="p-5 sm:p-7">
+              <Metric
+                label="Customers served"
+                value={analytics.customersServed.toLocaleString()}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-[var(--border-light)] bg-[var(--surface-container-low)] px-5 py-4 sm:flex-row sm:justify-between sm:px-7">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              All-time stamps{" "}
+              <strong className="text-[var(--text-secondary)]">
+                {analytics.totalStampsAllTime.toLocaleString()}
+              </strong>
+            </span>
+
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              Unique customers{" "}
+              <strong className="text-[var(--text-secondary)]">
+                {analytics.totalCustomersAllTime.toLocaleString()}
+              </strong>
+            </span>
+          </div>
+        </section>
+
+        {/* Recent activity */}
+        <section className="mt-5">
+          <div className="mb-3 flex items-center justify-between px-1">
+            <SectionLabel icon={QrCode}>
+              Recent activity
+            </SectionLabel>
+
+            <Link
+              href={`/dashboard/business/staff/${staffId}/activity`}
+              className="group inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--brand)] transition-colors hover:bg-[var(--brand)]/10"
+            >
+              View all
+              <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
+          </div>
+
+          <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_30px_rgba(0,0,0,0.025)]">
+            {activityLoading ? (
+              <div className="divide-y divide-[var(--border-light)]">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-[76px] skeleton"
+                  />
                 ))}
               </div>
-            </div>
-            <div className={`relative h-64 border border-[var(--border)] bg-[var(--surface-raised)] transition-opacity ${isPeriodLoading ? "opacity-40" : ""}`}>
-              {dailyData.length > 1 ? (
-                <div className="h-full p-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyData} margin={{ top: 12, right: 12, bottom: 4, left: -16 }}>
-                      <CartesianGrid stroke="var(--border)" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--text-tertiary)", fontFamily: "'Space Mono', monospace" }} axisLine={{ stroke: "var(--border)" }} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "var(--text-tertiary)", fontFamily: "'Space Mono', monospace" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: 0,
-                          fontSize: 12,
-                          background: "var(--surface-raised)",
-                          border: "1px solid var(--border)",
-                          color: "var(--text-primary)",
-                          fontFamily: "'Space Mono', monospace",
-                        }}
-                        cursor={{ stroke: "var(--border)" }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="stamps"
-                        stroke="var(--brand)"
-                        strokeWidth={2}
-                        dot={{ r: 2, fill: "var(--brand)", strokeWidth: 0 }}
-                        activeDot={{ r: 4 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+            ) : recentActivity.length === 0 ? (
+              <div className="px-6 py-12 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-container-low)] text-[var(--text-muted)]">
+                  <QrCode className="h-5 w-5" />
                 </div>
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="font-mono text-xs text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
-                    Not enough activity data for this period
-                  </span>
-                </div>
-              )}
-            </div>
-          </section>
 
-          {/* Recent Activity */}
-          <section className="border border-[var(--border)] bg-[var(--background)] flex flex-col">
-            <div className="flex justify-between items-center border-b border-[var(--border)] px-6 py-4">
-              <h2
-                className="text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                Recent Activity
-              </h2>
-              <button
-                type="button"
-                aria-label="Refresh activity"
-                onClick={loadRecentStamps}
-                disabled={isStampsLoading}
-                className="p-1 text-[var(--text-secondary)] hover:text-brand disabled:opacity-50 transition-colors"
-              >
-                <RefreshCw className={`h-4 w-4 ${isStampsLoading ? "animate-spin" : ""}`} />
-              </button>
-            </div>
+                <p className="mt-4 text-sm font-bold text-[var(--text-primary)]">
+                  No activity yet
+                </p>
 
-            {isStampsLoading && recentStamps.length === 0 ? (
-              <ul className="px-6 py-6 flex flex-col gap-5">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <li key={i} className="flex items-center gap-4">
-                    <div className="h-8 w-8 bg-[var(--surface-container-high, var(--border-light))] animate-pulse flex-shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 w-3/5 bg-[var(--surface-container-high, var(--border-light))] animate-pulse" />
-                      <div className="h-2 w-1/4 bg-[var(--surface-container-high, var(--border-light))] animate-pulse" />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : recentStamps.length === 0 ? (
-              <div className="p-10 text-center">
-                <Stamp className="h-8 w-8 text-[var(--text-muted)] mx-auto mb-3" />
-                <p className="font-mono text-xs text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
-                  No activity recorded yet
+                <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-[var(--text-tertiary)]">
+                  Stamps and rewards will appear here once{" "}
+                  {analytics.fullName.split(" ")[0]} starts scanning.
                 </p>
               </div>
             ) : (
-              <ul className="px-6 py-6 flex flex-col gap-5">
-                {recentStamps.map((stamp, idx) => (
-                  <li key={stamp.id} className="contents">
-                    <div className="flex items-start gap-4">
-                      <span
-                        className={`mt-0.5 ${stamp.source === "enrollment" ? "text-[var(--text-tertiary)]" : "text-brand"}`}
-                      >
-                        <QrCode className="h-[18px] w-[18px]" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-mono text-sm text-[var(--text-primary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>
-                          Scanned loyalty card for <span className="font-bold">{stamp.customerName}</span>.
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span
-                            className={`text-[12px] tracking-[0.15em] uppercase font-bold px-2 py-0.5 border ${
-                              stamp.source === "enrollment"
-                                ? "text-[var(--text-secondary)] border-[var(--border)]"
-                                : "text-brand border-brand/40"
-                            }`}
-                          >
-                            {stamp.source === "enrollment" ? "Welcome" : "Scan"}
-                          </span>
-                          {stamp.rewardDescription ? (
-                            <span className="font-mono text-[11px] text-[var(--text-tertiary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>
-                              {stamp.rewardDescription}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="font-mono text-[11px] text-[var(--text-tertiary)] mt-1" style={{ fontFamily: "'Space Mono', monospace" }}>
-                          {timeAgo(stamp.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                    {idx < recentStamps.length - 1 && <div className="w-full h-px bg-[var(--border)] mt-5" aria-hidden />}
-                  </li>
+              <ul className="divide-y divide-[var(--border-light)]">
+                {recentActivity.map((item) => (
+                  <ActivityRow
+                    key={`${item.activityType}-${item.activityId}`}
+                    item={item}
+                  />
                 ))}
               </ul>
             )}
-          </section>
+          </div>
+        </section>
 
-          {/* Access Privileges */}
-          <section className="bg-[var(--surface-raised)] p-6 md:p-8">
-            <h3 className="text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] mb-4">
-              Staff Access
-            </h3>
-            <div className="flex flex-col gap-2">
-              {[
-                { icon: QrCode, label: "Scan Stamps", description: "Award stamps on every visit", enabled: true },
-                { icon: Shield, label: "Verified Access", description: "Identity tied to their Punched account", enabled: true },
-              ].map(({ icon: Icon, label, description }) => (
-                <div key={label} className="flex items-center justify-between gap-3 py-1">
-                  <span className="flex items-center gap-3 min-w-0">
-                    <Icon className="h-4 w-4 text-brand flex-shrink-0" />
-                    <span className="min-w-0">
-                      <span className="block font-mono text-sm text-[var(--text-primary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>{label}</span>
-                      <span className="block font-mono text-[11px] text-[var(--text-tertiary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>{description}</span>
-                    </span>
-                  </span>
-                  <span className="text-brand flex-shrink-0" aria-hidden>✓</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
+        {/* Access */}
+        <section className="mt-5 rounded-[20px] border border-[var(--border-light,var(--border))] bg-[var(--surface)] p-5 shadow-[0_8px_24px_rgba(31,108,58,0.06)] sm:p-7">
+          <SectionLabel icon={ShieldCheck}>
+            System Access &amp; Permissions
+          </SectionLabel>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            {[
+              {
+                icon: QrCode,
+                label: "Scan stamps",
+                granted: true,
+              },
+              {
+                icon: ShieldCheck,
+                label: "Verified account access",
+                granted: true,
+              },
+            ].map(({ icon: Icon, label, granted }) => (
+              <span
+                key={label}
+                className={[
+                  "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium",
+                  granted
+                    ? "bg-[var(--surface-container-low,var(--surface-raised))] text-[var(--text-primary)]"
+                    : "bg-[var(--surface-container-low,var(--surface-raised))] text-[var(--text-muted)] line-through opacity-60",
+                ].join(" ")}
+              >
+                <Icon className={granted ? "h-3.5 w-3.5 text-[var(--brand)]" : "h-3.5 w-3.5"} aria-hidden />
+                {label}
+                {granted && <Check className="h-3.5 w-3.5 text-[var(--success)]" aria-hidden />}
+              </span>
+            ))}
+          </div>
+        </section>
       </div>
-    </div>
+
+      <EditGoalModal
+        open={goalModalOpen}
+        onClose={() => setGoalModalOpen(false)}
+        staff={{
+          fullName: analytics.fullName,
+          dailyGoalOverride: analytics.dailyGoalOverride,
+          dailyGoal: analytics.dailyGoal,
+        }}
+        businessDefaultGoal={businessDefaultGoal}
+        onSave={saveGoal}
+        saving={savingGoal}
+      />
+    </main>
   );
 }

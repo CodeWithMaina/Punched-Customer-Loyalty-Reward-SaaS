@@ -20,10 +20,22 @@ public interface IBusinessService
         int page,
         int pageSize);
     Task<ApiResponse<BusinessCustomerResponse>> GetSingleCustomerAsync(Guid ownerId, Guid customerId);
+    Task<ApiResponse<CustomerOverviewResponse>> GetCustomerOverviewAsync(Guid ownerId);
+    Task<ApiResponse<CustomerActivityFeedResponse>> GetCustomerActivityAsync(Guid ownerId, Guid customerId, int page = 1, int pageSize = 10);
     Task<ApiResponse<BusinessDashboardResponse>> GetDashboardAsync(Guid ownerId);
     Task<ApiResponse<StaffBusinessResponse>> GetStaffBusinessAsync(Guid staffUserId);
     Task<ApiResponse<StaffAnalyticsResponse>> GetStaffAnalyticsAsync(Guid staffUserId);
-    Task<ApiResponse<List<StaffMemberResponse>>> GetMyStaffAsync(Guid ownerId, string? search = null, string sort = "alpha");
+    Task<ApiResponse<StaffListResponse>> GetMyStaffAsync(
+    Guid ownerId,
+    string? search = null,
+    string? status = null,
+    string? activity = null,
+    string? goalStatus = null,
+    string sortBy = "name",
+    string sortDirection = "asc",
+    int page = 1,
+    int pageSize = 20);
+Task<ApiResponse<StaffOverviewResponse>> GetStaffOverviewAsync(Guid ownerId);
     Task<ApiResponse<StaffMemberAnalyticsResponse>> GetStaffMemberAnalyticsAsync(Guid ownerId, Guid staffUserId, string period);
     Task<ApiResponse<StaffActivityFeedResponse>> GetStaffActivityForOwnerAsync(Guid ownerId, Guid staffUserId, StaffActivityFilterRequest request);
     Task<ApiResponse<StaffActivityFeedResponse>> GetMyStaffActivityAsync(Guid staffUserId, StaffActivityFilterRequest request);

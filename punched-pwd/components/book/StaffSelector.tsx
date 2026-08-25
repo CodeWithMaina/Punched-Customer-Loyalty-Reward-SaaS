@@ -32,7 +32,7 @@ export function StaffSelector({
     businessesApi
       .getMyStaff()
       .then((res) => {
-        if (res.success && res.data) setStaff(res.data);
+        if (res.success && res.data) setStaff(res.data.items);
         else setError(res.error?.message ?? "Could not load staff.");
       })
       .catch(() => setError("Could not load staff."))

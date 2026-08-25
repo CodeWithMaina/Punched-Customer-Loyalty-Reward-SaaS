@@ -29,7 +29,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      # Overridable so `docker compose up` (db+api dev stack) can expose Swagger
+      # by setting ASPNETCORE_ENVIRONMENT=Development in .env. Defaults to Production.
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: >-
         Host=db;Database=punched_db;Username=punched;Password=${DB_PASSWORD:-changeme};
@@ -56,7 +58,13 @@ services:
       retries: 3
 
   # ── Next.js PWA ───────────────────────────────────────────
+  # Placed behind the "web" profile so the default `docker compose up` starts
+  # ONLY the backend (db + api). To run the full production stack, use:
+  #   docker compose --profile web up -d
+  # This lets you run the web locally with hot-reload (`npm run dev`) while the
+  # API + database live in Docker. See the README "Local Development" section.
   web:
+    profiles: ["web"]
     build:
       context: ./punched-pwd
       dockerfile: Dockerfile

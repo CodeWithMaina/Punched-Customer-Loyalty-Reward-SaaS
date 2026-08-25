@@ -46,10 +46,17 @@ try
     // ═══════════════════════════════════════════════════════════
 
     // ── Database (PostgreSQL via Neon) ──────────────────────
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    // DbContext pooling: contexts are stateless here and resolved per-scope,
+    // so pooled instances are safely reset and reused across requests. This
+    // removes per-request context allocation cost without changing semantics.
+    builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
         options.UseNpgsql(
             builder.Configuration.GetConnectionString("DefaultConnection"),
             o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
+
+    // ── Caching / tenant scope resolution ───────────────────
+    builder.Services.AddMemoryCache();
+    builder.Services.AddSingleton<IBusinessScopeResolver, BusinessScopeResolver>();
 
     // ── JWT Settings ────────────────────────────────────────
     var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName);

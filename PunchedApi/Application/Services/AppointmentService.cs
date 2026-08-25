@@ -231,6 +231,13 @@ public class AppointmentService : IAppointmentService
             await _unitOfWork.SaveChangesAsync();
             await transaction.CommitAsync();
         }
+        catch (Npgsql.PostgresException pg) when (pg.SqlState == "23501")
+        {
+            // appointments_no_staff_overlap exclusion constraint fired — the slot was
+            // taken between the availability check and this save.
+            await transaction.RollbackAsync();
+            return ApiResponse<AppointmentResponse>.Fail("OVERBOOKING", "The requested slot is already booked.");
+        }
         catch
         {
             await transaction.RollbackAsync();
@@ -313,9 +320,11 @@ public class AppointmentService : IAppointmentService
             .OrderByDescending(a => a.ScheduledAt)
             .ToListAsync();
 
-        var result = new List<AppointmentResponse>();
-        foreach (var appointment in appointments)
-            result.Add(await ToResponseAsync(appointment));
+        var latestChanges = await GetLatestStatusChangesAsync(appointments.Select(a => a.Id));
+
+        var result = appointments
+            .Select(a => MapResponse(a, latestChanges))
+            .ToList();
 
         return ApiResponse<List<AppointmentResponse>>.Ok(result);
     }
@@ -368,9 +377,8 @@ public class AppointmentService : IAppointmentService
             .Take(pageSize)
             .ToListAsync();
 
-        var responses = new List<AppointmentResponse>();
-        foreach (var appointment in items)
-            responses.Add(await ToResponseAsync(appointment));
+        var latestChanges = await GetLatestStatusChangesAsync(items.Select(a => a.Id));
+        var responses = items.Select(a => MapResponse(a, latestChanges)).ToList();
 
         return ApiResponse<PaginatedResponse<AppointmentResponse>>.Ok(new PaginatedResponse<AppointmentResponse>
         {
@@ -397,9 +405,8 @@ public class AppointmentService : IAppointmentService
 
         var items = await query.OrderByDescending(a => a.ScheduledAt).ToListAsync();
 
-        var responses = new List<AppointmentResponse>();
-        foreach (var appointment in items)
-            responses.Add(await ToResponseAsync(appointment));
+        var latestChanges = await GetLatestStatusChangesAsync(items.Select(a => a.Id));
+        var responses = items.Select(a => MapResponse(a, latestChanges)).ToList();
 
         return ApiResponse<List<AppointmentResponse>>.Ok(responses);
     }
@@ -474,6 +481,13 @@ public class AppointmentService : IAppointmentService
 
             var created = await LoadAsync(appointment.Id);
             return ApiResponse<AppointmentResponse>.Ok(await ToResponseAsync(created!));
+        }
+        catch (Npgsql.PostgresException pg) when (pg.SqlState == "23501")
+        {
+            // appointments_no_staff_overlap exclusion constraint fired — the slot was
+            // taken between the availability check and this save.
+            await transaction.RollbackAsync();
+            return ApiResponse<AppointmentResponse>.Fail("OVERBOOKING", "The requested slot is already booked.");
         }
         catch
         {
@@ -608,6 +622,38 @@ public class AppointmentService : IAppointmentService
             .FirstOrDefaultAsync();
 
         response.UpdatedAt = latest != default ? latest : appointment.CreatedAt;
+        return response;
+    }
+
+    /// <summary>
+    /// Fetches the latest status-change timestamp for many appointments in a single
+    /// grouped query. Used by list endpoints to avoid the per-row N+1 that
+    /// ToResponseAsync would otherwise cause.
+    /// </summary>
+    private async Task<Dictionary<Guid, DateTime>> GetLatestStatusChangesAsync(IEnumerable<Guid> appointmentIds)
+    {
+        var ids = appointmentIds.ToList();
+        if (ids.Count == 0)
+            return new Dictionary<Guid, DateTime>();
+
+        return await _context.AppointmentStatusHistory
+            .Where(h => ids.Contains(h.AppointmentId))
+            .GroupBy(h => h.AppointmentId)
+            .Select(g => new { AppointmentId = g.Key, Latest = g.Max(h => h.ChangedAt) })
+            .ToDictionaryAsync(x => x.AppointmentId, x => x.Latest);
+    }
+
+    /// <summary>
+    /// Synchronous mapping using pre-fetched latest status changes (from
+    /// <see cref="GetLatestStatusChangesAsync"/>). Falls back to CreatedAt when no
+    /// history exists yet.
+    /// </summary>
+    private AppointmentResponse MapResponse(Appointment appointment, Dictionary<Guid, DateTime> latestChanges)
+    {
+        var response = _mapper.Map<AppointmentResponse>(appointment);
+        response.UpdatedAt = latestChanges.TryGetValue(appointment.Id, out var latest) && latest != default
+            ? latest
+            : appointment.CreatedAt;
         return response;
     }
 

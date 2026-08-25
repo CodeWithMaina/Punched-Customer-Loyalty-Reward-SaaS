@@ -167,6 +167,43 @@ public class BusinessController : ControllerBase
     }
 
     /// <summary>
+    /// Customer management overview for the owner: summary counts, engagement
+    /// snapshot (top customers / soon-to-reward / recently active).
+    /// </summary>
+    [HttpGet("me/customers/overview")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<CustomerOverviewResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCustomerOverview()
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _businessService.GetCustomerOverviewAsync(userId.Value);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Paginated stamp + redemption activity feed for a single customer.
+    /// </summary>
+    [HttpGet("me/customers/{customerId:guid}/activity")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<CustomerActivityFeedResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCustomerActivity(
+        Guid customerId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _businessService.GetCustomerActivityAsync(userId.Value, customerId, page, pageSize);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Get business dashboard stats (active cards, stamps, redemptions).
     /// </summary>
     [HttpGet("me/dashboard")]
@@ -333,23 +370,50 @@ public class BusinessController : ControllerBase
     }
 
     /// <summary>
-    /// Get all staff members linked to this business.
-    /// Supports ?search=name/email and ?sort=alpha|stamps|recent.
+    /// Get a management overview of the business's staff: summary counts,
+    /// performance snapshot (top performers / needs attention / recently active).
     /// </summary>
-    [HttpGet("me/staff")]
+    [HttpGet("me/staff/overview")]
     [Authorize(Roles = "Business")]
-    [ProducesResponseType(typeof(ApiResponse<List<StaffMemberResponse>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyStaff(
-        [FromQuery] string? search,
-        [FromQuery] string sort = "alpha")
+    [ProducesResponseType(typeof(ApiResponse<StaffOverviewResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStaffOverview()
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var validSorts = new[] { "alpha", "stamps", "recent" };
-        if (!validSorts.Contains(sort)) sort = "alpha";
+        var result = await _businessService.GetStaffOverviewAsync(userId.Value);
+        if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
 
-        var result = await _businessService.GetMyStaffAsync(userId.Value, search, sort);
+    /// <summary>
+    /// Get all staff members linked to this business — server-side search,
+    /// filtering, sorting and pagination.
+    /// Query: search, status(active|inactive), activity(today|week|idle),
+    /// goalStatus(met|behind|none), sortBy(name|stamps|recent|goal|added),
+    /// sortDirection(asc|desc), page, pageSize.
+    /// </summary>
+    [HttpGet("me/staff")]
+    [Authorize(Roles = "Business")]
+    [ProducesResponseType(typeof(ApiResponse<StaffListResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyStaff(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] string? activity,
+        [FromQuery] string? goalStatus,
+        [FromQuery] string sortBy = "name",
+        [FromQuery] string sortDirection = "asc",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var validSorts = new[] { "name", "stamps", "recent", "goal", "added" };
+        if (!validSorts.Contains(sortBy.ToLowerInvariant())) sortBy = "name";
+
+        var result = await _businessService.GetMyStaffAsync(
+            userId.Value, search, status, activity, goalStatus, sortBy, sortDirection, page, pageSize);
         if (!result.Success) return NotFound(result);
         return Ok(result);
     }

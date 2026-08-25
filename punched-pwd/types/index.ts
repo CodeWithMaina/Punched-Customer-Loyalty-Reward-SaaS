@@ -248,6 +248,46 @@ export interface BusinessCustomer {
   totalRedemptions: number;
   enrolledAt: string;
   lastStampAt?: string;
+  /** Effective reward threshold for this business's loyalty program. */
+  stampsRequired?: number | null;
+}
+
+/** Customer management overview (owner view). */
+export interface CustomerOverviewResponse {
+  totalCustomers: number;
+  /** Customers with at least one stamp in the trailing 7 days. */
+  active7d: number;
+  /** Customers whose current cycle reached the reward threshold. */
+  rewardReady: number;
+  /** Customers enrolled within the trailing 7 days. */
+  newThisWeek: number;
+  /** Customers with no stamp in the last 21 days. */
+  atRisk: number;
+  stampsThisWeek: number;
+  topCustomers: BusinessCustomer[];
+  soonToReward: BusinessCustomer[];
+  recentlyActive: BusinessCustomer[];
+}
+
+/** Single event in a customer's stamp/redemption history. */
+export interface CustomerActivityItem {
+  activityId: string;
+  activityType: "stamp" | "redemption" | string;
+  stampNumber?: number;
+  rewardValue?: number;
+  staffName?: string | null;
+  timestamp: string;
+}
+
+/** Paginated customer activity feed. */
+export interface CustomerActivityFeedResponse {
+  customerId: string;
+  customerName: string;
+  items: CustomerActivityItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -429,6 +469,35 @@ export interface StaffMember {
   stampsIssued: number;
   dailyGoalOverride?: number;
   dailyGoal?: number;
+  /** Stamps issued today (business-scoped). */
+  stampsToday?: number;
+  /** Stamps issued in the trailing 7 days (business-scoped). */
+  stampsLast7d?: number;
+  /** UTC timestamp of the staff member's most recent stamp activity. */
+  lastActivityAt?: string | null;
+}
+
+/** Paginated staff list envelope. */
+export interface StaffListResponse {
+  items: StaffMember[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface StaffOverviewResponse {
+  totalStaff: number;
+  activeStaff7d: number;
+  inactiveStaff: number;
+  pendingInvitations: number;
+  stampsToday: number;
+  stampsThisWeek: number;
+  goalsMetToday: number;
+  staffWithGoals: number;
+  topPerformers: StaffMember[];
+  needsAttention: StaffMember[];
+  recentlyActive: StaffMember[];
 }
 
 export interface StaffActivityItem {
@@ -488,6 +557,8 @@ export interface StaffMemberAnalyticsResponse {
   totalStampsAllTime: number;
   totalCustomersAllTime: number;
   dailyGoal?: number;
+  /** Personal override if set (null = using business default). */
+  dailyGoalOverride?: number | null;
   recentActivity: StaffActivityItem[];
 }
 

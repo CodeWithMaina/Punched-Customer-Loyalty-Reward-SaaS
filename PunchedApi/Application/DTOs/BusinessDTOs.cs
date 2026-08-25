@@ -402,6 +402,99 @@ public class BusinessCustomerResponse
 
     [JsonPropertyName("lastStampAt")]
     public DateTime? LastStampAt { get; set; }
+
+    /// <summary>Effective reward threshold (stamps required to redeem) for this business.</summary>
+    [JsonPropertyName("stampsRequired")]
+    public int? StampsRequired { get; set; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CUSTOMER OVERVIEW / DASHBOARD (owner view)
+// ═══════════════════════════════════════════════════════════════
+
+public class CustomerOverviewResponse
+{
+    [JsonPropertyName("totalCustomers")]
+    public int TotalCustomers { get; set; }
+
+    /// <summary>Customers with at least one stamp in the trailing 7 days.</summary>
+    [JsonPropertyName("active7d")]
+    public int Active7d { get; set; }
+
+    /// <summary>Customers whose current cycle has reached the reward threshold.</summary>
+    [JsonPropertyName("rewardReady")]
+    public int RewardReady { get; set; }
+
+    /// <summary>Customers enrolled within the trailing 7 days.</summary>
+    [JsonPropertyName("newThisWeek")]
+    public int NewThisWeek { get; set; }
+
+    /// <summary>Customers with no stamp in the last 21 days (cooling / at-risk).</summary>
+    [JsonPropertyName("atRisk")]
+    public int AtRisk { get; set; }
+
+    [JsonPropertyName("stampsThisWeek")]
+    public int StampsThisWeek { get; set; }
+
+    [JsonPropertyName("topCustomers")]
+    public List<BusinessCustomerResponse> TopCustomers { get; set; } = [];
+
+    /// <summary>Customers within a few stamps of the reward threshold.</summary>
+    [JsonPropertyName("soonToReward")]
+    public List<BusinessCustomerResponse> SoonToReward { get; set; } = [];
+
+    [JsonPropertyName("recentlyActive")]
+    public List<BusinessCustomerResponse> RecentlyActive { get; set; } = [];
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CUSTOMER ACTIVITY FEED (owner view, paginated)
+// ═══════════════════════════════════════════════════════════════
+
+public class CustomerActivityItem
+{
+    [JsonPropertyName("activityId")]
+    public Guid ActivityId { get; set; }
+
+    [JsonPropertyName("activityType")]
+    public string ActivityType { get; set; } = "stamp";
+
+    [JsonPropertyName("stampNumber")]
+    public int StampNumber { get; set; }
+
+    [JsonPropertyName("rewardValue")]
+    public decimal? RewardValue { get; set; }
+
+    /// <summary>Staff member who performed the action (nullable for redemptions by the customer).</summary>
+    [JsonPropertyName("staffName")]
+    public string? StaffName { get; set; }
+
+    [JsonPropertyName("timestamp")]
+    public DateTime Timestamp { get; set; }
+}
+
+public class CustomerActivityFeedResponse
+{
+    [JsonPropertyName("customerId")]
+    public Guid CustomerId { get; set; }
+
+    [JsonPropertyName("customerName")]
+    public string CustomerName { get; set; } = string.Empty;
+
+    [JsonPropertyName("items")]
+    public List<CustomerActivityItem> Items { get; set; } = [];
+
+    [JsonPropertyName("page")]
+    public int Page { get; set; }
+
+    [JsonPropertyName("pageSize")]
+    public int PageSize { get; set; }
+
+    [JsonPropertyName("total")]
+    public int Total { get; set; }
+
+    [JsonPropertyName("totalPages")]
+    public int TotalPages { get; set; }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -612,6 +705,82 @@ public class StaffMemberResponse
     /// <summary>Effective daily-stamp goal (override, else business default, else null).</summary>
     [JsonPropertyName("dailyGoal")]
     public int? DailyGoal { get; set; }
+
+    /// <summary>Stamps issued today (business-scoped, from staff daily analytics).</summary>
+    [JsonPropertyName("stampsToday")]
+    public int StampsToday { get; set; }
+
+    /// <summary>Stamps issued in the trailing 7 days (business-scoped).</summary>
+    [JsonPropertyName("stampsLast7d")]
+    public int StampsLast7d { get; set; }
+
+    /// <summary>UTC timestamp of this staff member's most recent stamp activity (null = never active).</summary>
+    [JsonPropertyName("lastActivityAt")]
+    public DateTime? LastActivityAt { get; set; }
+}
+
+/// <summary>Paginated staff list envelope with filter metadata.</summary>
+public class StaffListResponse
+{
+    [JsonPropertyName("items")]
+    public List<StaffMemberResponse> Items { get; set; } = [];
+
+    [JsonPropertyName("page")]
+    public int Page { get; set; }
+
+    [JsonPropertyName("pageSize")]
+    public int PageSize { get; set; }
+
+    [JsonPropertyName("total")]
+    public int Total { get; set; }
+
+    [JsonPropertyName("totalPages")]
+    public int TotalPages { get; set; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  STAFF OVERVIEW / DASHBOARD (owner view)
+// ═══════════════════════════════════════════════════════════════
+
+public class StaffOverviewResponse
+{
+    [JsonPropertyName("totalStaff")]
+    public int TotalStaff { get; set; }
+
+    /// <summary>Staff with at least one stamp in the trailing 7 days.</summary>
+    [JsonPropertyName("activeStaff7d")]
+    public int ActiveStaff7d { get; set; }
+
+    /// <summary>Linked staff with no stamp activity in the trailing 7 days.</summary>
+    [JsonPropertyName("inactiveStaff")]
+    public int InactiveStaff { get; set; }
+
+    [JsonPropertyName("pendingInvitations")]
+    public int PendingInvitations { get; set; }
+
+    [JsonPropertyName("stampsToday")]
+    public int StampsToday { get; set; }
+
+    [JsonPropertyName("stampsThisWeek")]
+    public int StampsThisWeek { get; set; }
+
+    /// <summary>Staff who met or exceeded their effective daily goal today.</summary>
+    [JsonPropertyName("goalsMetToday")]
+    public int GoalsMetToday { get; set; }
+
+    /// <summary>Total staff with an effective daily goal configured.</summary>
+    [JsonPropertyName("staffWithGoals")]
+    public int StaffWithGoals { get; set; }
+
+    [JsonPropertyName("topPerformers")]
+    public List<StaffMemberResponse> TopPerformers { get; set; } = [];
+
+    /// <summary>Active-in-the-past staff with zero stamps today while having a goal set.</summary>
+    [JsonPropertyName("needsAttention")]
+    public List<StaffMemberResponse> NeedsAttention { get; set; } = [];
+
+    [JsonPropertyName("recentlyActive")]
+    public List<StaffMemberResponse> RecentlyActive { get; set; } = [];
 }
 
 public class StaffAnalyticsResponse
@@ -789,6 +958,10 @@ public class StaffMemberAnalyticsResponse
     /// <summary>Effective daily-stamp goal (staff override, else business default).</summary>
     [JsonPropertyName("dailyGoal")]
     public int? DailyGoal { get; set; }
+
+    /// <summary>Personal override if set (null = using business default).</summary>
+    [JsonPropertyName("dailyGoalOverride")]
+    public int? DailyGoalOverride { get; set; }
 
     [JsonPropertyName("recentActivity")]
     public List<StaffActivityItem> RecentActivity { get; set; } = [];

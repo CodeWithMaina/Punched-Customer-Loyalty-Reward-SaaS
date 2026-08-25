@@ -6,8 +6,9 @@ import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
 import { loyaltyApi } from "@/lib/api/loyalty";
 import type { Business, LoyaltyCard, LoyaltyProgram } from "@/types";
+import { EmptyState as SharedEmptyState } from "@/components/ui";
 import {
-  Search, MapPin, Loader2, Store, ChevronRight, Sparkles, Star,
+  Search, MapPin, Loader2, Store, Sparkles, Star,
   TrendingUp, Gift, SlidersHorizontal, X, CheckCircle,
 } from "lucide-react";
 import { FilterSheet, FilterChips, SortOptions } from "@/components/ui/FilterSheet";
@@ -119,34 +120,58 @@ export default function ExplorePage() {
   const newBusinesses = filteredBusinesses.filter((b) => !enrolledBusinessIds.has(b.id));
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="max-w-lg mx-auto relative overflow-x-hidden">
+      {/* Watermark */}
+      <div aria-hidden className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-0">
+        <span
+          className="font-extrabold text-[26vw] whitespace-nowrap text-white opacity-[0.02]"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          PUNCHED
+        </span>
+      </div>
+
       {/* Sticky search + tabs */}
-      <div className="sticky top-[57px] z-10 bg-[var(--background)] px-4 pt-4 pb-3 space-y-3">
+      <div className="sticky top-[57px] z-10 bg-[var(--background)] px-5 pt-6 pb-4 space-y-5">
+        {/* Heading */}
+        <h1
+          className="text-xl md:text-2xl font-bold tracking-tight uppercase text-[var(--text-primary)]"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          Select Location
+        </h1>
+
         {/* Search */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-tertiary)]" />
-            <input type="text" placeholder="Search businesses, rewards, free food…"
+        <div className="flex gap-3">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-tertiary)] group-focus-within:text-[var(--text-primary)] transition-colors" />
+            <input type="text" placeholder="Search businesses, rewards…"
               value={search} onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-brand shadow-card" />
+              className="w-full pl-8 pr-8 py-3 bg-transparent border-b border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--text-primary)] focus:bg-[var(--surface-raised)] transition-all" />
             {search && (
-              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
+              <button onClick={() => setSearch("")} aria-label="Clear search" className="absolute right-0 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
                 <X className="h-4 w-4" />
               </button>
             )}
           </div>
-          <button onClick={() => setShowFilters((v) => !v)}
-            className={`h-10 w-10 rounded-2xl border flex items-center justify-center flex-shrink-0 transition-all ${showFilters ? "bg-brand border-brand text-white shadow-sm" : "bg-[var(--surface)] border-[var(--border)] text-[var(--text-secondary)]"}`}>
+          <button onClick={() => setShowFilters((v) => !v)} aria-label="Toggle filters"
+            className={`h-11 w-11 border flex items-center justify-center flex-shrink-0 transition-colors ${showFilters ? "border-[var(--text-primary)] bg-[var(--surface-raised)] text-[var(--text-primary)]" : "border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]"}`}>
             <SlidersHorizontal className="h-4 w-4" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-[var(--border-light)] rounded-2xl p-1">
+        <div role="tablist" aria-label="Explore tabs" className="flex items-center gap-2">
           {(["businesses", "programs"] as TabType[]).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all ${activeTab === tab ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-tertiary)]"}`}>
-              {tab === "businesses" ? `Businesses ${isFiltered ? `(${filteredBusinesses.length})` : ""}` : `Programs ${isFiltered ? `(${filteredPrograms.length})` : ""}`}
+            <button key={tab} role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}
+              className={`text-[10px] tracking-[0.15em] uppercase font-bold px-3 py-1.5 border transition-colors ${
+                activeTab === tab
+                  ? "border-[var(--text-primary)] text-[var(--text-primary)] bg-[var(--surface-raised)]"
+                  : "border-[var(--border)] text-[var(--text-tertiary)] hover:border-[var(--text-secondary)]"
+              }`}>
+              {tab === "businesses"
+                ? `Business${isFiltered ? ` (${filteredBusinesses.length})` : ""}`
+                : `Program${isFiltered ? ` (${filteredPrograms.length})` : ""}`}
             </button>
           ))}
         </div>
@@ -171,7 +196,7 @@ export default function ExplorePage() {
       </div>
 
       {/* FilterSheet — mobile bottom sheet / desktop inline */}
-      <div className="px-4">
+      <div className="px-5">
         <FilterSheet open={showFilters} onClose={() => setShowFilters(false)} title="Filter & Sort">
           <FilterChips label="Category" options={CATEGORIES} value={activeCategory} onChange={setActiveCategory} emojis={CATEGORY_EMOJIS} />
           <SortOptions
@@ -183,7 +208,7 @@ export default function ExplorePage() {
       </div>
 
       {/* Content */}
-      <div className="px-4 pb-8 space-y-5 mt-2">
+      <div className="px-5 pb-8 space-y-5 mt-2 relative z-10">
         {isLoading ? (
           <div className="flex items-center justify-center py-16"><Loader2 className="h-7 w-7 animate-spin text-brand" /></div>
         ) : activeTab === "businesses" ? (
@@ -237,11 +262,16 @@ export default function ExplorePage() {
   );
 }
 
+// Local wrapper keeps the explore page's compact inline styling
+// while reusing the shared EmptyState primitive.
 function EmptyState({ icon, title, sub }: { icon: React.ReactNode; title: string; sub: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 space-y-3 text-center animate-fade-in">
-      {icon}<p className="text-[var(--text-secondary)] font-medium">{title}</p><p className="text-[var(--text-tertiary)] text-sm">{sub}</p>
-    </div>
+    <SharedEmptyState
+      icon={icon}
+      title={title}
+      description={sub}
+      className="border-none bg-transparent py-16"
+    />
   );
 }
 
@@ -263,31 +293,54 @@ function BusinessCard({ business, enrolled, card }: { business: Business; enroll
   const progress = required > 0 ? Math.min((stamps / required) * 100, 100) : 0;
 
   return (
-    <Link href={`/dashboard/explore/${business.id}`}>
-      <div className={`bg-[var(--surface)] rounded-2xl border shadow-card p-4 hover:shadow-card-hover transition-all active:scale-[0.99] ${rewardReady ? "border-accent" : "border-[var(--border-light)]"}`}>
-        <div className="flex items-start gap-3">
-          <div className="h-14 w-14 rounded-xl bg-brand-surface flex items-center justify-center overflow-hidden flex-shrink-0 border border-brand/10">
-            {business.logoUrl ? <img src={business.logoUrl} alt={business.name} className="h-full w-full object-cover" /> : <Store className="h-6 w-6 text-brand" />}
+    <Link href={`/dashboard/explore/${business.id}`} className="block group">
+      <div className={`relative border p-5 bg-[var(--surface)] transition-colors duration-200 ${
+        rewardReady
+          ? "border-accent"
+          : enrolled
+            ? "border-[var(--text-primary)]"
+            : "border-[var(--border)] hover:border-[var(--text-secondary)]"
+      }`}>
+        {enrolled && (
+          <CheckCircle aria-hidden className="absolute top-4 right-4 h-4 w-4 text-[var(--text-primary)]" />
+        )}
+        <div className="flex items-center gap-4">
+          {/* Logo */}
+          <div className="h-16 w-16 shrink-0 border border-[var(--border)] flex items-center justify-center overflow-hidden">
+            {business.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={business.logoUrl} alt={business.name} className="w-full h-full object-cover grayscale opacity-80 group-hover:opacity-100 transition-opacity" />
+            ) : (
+              <Store className="h-6 w-6 text-brand" strokeWidth={1.5} />
+            )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <p className="font-bold text-[var(--text-primary)] text-sm leading-tight truncate">{business.name}</p>
-              {enrolled && <CheckCircle className="h-4 w-4 text-brand flex-shrink-0 mt-0.5" />}
+            <h2
+              className="font-bold uppercase tracking-tight truncate text-[var(--text-primary)] mb-0.5"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              {business.name}
+            </h2>
+            <p className="text-xs text-[var(--text-secondary)] mb-1.5">{business.category}</p>
+            <div className="flex items-center gap-1.5 text-[var(--text-tertiary)]">
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={1.5} />
+              <span className="text-xs truncate">{business.location ?? "—"}</span>
             </div>
-            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{business.category}</p>
-            {business.location && <div className="flex items-center gap-1 mt-0.5"><MapPin className="h-3 w-3 text-[var(--text-muted)]" /><span className="text-[10px] text-[var(--text-tertiary)] truncate">{business.location}</span></div>}
-            {program && <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">{program.stampsRequired} stamps → {program.rewardDescription}</p>}
           </div>
-          <ChevronRight className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0 mt-1" />
         </div>
+        {program && (
+          <p className="mt-3 pt-3 border-t border-[var(--border)] text-xs text-[var(--text-secondary)] truncate">
+            {program.stampsRequired} stamps → {program.rewardDescription}
+          </p>
+        )}
         {enrolled && required > 0 && (
-          <div className="mt-3 pt-3 border-t border-[var(--border-light)]">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-[var(--text-tertiary)]">{stamps}/{required} stamps</span>
+          <div className="mt-3 pt-3 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">{stamps}/{required} stamps</span>
               {rewardReady && <span className="text-[10px] font-bold text-accent-text">Ready!</span>}
             </div>
-            <div className="h-1.5 bg-[var(--border-light)] rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${rewardReady ? "bg-accent" : "bg-brand"}`} style={{ width: `${progress}%` }} />
+            <div className="h-1 w-full bg-[var(--border-light)] overflow-hidden">
+              <div className={`h-full ${rewardReady ? "bg-accent" : "bg-brand"}`} style={{ width: `${progress}%` }} />
             </div>
           </div>
         )}
@@ -302,39 +355,47 @@ function ProgramCard({ program, enrolled, card }: { program: ProgramWithBiz; enr
   const progress = Math.min((stamps / program.stampsRequired) * 100, 100);
 
   return (
-    <Link href={`/dashboard/explore/${program.businessId}`}>
-      <div className={`bg-[var(--surface)] rounded-2xl border shadow-card p-4 hover:shadow-card-hover transition-all active:scale-[0.99] ${rewardReady ? "border-accent" : "border-[var(--border-light)]"}`}>
-        <div className="flex items-start gap-3">
+    <Link href={`/dashboard/explore/${program.businessId}`} className="block group">
+      <div className={`relative border p-5 bg-[var(--surface)] transition-colors duration-200 ${
+        rewardReady ? "border-accent" : "border-[var(--border)] hover:border-[var(--text-secondary)]"
+      }`}>
+        {enrolled && (
+          <CheckCircle aria-hidden className="absolute top-4 right-4 h-4 w-4 text-[var(--text-primary)]" />
+        )}
+        <div className="flex items-center gap-4">
           {/* Business logo */}
-          <div className="h-12 w-12 rounded-xl bg-brand-surface flex items-center justify-center overflow-hidden flex-shrink-0 border border-brand/10">
-            {program.businessLogoUrl ? <img src={program.businessLogoUrl} alt={program.businessName} className="h-full w-full object-cover" /> : <Store className="h-5 w-5 text-brand" />}
+          <div className="h-14 w-14 shrink-0 border border-[var(--border)] flex items-center justify-center overflow-hidden">
+            {program.businessLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={program.businessLogoUrl} alt={program.businessName} className="w-full h-full object-cover grayscale opacity-80 group-hover:opacity-100 transition-opacity" />
+            ) : (
+              <Store className="h-5 w-5 text-brand" strokeWidth={1.5} />
+            )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-xs text-[var(--text-tertiary)] truncate">{program.businessName}</p>
-                <p className="font-bold text-[var(--text-primary)] text-sm leading-tight truncate">{program.name}</p>
-              </div>
-              {enrolled && <CheckCircle className="h-4 w-4 text-brand flex-shrink-0 mt-0.5" />}
-            </div>
-            <div className="flex items-center gap-2 mt-1.5">
-              <div className="flex items-center gap-1 bg-brand-surface rounded-full px-2 py-0.5">
-                <Gift className="h-3 w-3 text-brand" />
-                <span className="text-[10px] font-bold text-brand">{program.stampsRequired} stamps</span>
-              </div>
+            <p className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] truncate">{program.businessName}</p>
+            <p
+              className="font-bold text-sm leading-tight truncate text-[var(--text-primary)] mt-0.5"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              {program.name}
+            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[10px] tracking-[0.15em] uppercase font-bold border border-[var(--border)] px-2 py-0.5 text-brand flex-shrink-0">
+                {program.stampsRequired} stamps
+              </span>
               <span className="text-xs text-[var(--text-secondary)] truncate">{program.rewardDescription}</span>
             </div>
           </div>
-          <ChevronRight className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0 mt-1" />
         </div>
         {enrolled && (
-          <div className="mt-3 pt-3 border-t border-[var(--border-light)]">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-[var(--text-tertiary)]">{stamps}/{program.stampsRequired} stamps collected</span>
+          <div className="mt-3 pt-3 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">{stamps}/{program.stampsRequired} stamps collected</span>
               {rewardReady && <span className="text-[10px] font-bold text-accent-text">Ready to claim!</span>}
             </div>
-            <div className="h-1.5 bg-[var(--border-light)] rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${rewardReady ? "bg-accent" : "bg-brand"}`} style={{ width: `${progress}%` }} />
+            <div className="h-1 w-full bg-[var(--border-light)] overflow-hidden">
+              <div className={`h-full ${rewardReady ? "bg-accent" : "bg-brand"}`} style={{ width: `${progress}%` }} />
             </div>
           </div>
         )}

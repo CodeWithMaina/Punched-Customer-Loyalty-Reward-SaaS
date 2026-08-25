@@ -7,11 +7,7 @@ import { businessesApi } from "@/lib/api/businesses";
 import type { AppointmentResponse, StaffBusinessResponse } from "@/types";
 import { Clock, Loader2 } from "lucide-react";
 
-const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft", pending: "Pending", confirmed: "Confirmed",
-  in_progress: "In Progress", completed: "Completed",
-  cancelled: "Cancelled", no_show: "No Show",
-};
+import { STATUS_LABEL } from "@/lib/appointment-status";
 
 export default function StaffAppointmentsPage() {
   useRoleGuard("Staff");

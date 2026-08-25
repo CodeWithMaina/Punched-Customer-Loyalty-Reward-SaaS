@@ -18,6 +18,7 @@ public class StampService : IStampService
     private readonly IEmailService _emailService;
         private readonly IAnalyticsAggregationService _analyticsAggregationService;
     private readonly INotificationsService _notificationsService;
+    private readonly IBusinessScopeResolver _businessScopeResolver;
     private readonly ILogger<StampService> _logger;
 
     public StampService(
@@ -28,6 +29,7 @@ public class StampService : IStampService
         IEmailService emailService,
         IAnalyticsAggregationService analyticsAggregationService,
         INotificationsService notificationsService,
+        IBusinessScopeResolver businessScopeResolver,
         ILogger<StampService> logger)
     {
         _unitOfWork = unitOfWork;
@@ -37,6 +39,7 @@ public class StampService : IStampService
         _emailService = emailService;
         _analyticsAggregationService = analyticsAggregationService;
         _notificationsService = notificationsService;
+        _businessScopeResolver = businessScopeResolver;
         _logger = logger;
     }
 
@@ -58,11 +61,11 @@ public class StampService : IStampService
             }
             else if (actor.Role == UserRole.Business)
             {
-                var ownedBusiness = await _unitOfWork.Businesses.FirstOrDefaultAsync(b => b.OwnerId == actor.Id);
-                if (ownedBusiness == null)
+                var ownedBusinessId = await _businessScopeResolver.GetOwnedBusinessIdAsync(actor.Id);
+                if (ownedBusinessId == null)
                     return ApiResponse<StampAwardedResponse>.Fail("NOT_FOUND", "No business found for this account.");
 
-                scopedBusinessId = ownedBusiness.Id;
+                scopedBusinessId = ownedBusinessId.Value;
             }
             else
             {
@@ -99,63 +102,92 @@ public class StampService : IStampService
                 return ApiResponse<StampAwardedResponse>.Fail("NOT_ENROLLED", "Customer is not enrolled in this business's loyalty program.");
 
             var now = DateTime.UtcNow;
+            int stampNumber;
+            bool rewardReady;
 
-            // Mark token as used (idempotency guard)
-            qrToken.IsUsed = true;
-            _unitOfWork.QrTokens.Update(qrToken);
-
-            // Increment stamp counters
-            card.TotalStamps++;
-            card.LifetimeStamps++;
-            card.LastStampAt = now;
-
-            var stampNumber = card.TotalStamps;
-            var rewardReady = card.TotalStamps >= card.Program.StampsRequired;
-
-            // If reward threshold reached, set expiration and reset counter
-            if (rewardReady)
+            // Atomically claim the QR token as part of the same transaction that
+            // awards the stamp. The conditional UPDATE guarantees that concurrent
+            // requests (double scan / double tap / retried network request) cannot
+            // both pass the IsUsed check and create duplicate stamps.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                // Set reward expiry based on program setting (0 = no expiry)
-                card.RewardExpiresAt = card.Program.RewardExpirationHours > 0
-                    ? now.AddHours(card.Program.RewardExpirationHours)
-                    : (DateTime?)null;
+                var claimed = await _context.QrTokens
+                    .Where(t => t.Id == qrToken.Id && !t.IsUsed)
+                    .ExecuteUpdateAsync(u => u.SetProperty(x => x.IsUsed, true));
 
-                card.TotalStamps = 0;
-                card.TotalRedemptions++;
+                if (claimed == 0)
+                {
+                    await transaction.RollbackAsync();
+                    return ApiResponse<StampAwardedResponse>.Fail("TOKEN_USED", "QR code has already been used.");
+                }
 
-                // Auto-create a redemption record
-                var redemption = new Redemption
+                // Lock the loyalty card row for the remainder of the transaction so the
+                // counter increments below are serialized: concurrent stamps on the same
+                // card, or a simultaneous reward claim (conditional UPDATE in
+                // RedemptionService), can never interleave with this read-modify-write.
+                await _context.Database.ExecuteSqlRawAsync(
+                    "SELECT id FROM loyalty_cards WHERE id = {0} FOR UPDATE", card.Id);
+
+                // Increment stamp counters
+                card.TotalStamps++;
+                card.LifetimeStamps++;
+                card.LastStampAt = now;
+
+                stampNumber = card.TotalStamps;
+                rewardReady = card.TotalStamps >= card.Program.StampsRequired;
+
+                // If reward threshold reached, set expiration and reset counter
+                if (rewardReady)
+                {
+                    // Set reward expiry based on program setting (0 = no expiry)
+                    card.RewardExpiresAt = card.Program.RewardExpirationHours > 0
+                        ? now.AddHours(card.Program.RewardExpirationHours)
+                        : (DateTime?)null;
+
+                    card.TotalStamps = 0;
+                    card.TotalRedemptions++;
+
+                    // Auto-create a redemption record
+                    var redemption = new Redemption
+                    {
+                        Id = Guid.NewGuid(),
+                        CardId = card.Id,
+                        BusinessId = scopedBusinessId.Value,
+                        PerformedByUserId = staffOrBusinessUserId,
+                        PerformedByRole = actor.Role.ToString(),
+                        RewardValue = card.Program.RewardValue,
+                        Status = "pending",
+                        RedeemedAt = now,
+                        CreatedAt = now
+                    };
+                    await _unitOfWork.Redemptions.AddAsync(redemption);
+                }
+
+                _unitOfWork.LoyaltyCards.Update(card);
+
+                // Immutable stamp audit record
+                var stamp = new Stamp
                 {
                     Id = Guid.NewGuid(),
                     CardId = card.Id,
-                    BusinessId = scopedBusinessId.Value,
-                    PerformedByUserId = staffOrBusinessUserId,
-                    PerformedByRole = actor.Role.ToString(),
-                    RewardValue = card.Program.RewardValue,
-                    Status = "pending",
-                    RedeemedAt = now,
+                    StampNumber = (short)card.LifetimeStamps,
+                    StampedAt = now,
+                    QrTokenId = qrToken.Id,
+                    AwardedByUserId = staffOrBusinessUserId,
+                    Source = StampSource.Scan,
                     CreatedAt = now
                 };
-                await _unitOfWork.Redemptions.AddAsync(redemption);
+                await _unitOfWork.Stamps.AddAsync(stamp);
+
+                await _unitOfWork.SaveChangesAsync();
+                await transaction.CommitAsync();
             }
-
-            _unitOfWork.LoyaltyCards.Update(card);
-
-                        // Immutable stamp audit record
-            var stamp = new Stamp
+            catch
             {
-                Id = Guid.NewGuid(),
-                CardId = card.Id,
-                StampNumber = (short)card.LifetimeStamps,
-                StampedAt = now,
-                QrTokenId = qrToken.Id,
-                AwardedByUserId = staffOrBusinessUserId,
-                Source = StampSource.Scan,
-                CreatedAt = now
-            };
-            await _unitOfWork.Stamps.AddAsync(stamp);
-
-                        await _unitOfWork.SaveChangesAsync();
+                await transaction.RollbackAsync();
+                throw;
+            }
 
             await _analyticsAggregationService.RecomputeTodayForBusinessAsync(scopedBusinessId.Value);
             await _analyticsAggregationService.RecomputeStaffDayAsync(

@@ -52,7 +52,8 @@ export function useBooking() {
         if (result.success && result.data) {
           toast.success("Appointment booked.");
           invalidateBookingCaches();
-          router.push("/dashboard/appointments/" + result.data.id);
+          // `booked=1` renders the transactional "Booking Confirmed" screen
+          router.push("/dashboard/appointments/" + result.data.id + "?booked=1");
         } else {
           const msg = result.error?.message || "Could not book.";
           setError(msg);

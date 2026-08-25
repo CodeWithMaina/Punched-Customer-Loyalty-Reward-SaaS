@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { useBooking } from "@/hooks/useBooking";
 import { useBookingStore } from "@/store/bookingStore";
 import { servicesApi } from "@/lib/api/services";
+import { businessesApi } from "@/lib/api/businesses";
 import { ServiceList, StaffSelector, AppointmentCalendar } from "@/components/book";
 import type { ServiceCatalogItemResponse } from "@/types";
-import { ChevronLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+
+const HEADLINE = "'Plus Jakarta Sans', sans-serif";
+const MONO = "'Space Mono', monospace";
 
 export default function BookingWizardPage() {
   useRoleGuard("Customer");
@@ -22,12 +25,13 @@ export default function BookingWizardPage() {
     serviceIds, toggleService,
     selectedStaffId, setStaff, setBusiness,
     slot,
-    currentStep, nextStep, prevStep, reset,
+    currentStep, nextStep, prevStep, setStep, reset,
   } = useBookingStore();
 
   const { createAppointment, rescheduleAppointment, isLoading } = useBooking();
   const [services, setServicesData] = useState<ServiceCatalogItemResponse[]>([]);
   const [servicesLoading, setServicesLoading] = useState(false);
+  const [businessName, setBusinessName] = useState<string>("");
 
   useEffect(() => {
     if (!businessId) { router.replace("/dashboard/explore"); return; }
@@ -36,12 +40,13 @@ export default function BookingWizardPage() {
     servicesApi.getPublic(businessId)
       .then((res) => { if (res.success && res.data) setServicesData(res.data); })
       .finally(() => setServicesLoading(false));
+    businessesApi.getById(businessId)
+      .then((res) => { if (res.success && res.data) setBusinessName(res.data.name); });
   }, [businessId, router, setBusiness]);
 
-  const durationTotal = services.filter((s) => serviceIds.includes(s.id))
-    .reduce((sum, s) => sum + s.durationMinutes, 0);
-  const priceTotal = services.filter((s) => serviceIds.includes(s.id))
-    .reduce((sum, s) => sum + (s.price ?? 0), 0);
+  const selectedServices = services.filter((s) => serviceIds.includes(s.id));
+  const durationTotal = selectedServices.reduce((sum, s) => sum + s.durationMinutes, 0);
+  const priceTotal = selectedServices.reduce((sum, s) => sum + (s.price ?? 0), 0);
 
   const handleBook = async () => {
     if (!slot || serviceIds.length === 0) return;
@@ -79,17 +84,25 @@ export default function BookingWizardPage() {
         </span>
       </div>
 
-      {/* Transactional header */}
-      <div className="relative z-10 px-5 pt-5 pb-4">
-        <Link
-          href="/dashboard/appointments"
-          aria-label="Back to appointments"
-          className="inline-flex items-center gap-2 border border-[var(--border)] px-3 py-2 text-[12px] tracking-[0.15em] uppercase font-bold text-[var(--text-secondary)] hover:border-brand hover:text-brand transition-colors"
+      {/* Transactional top bar */}
+      <header className="fixed top-0 inset-x-0 z-50 h-[48px] bg-[var(--background)] border-b border-[var(--border)] flex items-center justify-between px-5">
+        <button
+          onClick={() => router.push("/dashboard/appointments")}
+          aria-label="Go back"
+          className="text-[var(--text-primary)] hover:text-brand transition-colors active:opacity-70"
         >
-          <ChevronLeft className="h-4 w-4" />
-          Back
-        </Link>
-      </div>
+          <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
+        </button>
+        <span
+          className="uppercase font-bold tracking-[0.2em] text-sm text-[var(--text-primary)]"
+          style={{ fontFamily: HEADLINE }}
+        >
+          PUNCHED
+        </span>
+        <span className="w-6" aria-hidden />
+      </header>
+
+      <div className="relative z-10 pt-[72px]" />
 
       {/* Step progress */}
       <div className="relative z-10 px-5 mb-8">
@@ -145,6 +158,38 @@ export default function BookingWizardPage() {
         {/* Step 3: Time */}
         {currentStep === 3 && (
           <div>
+            {/* Booking summary (design: Date & Time screen) */}
+            <div className="border border-[var(--border)] p-5 mb-8">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h2
+                    className="text-lg font-semibold tracking-tight text-[var(--text-primary)]"
+                    style={{ fontFamily: HEADLINE }}
+                  >
+                    {businessName || "Your booking"}
+                  </h2>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">
+                    {selectedServices.map((s) => s.name).join(", ") || "No services selected"}
+                  </p>
+                </div>
+                <button
+                  onClick={prevStep}
+                  className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] underline underline-offset-4 hover:text-[var(--text-primary)] transition-colors flex-shrink-0"
+                >
+                  Edit
+                </button>
+              </div>
+              <div className="flex items-center text-xs text-[var(--text-secondary)]" style={{ fontFamily: MONO }}>
+                <span>{durationTotal} MIN</span>
+                {priceTotal > 0 && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <span>KES {priceTotal}</span>
+                  </>
+                )}
+              </div>
+            </div>
+
             <p className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] mb-4">
               Pick a time slot
             </p>
@@ -159,37 +204,60 @@ export default function BookingWizardPage() {
         {/* Step 4: Review */}
         {currentStep === 4 && (
           <div>
-            <p className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] mb-3">
-              Review &amp; confirm
-            </p>
+            <h1
+              className="text-[44px] leading-[48px] md:text-6xl md:leading-none font-extrabold tracking-tighter text-[var(--text-primary)] mb-10"
+              style={{ fontFamily: HEADLINE }}
+            >
+              Summary
+            </h1>
+
+            {/* Confirmation card */}
             <div className="border border-[var(--border)] bg-[var(--surface-raised)] relative overflow-hidden">
-              <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-white/20" />
+              <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-white/10" />
               <ul>
                 {[
-                  { label: "Services", value: `${serviceIds.length} selected` },
-                  { label: "Duration", value: `${durationTotal} min` },
-                  ...(priceTotal > 0 ? [{ label: "Price", value: `KES ${priceTotal}` }] : []),
+                  { label: "Services", value: selectedServices.map((s) => s.name).join(", "), editStep: 1 },
+                  ...(selectedStaffId ? [{ label: "Staff", value: "Selected", editStep: 2 }] : []),
+                  ...(slot
+                    ? [{
+                        label: "Date",
+                        value: new Date(slot.startAtUtc).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }),
+                        editStep: 3,
+                      }]
+                    : []),
                   ...(slot
                     ? [{
                         label: "Time",
-                        value: `${new Date(slot.startAtUtc).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} · ${new Date(slot.startAtUtc).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+                        value: new Date(slot.startAtUtc).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                        editStep: 3,
                       }]
                     : []),
-                  ...(selectedStaffId ? [{ label: "Staff", value: "Selected" }] : []),
-                ].map(({ label, value }, i, arr) => (
+                  ...(durationTotal > 0 ? [{ label: "Duration", value: `${durationTotal} min`, editStep: null as number | null }] : []),
+                  ...(priceTotal > 0 ? [{ label: "Price", value: `KES ${priceTotal}`, editStep: null as number | null }] : []),
+                ].map(({ label, value, editStep }, i, arr) => (
                   <li
                     key={label}
                     className={`flex justify-between items-center gap-4 py-4 px-5 ${i < arr.length - 1 ? "border-b border-[var(--border)]" : ""}`}
                   >
-                    <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] flex-shrink-0">
-                      {label}
+                    <span className="flex flex-col gap-1 min-w-0">
+                      <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">
+                        {label}
+                      </span>
+                      <span
+                        className={`truncate text-sm text-[var(--text-primary)] ${label === "Price" ? "font-bold" : ""}`}
+                        style={label === "Price" || label === "Duration" ? { fontFamily: MONO } : undefined}
+                      >
+                        {value}
+                      </span>
                     </span>
-                    <span
-                      className={`text-right truncate text-sm text-[var(--text-primary)] ${label === "Price" ? "font-bold" : ""}`}
-                      style={label === "Price" ? { fontFamily: "'Space Mono', monospace" } : undefined}
-                    >
-                      {value}
-                    </span>
+                    {editStep !== null && editStep !== undefined && (
+                      <button
+                        onClick={() => setStep(editStep)}
+                        className="text-xs text-[var(--text-tertiary)] underline decoration-[var(--border)] underline-offset-4 hover:text-brand hover:decoration-brand transition-colors flex-shrink-0"
+                      >
+                        Edit
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -201,39 +269,43 @@ export default function BookingWizardPage() {
       {/* Sticky navigation */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--background)] border-t border-[var(--border)] p-4 safe-area-bottom">
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          {priceTotal > 0 && currentStep === 1 && serviceIds.length > 0 && (
-            <div className="hidden xs:flex flex-col flex-shrink-0">
-              <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">Total</span>
-              <span
-                className="font-mono text-sm font-bold text-[var(--text-primary)]"
-                style={{ fontFamily: "'Space Mono', monospace" }}
-              >
-                KES {priceTotal}
-              </span>
-            </div>
-          )}
-          <button
-            onClick={prevStep}
-            disabled={currentStep === 1}
-            className="flex-1 border border-[var(--border)] bg-transparent text-[var(--text-primary)] py-3.5 rounded-none text-sm disabled:opacity-40 transition-colors hover:border-[var(--text-primary)]"
-          >
-            Back
-          </button>
           {currentStep < 4 ? (
-            <button
-              onClick={nextStep}
-              disabled={currentStep === 1 && serviceIds.length === 0}
-              className="flex-1 bg-[var(--text-primary)] hover:bg-transparent hover:text-[var(--text-primary)] border border-transparent hover:border-[var(--text-primary)] text-[var(--background)] py-3.5 rounded-none text-sm font-bold uppercase tracking-widest disabled:opacity-40 disabled:pointer-events-none transition-colors"
-            >
-              Next →
-            </button>
+            <>
+              {priceTotal > 0 && currentStep === 1 && serviceIds.length > 0 && (
+                <div className="hidden xs:flex flex-col flex-shrink-0">
+                  <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">Total</span>
+                  <span
+                    className="font-mono text-sm font-bold text-[var(--text-primary)]"
+                    style={{ fontFamily: MONO }}
+                  >
+                    KES {priceTotal}
+                  </span>
+                </div>
+              )}
+              <button
+                onClick={prevStep}
+                disabled={currentStep === 1}
+                className="flex-1 border border-[var(--border)] bg-transparent text-[var(--text-primary)] py-3.5 rounded-none text-sm disabled:opacity-40 transition-colors hover:border-[var(--text-primary)]"
+              >
+                Back
+              </button>
+              <button
+                onClick={nextStep}
+                disabled={currentStep === 1 && serviceIds.length === 0}
+                className="flex-1 bg-[var(--text-primary)] hover:bg-transparent hover:text-[var(--text-primary)] border border-transparent hover:border-[var(--text-primary)] text-[var(--background)] py-3.5 rounded-none text-sm font-bold uppercase tracking-widest disabled:opacity-40 disabled:pointer-events-none transition-colors"
+              >
+                Next →
+              </button>
+            </>
           ) : (
+            /* Step 4 — single full-width confirm CTA */
             <button
               onClick={handleBook}
               disabled={isLoading || !slot || serviceIds.length === 0}
-              className="flex-1 bg-[var(--text-primary)] hover:bg-transparent hover:text-[var(--text-primary)] border border-transparent hover:border-[var(--text-primary)] text-[var(--background)] py-3.5 rounded-none text-sm font-bold uppercase tracking-widest disabled:opacity-40 disabled:pointer-events-none transition-colors"
+              className="w-full h-16 bg-white text-black font-bold flex items-center justify-center gap-2 rounded-none text-base hover:bg-black hover:text-white hover:border hover:border-white transition-all duration-300 disabled:opacity-40 disabled:pointer-events-none"
             >
-              {isLoading ? "Booking…" : rescheduleId ? "Reschedule" : "Confirm Booking"}
+              {rescheduleId ? (isLoading ? "Rescheduling…" : "CONFIRM RESCHEDULE") : isLoading ? "Booking…" : "CONFIRM BOOKING"}
+              {!isLoading && <ArrowRight className="h-5 w-5" />}
             </button>
           )}
         </div>

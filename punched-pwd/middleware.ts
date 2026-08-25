@@ -49,13 +49,23 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for access token cookie (set by the API client on login)
+  // Check for access token cookie (set by the API client on login).
+  //
+  // IMPORTANT: This is only an optimization / fast path for role-blocking.
+  // The authoritative auth state lives client-side in localStorage
+  // (persisted Zustand store), which is reliable and not subject to the
+  // ~4KB browser cookie-size cap that can silently drop large JWT cookies
+  // (a .NET JWT with full Microsoft claim URIs can exceed it).
+  //
+  // If the cookie is absent we must NOT hard-redirect to /login here — doing
+  // so races the just-written cookie after login and causes a redirect loop
+  // where the user is bounced back to /login even though they are signed in.
+  // Instead we let the page render and the client-side guards (dashboard
+  // layout + useRoleGuard) redirect using localStorage, which is reliable.
   const token = request.cookies.get("access_token")?.value;
 
   if (!token) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("from", pathname);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.next();
   }
 
   // Role-based path enforcement: prevent cross-role route access
@@ -75,9 +85,10 @@ export function middleware(request: NextRequest) {
       // Reject expired tokens immediately (rough check, no sig validation)
       const exp = payload.exp as number | undefined;
       if (exp && exp * 1000 < Date.now()) {
-        const loginUrl = new URL("/login", request.url);
-        loginUrl.searchParams.set("from", pathname);
-        const response = NextResponse.redirect(loginUrl);
+        // Drop the stale cookie and let the client-side guard re-decide using
+        // localStorage. A hard redirect here recreates the login loop when the
+        // stored token is still valid client-side but the cookie is stale.
+        const response = NextResponse.next();
         response.cookies.delete("access_token");
         return response;
       }
@@ -119,9 +130,8 @@ export function middleware(request: NextRequest) {
       }
     }
   } catch {
-    // Malformed token — redirect to login
-    const loginUrl = new URL("/login", request.url);
-    const response = NextResponse.redirect(loginUrl);
+    // Malformed token — drop it and let the client-side guard handle auth.
+    const response = NextResponse.next();
     response.cookies.delete("access_token");
     return response;
   }

@@ -17,11 +17,7 @@ const STATUS_ICON: Record<string, JSX.Element> = {
   no_show: <AlertCircle className="h-4 w-4 text-orange-500" />,
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft", pending: "Pending", confirmed: "Confirmed",
-  in_progress: "In Progress", completed: "Completed",
-  cancelled: "Cancelled", no_show: "No Show",
-};
+import { STATUS_LABEL } from "@/lib/appointment-status";
 
 function AppointmentCard({ appointment }: { appointment: AppointmentResponse }) {
   const status = appointment.status;

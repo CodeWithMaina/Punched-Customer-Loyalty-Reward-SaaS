@@ -299,8 +299,15 @@ cd punched
 cp .env.example .env
 # Edit .env — set DB_PASSWORD and JWT_SECRET at minimum
 
-# Build and run all services
+# Build and run services
+#
+# Option A — backend only (db + api). The web service is behind the "web"
+# profile, so it is NOT started by default. See "Local Development — Hot Reload"
+# below to run the web in Docker + install it locally.
 docker compose up --build
+
+# Option B — full production stack (db + api + web)
+docker compose --profile web up --build
 
 # ✅ API:       http://localhost:8080
 # ✅ Frontend:  http://localhost:3000
@@ -314,6 +321,49 @@ The API **auto-migrates** the database and **seeds a default admin account** on 
 
 > Change these credentials immediately in production.
 
+### Local Development — Hot Reload (Recommended)
+
+Run the **database + API in Docker** and the **web locally** so you get
+**instant UI updates (Fast Refresh)** on every save, without rebuilding images:
+
+```bash
+# Easiest — one command (starts Docker db+api, stops the Dockerized web,
+# frees port 3000, and launches the local dev server with hot-reload):
+pwsh -ExecutionPolicy Bypass -File .\dev-web.ps1
+```
+
+Or manually, in two terminals:
+
+```bash
+# Terminal 1 — backend (db + api) in Docker
+cp .env.example .env
+docker compose up -d db api   # or just: docker compose up -d
+# ✅ API:   http://localhost:8080   (auto-migrates DB on first run)
+# ✅ DB:    localhost:5432
+
+# Terminal 2 — web locally with hot reload
+cd punched-pwd
+cp .env.example .env.local     # points NEXT_PUBLIC_API_URL at the Docker API
+npm install
+npm run dev                    # → http://localhost:3000
+```
+
+> **Port conflict?** `npm run dev` fails with `EADDRINUSE :::3000` when the
+> Dockerized `web` container is still holding port **3000**. Before running the
+> local dev server, free the port with:
+> ```bash
+> docker compose stop web
+> ```
+> The `dev-web.ps1` helper does this for you automatically. To bring the
+> Dockerized web back later: `docker compose --profile web up -d`.
+
+Edit any file under `punched-pwd/` and the browser **updates instantly**
+(Fast Refresh / HMR). The API stays in Docker on `localhost:8080`.
+
+> **Important:** `punched-pwd/.env.local` sets `NEXT_PUBLIC_API_URL` to the
+> Dockerized API (`http://localhost:8080/v1`). Without it the client falls back
+> to `http://localhost:5000/v1` (wrong port) and requests will fail.
+
 ### Local Development (without Docker)
 
 ```bash
@@ -321,6 +371,7 @@ The API **auto-migrates** the database and **seeds a default admin account** on 
 cd PunchedApi
 dotnet restore
 dotnet run   # → http://localhost:5091
+# Add NEXT_PUBLIC_API_URL=http://localhost:5091/v1 to punched-pwd/.env.local
 
 # Frontend (in a second terminal)
 cd punched-pwd

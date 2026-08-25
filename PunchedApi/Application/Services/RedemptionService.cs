@@ -45,12 +45,31 @@ public class RedemptionService : IRedemptionService
             if (card == null)
                 return ApiResponse<RedemptionResponse>.Fail("NOT_FOUND", "Loyalty card not found.");
 
-            if (card.TotalStamps < card.Program.StampsRequired)
+            var stampsRequired = card.Program.StampsRequired;
+            if (card.TotalStamps < stampsRequired)
                 return ApiResponse<RedemptionResponse>.Fail(
                     "INSUFFICIENT_STAMPS",
-                    $"You need {card.Program.StampsRequired - card.TotalStamps} more stamps to claim this reward.");
+                    $"You need {stampsRequired - card.TotalStamps} more stamps to claim this reward.");
 
-            // Create redemption record
+            var now = DateTime.UtcNow;
+
+            // Atomically consume the stamps. The conditional UPDATE is the source of
+            // truth: two concurrent claims (double tap / retried request) can never
+            // both pass, because only the first one finds a row with enough stamps.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            var claimed = await _context.LoyaltyCards
+                .Where(c => c.Id == card.Id && c.TotalStamps >= stampsRequired)
+                .ExecuteUpdateAsync(u => u
+                    .SetProperty(c => c.TotalStamps, 0)
+                    .SetProperty(c => c.TotalRedemptions, c => c.TotalRedemptions + 1));
+
+            if (claimed == 0)
+            {
+                await transaction.RollbackAsync();
+                return ApiResponse<RedemptionResponse>.Fail("INSUFFICIENT_STAMPS",
+                    "This reward has already been claimed or there are not enough stamps.");
+            }
+
             var redemption = new Redemption
             {
                 Id = Guid.NewGuid(),
@@ -60,18 +79,14 @@ public class RedemptionService : IRedemptionService
                 PerformedByRole = UserRole.Customer.ToString(),
                 RewardValue = card.Program.RewardValue,
                 Status = "pending",
-                RedeemedAt = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow
+                RedeemedAt = now,
+                CreatedAt = now
             };
 
             await _unitOfWork.Redemptions.AddAsync(redemption);
-
-            // Reset current stamps and increment redemption count
-            card.TotalStamps = 0;
-            card.TotalRedemptions++;
-            _unitOfWork.LoyaltyCards.Update(card);
-
             await _unitOfWork.SaveChangesAsync();
+            await transaction.CommitAsync();
+
             await _analyticsAggregationService.RecomputeTodayForBusinessAsync(card.BusinessId);
 
             _logger.LogInformation(
@@ -101,24 +116,25 @@ public class RedemptionService : IRedemptionService
     {
         try
         {
-            var redemptions = await _context.Redemptions
-                .Include(r => r.Card)
-                .Include(r => r.Business)
-                    .ThenInclude(b => b.LoyaltyPrograms)
+            // Server-side projection: one query, no entity graph loading. The reward
+            // description always comes from the card's own program (previously this
+            // fell back to "any active business program", which could describe the
+            // wrong reward).
+            var result = await _context.Redemptions
+                .AsNoTracking()
                 .Where(r => r.Card.CustomerId == customerId)
                 .OrderByDescending(r => r.RedeemedAt)
+                .Select(r => new RedemptionResponse
+                {
+                    Id = r.Id,
+                    CardId = r.CardId,
+                    BusinessName = r.Business.Name,
+                    RewardValue = r.RewardValue,
+                    RewardDescription = r.Card.Program != null ? r.Card.Program.RewardDescription : "Reward",
+                    Status = r.Status,
+                    RedeemedAt = r.RedeemedAt
+                })
                 .ToListAsync();
-
-            var result = redemptions.Select(r => new RedemptionResponse
-            {
-                Id = r.Id,
-                CardId = r.CardId,
-                BusinessName = r.Business.Name,
-                RewardValue = r.RewardValue,
-                RewardDescription = r.Business.LoyaltyPrograms.FirstOrDefault(p => p.IsActive)?.RewardDescription ?? "Reward",
-                Status = r.Status,
-                RedeemedAt = r.RedeemedAt
-            }).ToList();
 
             return ApiResponse<List<RedemptionResponse>>.Ok(result);
         }

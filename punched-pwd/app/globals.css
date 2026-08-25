@@ -456,6 +456,11 @@ select {
   to { transform: translateX(0); opacity: 1; }
 }
 
+@keyframes sheet-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
@@ -475,6 +480,23 @@ select {
 
 .animate-slide-in-right {
   animation: slide-in-right 0.3s ease-out both;
+}
+
+.animate-sheet-up {
+  animation: sheet-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Reduced motion: disable decorative animations app-wide (standard #4).
+   State changes remain instant — nothing blocks the user. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-scale-in,
+  .animate-slide-up,
+  .animate-slide-in-right,
+  .animate-sheet-up,
+  .animate-fade-in,
+  .animate-pulse-soft {
+    animation: none;
+  }
 }
 
 .animate-pulse-soft {
@@ -524,4 +546,36 @@ select {
 .star-sparkle {
   animation: star-sparkle 2s ease-out forwards;
 }
+@layer components {
+  .form-input,
+  .form-select {
+    width: 100%;
+    height: 44px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--text-primary);
+    padding: 0 12px;
+    font-size: 14px;
+    outline: none;
+  }
 
+  .form-input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .form-input:hover,
+  .form-select:hover {
+    border-color: var(--brand);
+  }
+
+  .form-input:focus,
+  .form-select:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-ring);
+  }
+
+  .form-select {
+    appearance: auto;
+  }
+}

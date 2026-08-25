@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { Check, X } from "lucide-react";
+import { Check, X, ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useOnboarding } from "@/hooks/useOnboarding";
@@ -13,9 +14,26 @@ import {
 } from "@/lib/validations/onboarding";
 
 // ═══════════════════════════════════════════════════════════════
-//  Business Register Form — owner + business onboarding
-//  POST /auth/register-business (atomically creates UserAuth + owner + business)
+//  Business Register Form — staged onboarding journey.
+//  POST /auth/register-business is still ONE atomic request; the
+//  wizard only paces data entry across stages (draft lives in RHF).
+//  Stages: 1 Account → 2 Business → 3 Profile → 4 Review.
 // ═══════════════════════════════════════════════════════════════
+
+const STAGES = [
+  { n: 1, label: "Account", title: "Create your identity", hint: "This signs you in as the business owner." },
+  { n: 2, label: "Business", title: "Tell us about your business", hint: "Customers will see this on explore." },
+  { n: 3, label: "Profile", title: "Make it yours", hint: "Payouts and branding — polish comes later." },
+  { n: 4, label: "Review", title: "Review & launch", hint: "One last look before we create your account." },
+] as const;
+
+/** Fields validated (via zod) before leaving each stage. */
+const STAGE_FIELDS: Record<number, (keyof RegisterBusinessFormData)[]> = {
+  1: ["fullName", "email", "phoneNumber", "password"],
+  2: ["businessName", "businessCategory", "businessLocation"],
+  3: ["businessMpesaNumber", "businessDescription", "logoUrl"],
+  4: [],
+};
 
 export function BusinessRegisterForm() {
   const { registerBusiness, isLoading, error } = useOnboarding();
@@ -23,8 +41,9 @@ export function BusinessRegisterForm() {
   const {
     register,
     handleSubmit,
+    trigger,
     watch,
-    formState: { errors, isValid },
+    formState: { errors },
   } = useForm<RegisterBusinessFormData>({
     resolver: zodResolver(registerBusinessSchema),
     mode: "onChange",
@@ -53,57 +72,93 @@ export function BusinessRegisterForm() {
     { label: "1 special character", met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
   ];
 
-  const fullName = watch("fullName", "");
-  const email = watch("email", "");
-  const phoneNumber = watch("phoneNumber", "");
+  const [stage, setStage] = useState(1);
+
+  /** Advance only when the current stage validates cleanly. */
+  const goNext = async () => {
+    const valid = await trigger(STAGE_FIELDS[stage], { shouldFocus: true });
+    if (valid) setStage((s) => Math.min(STAGES.length, s + 1));
+  };
+
+  const goBack = () => setStage((s) => Math.max(1, s - 1));
 
   const onSubmit = (data: RegisterBusinessFormData) => {
     registerBusiness(data);
   };
 
-  const STEPS = ["Account", "Details", "Finish"];
+  const currentStage = STAGES[stage - 1];
+  const progressPercent = ((stage - 1) / (STAGES.length - 1)) * 100;
+  const values = watch();
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       {/* Progress indicator */}
-      <nav aria-label="Onboarding progress" className="flex items-center w-full">
-        {STEPS.map((label, i) => (
-          <div key={label} className="contents">
-            {i > 0 && <div className="flex-grow h-px bg-[var(--border)] mx-3" aria-hidden />}
-            <div className="flex flex-col items-center gap-2">
-              <div
-                aria-current={i === 0 ? "step" : undefined}
-                className={`w-9 h-9 flex items-center justify-center text-[12px] tracking-[0.15em] font-bold border ${
-                  i === 0
-                    ? "bg-[var(--text-primary)] text-[var(--background)] border-[var(--text-primary)]"
-                    : "bg-transparent text-[var(--text-tertiary)] border-[var(--border)]"
-                }`}
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                {i + 1}
-              </div>
-              <span
-                className={`text-[12px] tracking-[0.15em] uppercase font-bold whitespace-nowrap ${
-                  i === 0 ? "text-[var(--text-primary)]" : "text-[var(--text-tertiary)]"
-                }`}
-              >
-                {label}
-              </span>
-            </div>
-          </div>
-        ))}
+      <nav aria-label="Onboarding progress" className="space-y-3">
+        <div
+          role="progressbar"
+          aria-valuemin={1}
+          aria-valuemax={STAGES.length}
+          aria-valuenow={stage}
+          aria-label={`Stage ${stage} of ${STAGES.length}`}
+          className="h-[3px] w-full bg-[var(--border)] overflow-hidden"
+        >
+          <div
+            className="h-full bg-brand transition-all duration-500 ease-out motion-reduce:transition-none"
+            style={{ width: `${Math.max(progressPercent, 4)}%` }}
+          />
+        </div>
+
+        <ol className="flex items-center justify-between gap-2">
+          {STAGES.map((s) => {
+            const done = s.n < stage;
+            const active = s.n === stage;
+            return (
+              <li key={s.n} className="flex items-center gap-2 min-w-0">
+                <span
+                  aria-current={active ? "step" : undefined}
+                  className={`w-7 h-7 flex items-center justify-center text-[11px] tracking-widest font-bold border transition-colors duration-300 ${
+                    done
+                      ? "bg-ok text-white border-ok"
+                      : active
+                        ? "bg-[var(--text-primary)] text-[var(--background)] border-[var(--text-primary)]"
+                        : "bg-transparent text-[var(--text-muted)] border-[var(--border)]"
+                  }`}
+                >
+                  {done ? <Check className="h-3.5 w-3.5" /> : s.n}
+                </span>
+                <span
+                  className={`hidden sm:block text-[11px] tracking-[0.15em] uppercase font-bold truncate ${
+                    active
+                      ? "text-[var(--text-primary)]"
+                      : done
+                        ? "text-ok-text"
+                        : "text-[var(--text-muted)]"
+                  }`}
+                >
+                  {s.label}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
       </nav>
 
-      {/* Header */}
-      <header className="border-b border-[var(--border)] pb-6">
+      {/* Stage header */}
+      <header className="min-h-[76px]">
         <h1
-          className="text-2xl md:text-[32px] font-bold tracking-tight text-[var(--text-primary)]"
+          key={`title-${stage}`}
+          className="text-2xl md:text-[32px] font-bold tracking-tight text-[var(--text-primary)] animate-fade-in"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
         >
-          Create Identity
+          {currentStage.title}
         </h1>
-        <p className="font-mono text-sm text-[var(--text-tertiary)] mt-2 max-w-md" style={{ fontFamily: "'Space Mono', monospace" }}>
-          Register your business to manage loyalty rewards, staff, and analytics.
+        <p
+          className="font-mono text-sm text-[var(--text-tertiary)] mt-2 max-w-md animate-fade-in"
+          style={{ fontFamily: "'Space Mono', monospace" }}
+        >
+          <span className="text-brand">Step {stage} of {STAGES.length}</span>
+          {" — "}
+          {currentStage.hint}
         </p>
       </header>
 
@@ -117,7 +172,8 @@ export function BusinessRegisterForm() {
         </div>
       )}
 
-      {/* ── Owner account ─────────────────────────────────── */}
+      {/* ── Stage 1: owner account ────────────────────────── */}
+      {stage === 1 && (
       <section className="relative border border-[var(--border)] p-5 flex flex-col gap-5">
         <span
           aria-hidden
@@ -186,8 +242,10 @@ export function BusinessRegisterForm() {
           </div>
         )}
       </section>
+      )}
 
-      {/* ── Business information ──────────────────────────── */}
+      {/* ── Stage 2: business identity ────────────────────── */}
+      {stage === 2 && (
       <section className="relative border border-[var(--border)] p-5 flex flex-col gap-5">
         <span
           aria-hidden
@@ -223,14 +281,6 @@ export function BusinessRegisterForm() {
       </div>
 
       <Input
-        label="M-Pesa number (payouts)"
-        type="text"
-        placeholder="123456"
-        error={errors.businessMpesaNumber?.message}
-        {...register("businessMpesaNumber")}
-      />
-
-      <Input
         label="Business phone (optional)"
         type="tel"
         placeholder="+254700000001"
@@ -244,6 +294,26 @@ export function BusinessRegisterForm() {
         placeholder="cafe@example.com"
         error={errors.businessEmail?.message}
         {...register("businessEmail")}
+      />
+      </section>
+      )}
+
+      {/* ── Stage 3: profile & payouts ────────────────────── */}
+      {stage === 3 && (
+      <section className="relative border border-[var(--border)] p-5 flex flex-col gap-5">
+        <span
+          aria-hidden
+          className="absolute -top-2.5 left-4 bg-[var(--background)] px-2 text-[10px] tracking-[0.2em] uppercase font-bold text-[var(--text-tertiary)]"
+        >
+          Profile &amp; Payouts
+        </span>
+
+      <Input
+        label="M-Pesa number (payouts)"
+        type="text"
+        placeholder="123456"
+        error={errors.businessMpesaNumber?.message}
+        {...register("businessMpesaNumber")}
       />
 
       <Input
@@ -280,8 +350,10 @@ export function BusinessRegisterForm() {
         )}
       </div>
       </section>
+      )}
 
-      {/* ── Review archive ────────────────────────────────── */}
+      {/* ── Stage 4: review ───────────────────────────────── */}
+      {stage === 4 && (
       <section className="border border-[var(--border)] flex flex-col">
         <div className="flex justify-between items-center border-b border-[var(--border)] px-5 py-4">
           <h2
@@ -295,33 +367,90 @@ export function BusinessRegisterForm() {
           </span>
         </div>
         <ul className="px-5 font-mono text-sm" style={{ fontFamily: "'Space Mono', monospace" }}>
-          {[
-            { label: "Full Name", value: fullName },
-            { label: "Email", value: email },
-            { label: "Phone", value: phoneNumber },
-          ].map(({ label, value }) => (
-            <li
-              key={label}
-              className="py-3 border-b border-[var(--border-light)] last:border-b-0 flex justify-between gap-4"
-            >
-              <span className="text-[var(--text-tertiary)]">{label}</span>
-              <span className="text-[var(--text-primary)] truncate">{value || "—"}</span>
-            </li>
-          ))}
+          {(
+            [
+              ["Owner", "fullName"],
+              ["Email", "email"],
+              ["Phone", "phoneNumber"],
+              ["Business name", "businessName"],
+              ["Category", "businessCategory"],
+              ["Location", "businessLocation"],
+              ["Business phone", "businessPhone"],
+              ["Business email", "businessEmail"],
+              ["M-Pesa number", "businessMpesaNumber"],
+              ["Logo URL", "logoUrl"],
+              ["Description", "businessDescription"],
+            ] as [string, keyof RegisterBusinessFormData][]
+          ).map(([label, key]) => {
+            const value = values[key];
+            return typeof value === "undefined" || value === "" ? null : (
+              <li
+                key={key}
+                className="py-3 border-b border-[var(--border-light)] last:border-b-0 flex justify-between gap-4"
+              >
+                <span className="text-[var(--text-tertiary)] flex-shrink-0">{label}</span>
+                <span className="text-[var(--text-primary)] truncate">{String(value)}</span>
+              </li>
+            );
+          })}
         </ul>
+        <p className="px-5 py-4 font-mono text-xs text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
+          Need to change something? Use the back button — your entries are kept.
+        </p>
       </section>
+      )}
 
-      {/* Submit */}
-      <Button
-        type="submit"
-        fullWidth
-        size="lg"
-        isLoading={isLoading}
-        disabled={!isValid}
-        className="rounded-none uppercase tracking-widest font-bold border border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--background)] hover:bg-transparent hover:text-[var(--text-primary)] shadow-none hover:shadow-none"
-      >
-        Create Business Account
-      </Button>
+      {/* Stage navigation / submit */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {stage > 1 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            onClick={goBack}
+            disabled={isLoading}
+            className="rounded-none uppercase tracking-widest font-bold sm:w-40"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+        )}
+        {stage < STAGES.length ? (
+          <Button
+            type="button"
+            size="lg"
+            isLoading={false}
+            onClick={goNext}
+            fullWidth={stage === 1}
+            className="flex-1 rounded-none uppercase tracking-widest font-bold border border-brand bg-brand hover:bg-brand-hover shadow-none hover:shadow-none"
+          >
+            Continue <ArrowRight className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            size="lg"
+            isLoading={isLoading}
+            fullWidth
+            className="flex-1 rounded-none uppercase tracking-widest font-bold border border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--background)] hover:bg-transparent hover:text-[var(--text-primary)] shadow-none hover:shadow-none motion-safe:active:scale-[0.98]"
+          >
+            Create Business Account
+          </Button>
+        )}
+      </div>
+
+      {/* Success / achievement moment while the account is being created */}
+      {isLoading && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="border border-ok/40 bg-ok-light px-5 py-4 flex items-center gap-3 animate-fade-in"
+        >
+          <Check className="h-5 w-5 text-ok-text flex-shrink-0" />
+          <p className="font-mono text-sm text-ok-text" style={{ fontFamily: "'Space Mono', monospace" }}>
+            Everything looks good — creating your business…
+          </p>
+        </div>
+      )}
 
       {/* Terms note */}
       <p className="text-center font-mono text-xs text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>

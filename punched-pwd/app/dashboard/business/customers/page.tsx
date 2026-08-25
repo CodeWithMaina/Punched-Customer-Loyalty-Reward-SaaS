@@ -1,37 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { businessesApi } from "@/lib/api/businesses";
-import type { BusinessCustomer } from "@/types";
+import type {
+  BusinessCustomer, CustomerOverviewResponse,
+} from "@/types";
 import {
-  Loader2,
-  Search,
-  ChevronRight,
-  ChevronLeft,
-  Trophy,
-  Download,
-  X,
-  SlidersHorizontal,
+  ChevronLeft, Download, Search,
 } from "lucide-react";
-import { FilterSheet, FilterChips, SortOptions } from "@/components/ui/FilterSheet";
+import { EmptyState, ErrorState, SearchInput } from "@/components/ui/States";
+import { Tabs } from "@/components/ui/Tabs";
+import { Pagination } from "@/components/ui/Pagination";
+import { CustomerOverview } from "./_components/CustomerOverview";
+import { CustomerCard, CustomerCardSkeleton } from "./_components/CustomerCard";
+import {
+  CustomerFilterDrawer, CustomerFilterChips, CustomerFilterTrigger,
+} from "./_components/CustomerFilterDrawer";
+import {
+  cycleSort, parseCustomerListState, sortLabel, customerListStateToParams,
+  type CustomerListFilters, type CustomerListState,
+} from "./_components/filters";
 
-type FilterKey = "all" | "active" | "ready";
-type SortKey = "recent" | "stamps" | "alpha";
+const PAGE_SIZE = 25;
 
-function timeAgo(dateStr?: string): string {
-  if (!dateStr) return "";
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d`;
-}
+const SORT_OPTIONS: { key: CustomerListState["sortBy"]; label: string }[] = [
+  { key: "recent", label: "Most recent" },
+  { key: "stamps", label: "Top stamps" },
+  { key: "name", label: "Name" },
+];
 
 function escapeCsvField(v?: string | number | null): string {
   if (v == null || v === "") return "";
@@ -43,7 +43,8 @@ function escapeCsvField(v?: string | number | null): string {
 }
 
 function downloadCsv(customers: BusinessCustomer[]) {
-  const header = "Name,Email,Phone,DateOfBirth,Gender,TotalStamps,LifetimeStamps,TotalRedemptions,EnrolledAt,LastStampAt";
+  const header =
+    "Name,Email,Phone,DateOfBirth,Gender,TotalStamps,LifetimeStamps,TotalRedemptions,EnrolledAt,LastStampAt";
   const rows = customers.map((c) =>
     [
       escapeCsvField(c.fullName),
@@ -73,264 +74,323 @@ export default function BusinessCustomersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [data, setData] = useState<BusinessCustomer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState(searchParams.get("search") ?? "");
-  const [filter, setFilter] = useState<FilterKey>((searchParams.get("status") as FilterKey) ?? "all");
-  const [sort, setSort] = useState<SortKey>((searchParams.get("sortBy") as SortKey) ?? "recent");
-  const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
-  const [totalCount, setTotalCount] = useState(0);
+  // URL-mirrored list state (shareable / refresh-safe).
+  const [state, setState] = useState<CustomerListState>(() =>
+    parseCustomerListState(Object.fromEntries(searchParams.entries()))
+  );
+  const [searchInput, setSearchInput] = useState(state.search);
+  const debouncedSearch = useDebouncedValue(searchInput);
+
+  const [view, setView] = useState<"overview" | "roster">("overview");
+
+  const [items, setItems] = useState<BusinessCustomer[]>([]);
+  const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const debouncedQuery = useDebouncedValue(query);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [stampsRequired, setStampsRequired] = useState(0);
-  const [showFilters, setShowFilters] = useState(false);
+  const [overview, setOverview] = useState<CustomerOverviewResponse | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
 
+  // Filter drawer draft state.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [draftFilters, setDraftFilters] = useState<CustomerListFilters>({
+    status: state.status,
+    enrolledFrom: state.enrolledFrom,
+    enrolledTo: state.enrolledTo,
+  });
+
+  // Debounce the committed search state.
   useEffect(() => {
-    businessesApi.getMine().then((biz) => {
-      const req = biz.data?.loyaltyProgram?.stampsRequired ?? 0;
-      setStampsRequired(req);
-    });
+    setState((s) => (s.search === debouncedSearch ? s : { ...s, search: debouncedSearch, page: 1 }));
+  }, [debouncedSearch]);
+
+  // Mirror committed state into the URL.
+  useEffect(() => {
+    const qs = new URLSearchParams(customerListStateToParams(state)).toString();
+    router.replace(qs ? `?${qs}` : "?", { scroll: false });
+  }, [state, router]);
+
+  const activeFilterCount =
+    Number(Boolean(state.status)) +
+    Number(Boolean(state.enrolledFrom)) +
+    Number(Boolean(state.enrolledTo));
+  const fetchCustomers = useCallback((s: CustomerListState) => {
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+    businessesApi
+      .getMyCustomers({
+        search: s.search || undefined,
+        status: s.status,
+        enrolledFrom: s.enrolledFrom,
+        enrolledTo: s.enrolledTo,
+        sortBy: s.sortBy,
+        sortDirection: s.sortDirection,
+        page: s.page,
+        pageSize: PAGE_SIZE,
+      })
+      .then((res) => {
+        if (!cancelled) {
+          if (res.success && res.data) {
+            setItems(res.data.items);
+            setTotal(res.data.totalCount);
+            setTotalPages(Math.max(1, Math.ceil(res.data.totalCount / PAGE_SIZE)));
+          } else {
+            setError(res.error?.message ?? "Could not load customers.");
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load customers. Please try again.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => fetchCustomers(state), [state, fetchCustomers]);
+
+  const fetchOverview = useCallback(() => {
+    setOverviewLoading(true);
+    businessesApi
+      .getCustomerOverview()
+      .then((res) => res.success && res.data && setOverview(res.data))
+      .catch(() => undefined)
+      .finally(() => setOverviewLoading(false));
   }, []);
 
   useEffect(() => {
-    setPage(1);
-  }, [debouncedQuery, filter, sort]);
+    fetchOverview();
+  }, [fetchOverview]);
 
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (debouncedQuery) params.set("search", debouncedQuery);
-    if (filter !== "all") params.set("status", filter);
-    if (sort !== "recent") params.set("sortBy", sort);
-    if (page > 1) params.set("page", String(page));
-    router.replace(`/dashboard/business/customers${params.size ? `?${params}` : ""}`, { scroll: false });
+  const patchState = (patch: Partial<CustomerListState>) =>
+    setState((s) => ({ ...s, ...patch }));
 
-    let active = true;
-    setLoading(true);
-    setError(null);
-    businessesApi.getMyCustomers({
-      search: debouncedQuery || undefined,
-      status: filter === "all" ? undefined : filter,
-      sortBy: sort === "alpha" ? "name" : sort,
-      sortDirection: sort === "alpha" ? "asc" : "desc",
-      page,
-      pageSize: 25,
-    }).then((response) => {
-      if (!active) return;
-      if (!response.success || !response.data) {
-        setError(response.error?.message ?? "Could not load customers.");
-        setData([]);
-        return;
-      }
-      setData(response.data.items);
-      setTotalCount(response.data.totalCount);
-      setTotalPages(response.data.totalPages);
-    }).catch(() => {
-      if (active) setError("Could not load customers. Please try again.");
-    }).finally(() => {
-      if (active) setLoading(false);
-    });
+  const applyDraftFilters = () => {
+    patchState({ ...draftFilters, page: 1 });
+    setFiltersOpen(false);
+  };
 
-    return () => { active = false; };
-  }, [debouncedQuery, filter, page, router, sort]);
+  const clearAllFilters = () => {
+    const cleared: CustomerListFilters = {
+      status: undefined,
+      enrolledFrom: undefined,
+      enrolledTo: undefined,
+    };
+    setDraftFilters(cleared);
+    patchState({ ...cleared, page: 1 });
+  };
 
-  return (
-    <div className="max-w-xl mx-auto pb-10">
+  const removeFilter = (key: keyof CustomerListFilters) => {
+    setDraftFilters((d) => ({ ...d, [key]: undefined }));
+    patchState({ [key]: undefined, page: 1 } as Partial<CustomerListState>);
+  };
 
+  const hasAnyFilter =
+    Boolean(state.search) ||
+    Boolean(state.status) ||
+    Boolean(state.enrolledFrom) ||
+    Boolean(state.enrolledTo);
+return (
+    <div className="max-w-xl lg:max-w-4xl mx-auto pb-10">
       {/* Header */}
-      <div className="px-5 pt-6 pb-3 flex items-center justify-between">
+      <header className="px-5 pt-6 pb-3 flex items-start justify-between gap-3">
         <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-accent mb-1 flex items-center gap-1.5">
+            <Link href="/dashboard/business" aria-label="Back to business dashboard" className="hover:text-brand inline-flex">
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Link>
+            Customer Relationships
+          </p>
           <h1 className="text-xl font-bold text-[var(--text-primary)]">Customers</h1>
-          <p className="text-xs text-[var(--text-tertiary)]">{totalCount} total</p>
+          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+            Your loyalty base, their progress and who needs attention.
+          </p>
         </div>
         <button
-          onClick={() => downloadCsv(data)}
-          disabled={data.length === 0}
-          title="Export as CSV"
-          className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand bg-brand-surface px-3 py-2 rounded-xl hover:bg-brand-light transition-colors disabled:opacity-40"
+          onClick={() => downloadCsv(items)}
+          disabled={items.length === 0}
+          title="Export current page as CSV"
+          aria-label="Export customers as CSV"
+          className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand bg-brand-surface px-3 py-2 rounded-xl hover:bg-brand-light transition-colors disabled:opacity-40 min-h-[36px]"
         >
           <Download className="h-3.5 w-3.5" />
           Export
         </button>
+      </header>
+
+      {/* View switcher */}
+      <div className="px-5 pt-2">
+        <Tabs
+          label="Customer views"
+          idPrefix="cust-view"
+          value={view}
+          onChange={setView}
+          items={[
+            { value: "overview", label: "Overview" },
+            { value: "roster", label: "All customers" },
+          ]}
+          className="w-full sm:w-auto"
+        />
       </div>
 
-      {/* Search bar + filter button */}
-      <div className="sticky top-[57px] z-10 bg-[var(--background)] px-5 pt-3 pb-3 space-y-3">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-tertiary)] pointer-events-none" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name, email or phone…"
-              className="w-full pl-10 pr-9 py-2.5 text-sm bg-[var(--surface)] border border-[var(--border)] rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/30 transition shadow-card"
-            />
-            {query && (
+      {view === "overview" ? (
+        <>
+          <CustomerOverview overview={overview} isLoading={overviewLoading} />
+          {overview && overview.totalCustomers > 0 && (
+            <div className="mx-5 mt-5">
               <button
-                onClick={() => setQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                onClick={() => setView("roster")}
+                className="w-full rounded-2xl border border-brand/40 bg-brand-surface text-brand text-xs font-semibold px-4 py-3 transition-colors hover:bg-brand-light"
               >
-                <X className="h-4 w-4" />
+                View all {overview.totalCustomers} customer{overview.totalCustomers !== 1 ? "s" : ""}
               </button>
-            )}
-          </div>
-          <button
-            onClick={() => setShowFilters((v) => !v)}
-            className={`h-10 w-10 rounded-2xl border flex items-center justify-center flex-shrink-0 transition-all ${
-              showFilters
-                ? "bg-brand border-brand text-white shadow-sm"
-                : "bg-[var(--surface)] border-[var(--border)] text-[var(--text-secondary)]"
-            }`}
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Active filter pills (visible when sheet is closed and filters are non-default) */}
-        {(filter !== "all" || sort !== "recent") && !showFilters && (
-          <div className="flex gap-1.5 flex-wrap items-center">
-            {filter !== "all" && (
-              <span className="inline-flex items-center gap-1 bg-brand-surface text-brand text-xs font-semibold px-2.5 py-1 rounded-full">
-                {filter === "active" ? "Active" : "Reward Ready"}
-                <button onClick={() => setFilter("all")} className="hover:text-brand-dark"><X className="h-3 w-3" /></button>
-              </span>
-            )}
-            {sort !== "recent" && (
-              <span className="inline-flex items-center gap-1 bg-[var(--border-light)] text-[var(--text-secondary)] text-xs font-semibold px-2.5 py-1 rounded-full">
-                {sort === "stamps" ? "Top Stamps" : "A → Z"}
-                <button onClick={() => setSort("recent")} className="hover:text-[var(--text-primary)]"><X className="h-3 w-3" /></button>
-              </span>
-            )}
-            <span className="ml-auto text-[11px] text-[var(--text-tertiary)] whitespace-nowrap">
-              {totalCount} result{totalCount !== 1 ? "s" : ""}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* FilterSheet — mobile bottom sheet / desktop inline */}
-      <div className="px-5">
-        <FilterSheet open={showFilters} onClose={() => setShowFilters(false)} title="Filter & Sort">
-          <FilterChips
-            label="Status"
-            options={["All", "Active", "Reward Ready"]}
-            value={filter === "all" ? "All" : filter === "active" ? "Active" : "Reward Ready"}
-            onChange={(v) => setFilter(v === "All" ? "all" : v === "Active" ? "active" : "ready")}
-          />
-          <SortOptions
-            options={[
-              { key: "recent", label: "Most Recent" },
-              { key: "stamps", label: "Top Stamps" },
-              { key: "alpha", label: "A → Z" },
-            ]}
-            value={sort}
-            onChange={(v) => setSort(v as SortKey)}
-          />
-        </FilterSheet>
-      </div>
-
-      {/* Content */}
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-[var(--text-tertiary)]" />
-        </div>
-      ) : error ? (
-        <div className="mx-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card py-14 text-center">
-          <p className="text-sm font-semibold text-[var(--text-secondary)] mb-3">{error}</p>
-          <button onClick={() => setPage((current) => current)} className="text-xs font-semibold text-brand">Retry</button>
-        </div>
-      ) : data.length === 0 ? (
-        <div className="mx-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card py-14 text-center">
-          <p className="text-2xl mb-2">🔍</p>
-          <p className="text-sm font-semibold text-[var(--text-secondary)] mb-1">No customers found</p>
-          <p className="text-xs text-[var(--text-tertiary)]">
-            {filter !== "all" || query
-              ? "Try adjusting your filter or search"
-              : "Customers will appear here once they join"}
-          </p>
-          {(filter !== "all" || query) && (
-            <button
-              onClick={() => { setFilter("all"); setQuery(""); }}
-              className="mt-3 text-xs font-semibold text-brand"
-            >
-              Clear filters
-            </button>
+            </div>
           )}
-        </div>
+        </>
       ) : (
-        <div className="mx-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden divide-y divide-[var(--border-light)]">
-          {data.map((c) => {
-            const ready = stampsRequired > 0 && c.totalStamps >= stampsRequired;
+        <>
+          {/* Search + filter trigger */}
+          <div className="sticky top-[57px] z-10 bg-[var(--background)] px-5 pt-3 pb-3 space-y-3">
+            <div className="flex gap-2">
+              <SearchInput
+                value={searchInput}
+                onChange={setSearchInput}
+                placeholder="Search by name, email or phone…"
+                label="Search customers"
+              />
+              <CustomerFilterTrigger
+                count={activeFilterCount}
+                active={filtersOpen}
+                onClick={() => {
+                  setDraftFilters({
+                    status: state.status,
+                    enrolledFrom: state.enrolledFrom,
+                    enrolledTo: state.enrolledTo,
+                  });
+                  setFiltersOpen(true);
+                }}
+              />
+            </div>
 
-            return (
-              <Link
-                key={c.cardId}
-                href={`/dashboard/business/customers/${c.userId}`}
-                className="flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--surface-raised)] active:bg-[var(--border-light)] transition-colors"
+            {/* Active filter chips / sort pills + result count */}
+            <div className="flex flex-wrap items-center gap-2 min-h-[24px]">
+              {hasAnyFilter ? (
+                <CustomerFilterChips applied={state} onRemove={removeFilter} onClearAll={clearAllFilters} />
+              ) : (
+                <SortPills state={state} onCycle={(key) => patchState(cycleSort(state, key))} />
+              )}
+              <span
+                className="ml-auto text-[11px] text-[var(--text-tertiary)] whitespace-nowrap tabular-nums"
+                aria-live="polite"
               >
-                {/* Avatar */}
-                <div className="h-10 w-10 rounded-full bg-brand-surface flex items-center justify-center text-sm font-bold text-brand overflow-hidden flex-shrink-0">
-                  {c.avatarUrl ? (
-                    <img src={c.avatarUrl} className="h-full w-full object-cover" alt="" />
-                  ) : (
-                    c.fullName.charAt(0).toUpperCase()
-                  )}
-                </div>
+                {isLoading ? "…" : `${total} result${total !== 1 ? "s" : ""}`}
+              </span>
+            </div>
+          </div>
+{/* Advanced filters: mobile bottom sheet → desktop right drawer */}
+          <CustomerFilterDrawer
+            open={filtersOpen}
+            onClose={() => setFiltersOpen(false)}
+            draft={draftFilters}
+            onDraftChange={setDraftFilters}
+            onApply={applyDraftFilters}
+            onClear={clearAllFilters}
+          />
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{c.fullName}</p>
-                    {ready && <Trophy className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />}
-                  </div>
-                  <p className="text-xs text-[var(--text-tertiary)] truncate">{c.email}</p>
-                  {(c.phoneNumber || c.gender) && (
-                    <p className="text-[10px] text-[var(--text-tertiary)] truncate mt-0.5">
-                      {[c.phoneNumber, c.gender].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
-                </div>
-
-                {/* Stamp progress + time */}
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm font-bold text-[var(--text-primary)]">{c.totalStamps}</span>
-                    {stampsRequired > 0 && (
-                      <span className="text-[10px] text-[var(--text-tertiary)]">/ {stampsRequired}</span>
-                    )}
-                  </div>
-                  {c.lastStampAt && (
-                    <p className="text-[10px] text-[var(--text-tertiary)]">{timeAgo(c.lastStampAt)}</p>
-                  )}
-                </div>
-
-                <ChevronRight className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
-              </Link>
-            );
-          })}
-        </div>
+          {/* Roster */}
+          {error ? (
+            <ErrorState message={error} onRetry={() => fetchCustomers(state)} />
+          ) : isLoading ? (
+            <div className="mx-5 rounded-2xl border border-[var(--border-light)] divide-y divide-[var(--border-light)] overflow-hidden" aria-busy="true">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <CustomerCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : items.length === 0 ? (
+            <div className="mx-5 mt-4">
+              <EmptyState
+                icon={<Search className="h-6 w-6" />}
+                title={state.search ? "No customers match your search." : "No customers match these filters."}
+                description={
+                  hasAnyFilter
+                    ? "Try removing a filter or clearing your search."
+                    : "Customers will appear here once they join your loyalty program."
+                }
+                action={
+                  hasAnyFilter ? (
+                    <button
+                      onClick={() => {
+                        setSearchInput("");
+                        clearAllFilters();
+                      }}
+                      className="mt-1 px-4 py-2.5 rounded-xl border border-brand text-brand text-xs font-semibold hover:bg-brand-surface transition-colors"
+                    >
+                      Clear search &amp; filters
+                    </button>
+                  ) : undefined
+                }
+              />
+            </div>
+          ) : (
+            <>
+              <div className="mx-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                {items.map((c: BusinessCustomer, index: number) => (
+                  <CustomerCard
+                    key={c.cardId}
+                    customer={c}
+                    rank={(state.page - 1) * PAGE_SIZE + index + 1}
+                    showRank={state.sortBy === "stamps" && state.sortDirection === "desc"}
+                  />
+                ))}
+              </div>
+              <div className="mx-5 mt-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] shadow-card overflow-hidden">
+                <Pagination
+                  page={state.page}
+                  totalPages={totalPages}
+                  total={total}
+                  noun="customer"
+                  onChange={(page) => patchState({ page })}
+                />
+              </div>
+            </>
+          )}
+        </>
       )}
+    </div>
+  );
+}
 
-      {!loading && !error && totalPages > 1 && (
-        <div className="mx-5 mt-4 flex items-center justify-between gap-3">
-          <button
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
-            disabled={page === 1}
-            className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] disabled:opacity-40"
-          >
-            <ChevronLeft className="h-4 w-4" /> Previous
-          </button>
-          <span className="text-xs text-[var(--text-tertiary)]">Page {page} of {totalPages}</span>
-          <button
-            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-            disabled={page === totalPages}
-            className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] disabled:opacity-40"
-          >
-            Next <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+/** Compact sort selector shown when no filters are applied. */
+function SortPills({
+  state,
+  onCycle,
+}: {
+  state: CustomerListState;
+  onCycle: (key: CustomerListState["sortBy"]) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {SORT_OPTIONS.map((opt) => (
+        <button
+          key={opt.key}
+          onClick={() => onCycle(opt.key)}
+          aria-pressed={state.sortBy === opt.key}
+          title={state.sortBy === opt.key ? `Current: ${sortLabel(state)} — tap to flip` : undefined}
+          className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
+            state.sortBy === opt.key
+              ? "bg-[var(--text-primary)] text-[var(--surface)] border-[var(--text-primary)]"
+              : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:border-brand"
+          }`}
+        >
+          {opt.label}
+          {state.sortBy === opt.key && <span aria-hidden>{state.sortDirection === "asc" ? "↑" : "↓"}</span>}
+        </button>
+      ))}
     </div>
   );
 }
