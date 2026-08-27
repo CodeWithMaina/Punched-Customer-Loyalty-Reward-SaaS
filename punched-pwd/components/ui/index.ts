@@ -16,3 +16,4 @@ export { Modal, Drawer, ConfirmationDialog } from "./Modal";
 export { FilterSheet, FilterChips, SortOptions } from "./FilterSheet";
 export { SearchInput, EmptyState, ErrorState } from "./States";
 export { Pagination } from "./Pagination";
+export { ActionMenu, type ActionMenuItem } from "./ActionMenu";

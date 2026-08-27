@@ -12,6 +12,43 @@
 
 /* @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"); */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Space+Mono:wght@400;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap");
+
+/* ── Staff Management design-system utilities (theme-wired) ──── */
+/* Material Symbols — ligature icon font */
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography family utilities from the approved Staff Management mockups.
+   Note: these set only the font family — text sizes are applied with
+   explicit arbitrary-size utilities (e.g. text-[32px]) at call sites. */
+.font-label-caps {
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+.font-headline-md {
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+.font-data-emphasis {
+  font-family: "Space Grotesk", sans-serif;
+}
+.font-body-base {
+  font-family: "Inter", sans-serif;
+}
+.font-body-sm {
+  font-family: "Inter", sans-serif;
+}
 
 /* ── Blue Theme (default) ──────────────────────────────────── */
 :root,

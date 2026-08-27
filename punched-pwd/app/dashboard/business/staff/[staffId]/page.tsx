@@ -2,7 +2,11 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft, CheckCircle2, ChevronRight, Clock, Mail, Pencil, Target,
+  Users, XCircle,
+} from "lucide-react";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
 import type {
@@ -12,21 +16,16 @@ import type {
 } from "@/types";
 import toast from "react-hot-toast";
 import {
-  ArrowLeft,
-  ArrowUpRight,
-  Check,
-  Mail,
-  Pencil,
-  QrCode,
-  ShieldCheck,
-  Stamp,
-} from "lucide-react";
+  Avatar, Badge, Button, IconButton, Skeleton, Tabs,
+} from "@/components/ui";
 import { ErrorState } from "@/components/ui/States";
-import { Tabs } from "@/components/ui/Tabs";
-import { GoalProgress, ActivityBadge } from "../_components/GoalProgress";
 import { EditGoalModal } from "../_components/EditGoalModal";
 
 const RECENT_COUNT = 5;
+
+/* ------------------------------------------------------------------------ */
+/* Helpers (business formatting — unchanged)                                */
+/* ------------------------------------------------------------------------ */
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -42,97 +41,56 @@ function timeAgo(dateStr: string): string {
   return days === 1 ? "Yesterday" : `${days}d ago`;
 }
 
-const PERIODS: { label: string; value: AnalyticsPeriod }[] = [
-  { label: "Today", value: "today" },
-  { label: "7 days", value: "7d" },
-  { label: "30 days", value: "30d" },
-  { label: "All time", value: "all" },
+const PERIODS = [
+  { value: "today" as AnalyticsPeriod, label: "Today" },
+  { value: "7d" as AnalyticsPeriod, label: "7 days" },
+  { value: "30d" as AnalyticsPeriod, label: "30 days" },
+  { value: "all" as AnalyticsPeriod, label: "All time" },
 ];
 
-function SectionLabel({
-  icon: Icon,
-  children,
-}: {
-  icon: typeof Stamp;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--text-secondary)]">
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--brand)]/10 text-[var(--brand)]">
-        <Icon className="h-3.5 w-3.5" />
-      </span>
-      {children}
-    </div>
-  );
+/** Activity status → semantic Badge variant. */
+const ACTIVITY_VARIANT = { active: "success", idle: "warning", inactive: "neutral" } as const;
+
+function activeLabel(lastActivityAt?: string | null) {
+  if (!lastActivityAt) return { text: "Never active", tone: "inactive" as const };
+  const diff = Date.now() - new Date(lastActivityAt).getTime();
+  const days = Math.max(0, Math.floor(diff / 86_400_000));
+  if (days < 1) return { text: "Active today", tone: "active" as const };
+  if (days < 7) return { text: `Active ${days}d ago`, tone: "idle" as const };
+  return { text: "Inactive", tone: "inactive" as const };
 }
 
-function Metric({
-  label,
-  value,
+/* Detail definition row — icon + label left, semibold value right. */
+function DetailRow({
+  icon, label, value, last = false,
 }: {
+  icon: React.ReactNode;
   label: string;
-  value: string | number;
+  value: string;
+  last?: boolean;
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-[var(--border-light,var(--border))] bg-[var(--background)] p-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
-        {label}
-      </p>
+    <div
+      className={`flex items-center justify-between gap-4 px-4 py-3 ${
+        !last ? "border-b border-[var(--border-light)]" : ""
+      }`}
+    >
+      <div className="flex items-center gap-3 text-[var(--text-secondary)]">
+        {icon}
 
-      <p className="mt-2 font-headline text-3xl font-extrabold tabular-nums tracking-[-0.04em] text-[var(--text-primary)]">
+        <span className="text-xs font-medium">{label}</span>
+      </div>
+
+      <span className="max-w-[55%] truncate text-right text-sm font-semibold text-[var(--text-primary)]">
         {value}
-      </p>
+      </span>
     </div>
-  );
-}
-
-function ActivityRow({ item }: { item: StaffActivityItem }) {
-  const isStamp = item.activityType === "stamp";
-
-  return (
-    <li className="relative flex gap-3 px-5 py-4 transition-colors hover:bg-[var(--surface-container-low,var(--surface-raised))] sm:px-6">
-      {/* Timeline connector */}
-      <span
-        aria-hidden
-        className="absolute bottom-0 left-[31px] top-12 w-px bg-[var(--border-light,var(--border))]"
-      />
-
-      <div
-        className={[
-          "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-          isStamp
-            ? "bg-[var(--brand-surface)] text-[var(--brand)]"
-            : "bg-[var(--accent-light)] text-[var(--accent-text)]",
-        ].join(" ")}
-      >
-        {isStamp ? (
-          <Stamp className="h-3.5 w-3.5" />
-        ) : (
-          <Check className="h-3.5 w-3.5" />
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1 pt-0.5">
-        <p className="text-sm leading-5 text-[var(--text-primary)]">
-          {isStamp ? "Stamp issued" : "Reward redeemed"}{" "}
-          <span className="font-semibold">for {item.customerName}</span>
-          {isStamp && item.stampNumber > 0 && (
-            <span className="text-[var(--text-tertiary)]">
-              {" "}· Stamp {item.stampNumber}
-            </span>
-          )}
-        </p>
-
-        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
-          {timeAgo(item.stampedAt)}
-        </p>
-      </div>
-    </li>
   );
 }
 
 export default function StaffDetailPage() {
   useRoleGuard("Business");
+  const router = useRouter();
 
   const { staffId } = useParams<{ staffId: string }>();
 
@@ -145,9 +103,7 @@ export default function StaffDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [businessDefaultGoal, setBusinessDefaultGoal] = useState<number | null>(
-    null
-  );
+  const [businessDefaultGoal, setBusinessDefaultGoal] = useState<number | null>(null);
 
   const [todayStamps, setTodayStamps] = useState(0);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
@@ -170,9 +126,7 @@ export default function StaffDetailPage() {
         if (analyticsRes.success && analyticsRes.data) {
           setAnalytics(analyticsRes.data);
         } else {
-          setError(
-            analyticsRes.error?.message ?? "Staff member not found."
-          );
+          setError(analyticsRes.error?.message ?? "Staff member not found.");
         }
 
         if (todayRes.success && todayRes.data) {
@@ -220,10 +174,7 @@ export default function StaffDetailPage() {
     setActivityLoading(true);
 
     businessesApi
-      .getStaffMemberActivity(staffId, {
-        page: 1,
-        pageSize: RECENT_COUNT,
-      })
+      .getStaffMemberActivity(staffId, { page: 1, pageSize: RECENT_COUNT })
       .then((res) => {
         if (!cancelled && res.success && res.data) {
           setRecentActivity(res.data.activity);
@@ -262,17 +213,12 @@ export default function StaffDetailPage() {
           a
             ? {
                 ...a,
-                dailyGoal:
-                  res.data?.dailyGoal ??
-                  businessDefaultGoal ??
-                  undefined,
+                dailyGoal: res.data?.dailyGoal ?? businessDefaultGoal ?? undefined,
               }
             : a
         );
       } else {
-        toast.error(
-          res.error?.message ?? "Failed to update goal."
-        );
+        toast.error(res.error?.message ?? "Failed to update goal.");
       }
     } catch {
       toast.error("Unexpected error.");
@@ -281,332 +227,349 @@ export default function StaffDetailPage() {
     }
   }
 
-  if (isLoading) {
+  /* Derived values */
+  const effectiveGoal = analytics?.dailyGoal ?? businessDefaultGoal;
+  const goalPercentage =
+    effectiveGoal && effectiveGoal > 0 && analytics
+      ? Math.min(Math.round((todayStamps / effectiveGoal) * 100), 100)
+      : null;
+
+  /* Ring geometry (r=45 → circumference ≈ 282.7) */
+  const RING = 282.7;
+  const ringOffset = goalPercentage !== null ? RING * (1 - goalPercentage / 100) : RING;
+
+  const lastActive = recentActivity[0]?.stampedAt ?? null;
+  const status = activeLabel(lastActive);
+
+  if (isLoading || !analytics) {
     return (
-      <div className="mx-auto max-w-4xl px-4 pb-16 sm:px-6 lg:px-8">
-        <div className="space-y-5 pt-6">
-          <div className="h-8 w-32 skeleton rounded-xl" />
-          <div className="h-44 skeleton rounded-3xl" />
-          <div className="h-56 skeleton rounded-3xl" />
-          <div className="h-52 skeleton rounded-3xl" />
+      <div className="min-h-screen bg-[var(--background)] pb-24">
+        {/* Header skeleton */}
+        <div className="border-b border-[var(--border)] bg-[var(--surface)]">
+          <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
+            <Skeleton className="h-9 w-9 rounded-full" />
+            <Skeleton className="h-5 w-28 rounded" />
+            <Skeleton className="h-10 w-24 rounded-[var(--radius-md)]" />
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6">
+          <Skeleton className="h-40 rounded-[var(--radius-lg)]" />
+          <Skeleton className="h-36 rounded-[var(--radius-lg)]" />
+          <Skeleton className="h-44 rounded-[var(--radius-lg)]" />
+          <Skeleton className="h-56 rounded-[var(--radius-lg)]" />
         </div>
       </div>
     );
   }
 
-  if (error || !analytics) {
+  if (error) {
     return (
-      <div className="mx-auto max-w-4xl px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4">
         <ErrorState
           title="Staff member not found"
-          message={
-            error ??
-            "This staff member is not part of your business."
-          }
+          message={error}
           onRetry={() => window.location.reload()}
         />
       </div>
     );
   }
 
-  const effectiveGoal = analytics.dailyGoal ?? businessDefaultGoal;
-
-  const initials = analytics.fullName
-    .split(" ")
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
-  const goalPercentage =
-    effectiveGoal && effectiveGoal > 0
-      ? Math.min(Math.round((todayStamps / effectiveGoal) * 100), 100)
-      : null;
-
   return (
-    <main className="min-h-screen pb-20">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[var(--background)] pb-24 text-[var(--text-primary)]">
+      {/* ── Detail header (back · title · primary action) ───────────── */}
+      <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <IconButton label="Go back" onClick={() => router.back()}>
+              <ArrowLeft className="h-4 w-4" />
+            </IconButton>
 
-        {/* Back */}
-        <div className="pt-5 sm:pt-7">
-          <Link
-            href="/dashboard/business/staff?view=team"
-            className="group inline-flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--brand)]"
+            <h1 className="truncate text-lg font-bold tracking-tight">Staff details</h1>
+          </div>
+
+          <Button
+            size="sm"
+            variant="outline"
+            leftIcon={<Pencil className="h-4 w-4" />}
+            onClick={() => setGoalModalOpen(true)}
           >
-            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            Back to Team Directory
-          </Link>
+            <span className="hidden sm:inline">Edit goal</span>
+            <span className="sm:hidden">Goal</span>
+          </Button>
         </div>
+      </header>
 
-        {/* Profile hero + today's goal bento */}
-        <section className="mt-5 overflow-hidden rounded-[20px] border border-[var(--border-light,var(--border))] bg-[var(--surface)] p-5 shadow-[0_8px_24px_rgba(31,108,58,0.06)] sm:p-7">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-            <div className="flex min-w-0 flex-1 items-center gap-5">
-              <div className="relative shrink-0">
-                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-[var(--surface-container-low,var(--surface-raised))] bg-[var(--brand-surface)] text-2xl font-bold text-[var(--brand)] shadow-sm">
-                  {analytics.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={analytics.avatarUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    initials
-                  )}
-                </div>
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+        {/* ── Identity block ─────────────────────────────────────────── */}
+        <section className="flex flex-col items-center gap-4 rounded-[var(--radius-lg)] bg-[var(--surface-raised)] p-5 ring-1 ring-[var(--border-light)] sm:flex-row sm:text-left">
+          <Avatar name={analytics.fullName} src={analytics.avatarUrl} size="lg" />
 
-                <span
-                  aria-label="Active staff member"
-                  className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[var(--surface)] bg-[var(--brand)] text-white"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                </span>
-              </div>
-
+          <div className="min-w-0 flex-1 text-center sm:text-left">
+            <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <h1 className="truncate font-headline text-2xl font-extrabold tracking-[-0.04em] text-[var(--text-primary)] sm:text-3xl">
-                  {analytics.fullName}
-                </h1>
+                <h2 className="truncate text-base font-bold sm:text-lg">{analytics.fullName}</h2>
 
-                <p className="mt-1 text-sm font-semibold text-[var(--brand)]">
-                  Staff Member
-                </p>
-
-                <p className="mt-1.5 flex items-center gap-1.5 truncate text-sm text-[var(--text-tertiary)]">
-                  <Mail className="h-4 w-4 shrink-0" />
+                <p className="mt-1 truncate text-xs text-[var(--text-secondary)]">
                   {analytics.email}
                 </p>
+              </div>
 
-                <div className="mt-2">
-                  <ActivityBadge
-                    lastActivityAt={
-                      recentActivity[0]?.stampedAt ?? null
-                    }
-                  />
-                </div>
+              <Badge variant={ACTIVITY_VARIANT[status.tone]} dot>
+                {status.text}
+              </Badge>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Today's goal ───────────────────────────────────────────── */}
+        <section className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-bold sm:text-base">Today&apos;s goal</h3>
+
+            {analytics.dailyGoalOverride && (
+              <Badge variant="brand">Personal override</Badge>
+            )}
+          </div>
+
+          <div className="flex items-center gap-5">
+            <div className="relative h-20 w-20 shrink-0">
+              <svg
+                className="h-full w-full -rotate-90"
+                viewBox="0 0 100 100"
+                role="progressbar"
+                aria-valuenow={goalPercentage ?? 0}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Today's goal progress"
+              >
+                <circle cx="50" cy="50" r="45" fill="none" strokeWidth="10" stroke="currentColor" className="text-[var(--border-light)]" />
+
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  strokeWidth="10"
+                  stroke="currentColor"
+                  strokeDasharray={RING}
+                  strokeDashoffset={ringOffset}
+                  strokeLinecap="round"
+                  className={
+                    goalPercentage !== null && goalPercentage >= 100
+                      ? "text-[var(--success)]"
+                      : "text-brand"
+                  }
+                  style={{ transition: "stroke-dashoffset 0.6s ease" }}
+                />
+              </svg>
+
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xl font-bold tabular-nums">{goalPercentage ?? 0}%</span>
               </div>
             </div>
-          </div>
 
-          <div className="mt-7 flex justify-end gap-3 border-t border-[var(--border-light,var(--border))] pt-5">
-            <button
-              onClick={() => setGoalModalOpen(true)}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-5 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(31,108,58,0.15)] transition-all hover:bg-[var(--brand-hover,var(--brand))] active:scale-[0.98]"
-            >
-              <Pencil className="h-4 w-4" />
-              Manage Goal
-            </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-[var(--text-secondary)]">Stamps today</p>
+
+              <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums">
+                {todayStamps.toLocaleString()}
+                {effectiveGoal ? (
+                  <span className="text-sm font-medium text-[var(--text-secondary)]">
+                    {" "}
+                    / {effectiveGoal}
+                  </span>
+                ) : null}
+              </p>
+
+              {!effectiveGoal && (
+                <button
+                  onClick={() => setGoalModalOpen(true)}
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
+                >
+                  Set a daily goal
+                </button>
+              )}
+            </div>
           </div>
         </section>
 
-        {/* Today's goal */}
-        <section className="mt-5 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.025)] sm:p-7">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
-                Today&apos;s Shift Goal
-              </p>
-              <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
-                Issue Loyalty Stamps
-              </p>
-            </div>
+        {/* ── Performance ────────────────────────────────────────────── */}
+        <section className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
+          <h3 className="mb-4 text-sm font-bold sm:text-base">Performance</h3>
 
-            {goalPercentage !== null && (
-              <span
-                className={[
-                  "inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em]",
-                  goalPercentage >= 100
-                    ? "bg-[var(--success-light,var(--brand-surface))] text-[var(--success-text)]"
-                    : "bg-[var(--accent-light)] text-[var(--accent-text)]",
-                ].join(" ")}
-              >
-                {goalPercentage >= 100 ? "Goal reached" : "On track"}
+          <Tabs
+            items={PERIODS.map((p) => ({ value: p.value, label: p.label }))}
+            value={period}
+            onChange={setPeriod}
+            label="Analytics period"
+            className="mb-4 flex w-full"
+            idPrefix="staff-period"
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-[var(--radius-md)] border border-[var(--border-light)] bg-[var(--background)] p-4">
+              <span className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] bg-[var(--brand-light)] text-brand">
+                <Target className="h-4 w-4" />
               </span>
-            )}
 
-            <button
-              onClick={() => setGoalModalOpen(true)}
-              className="rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--brand)] transition-colors hover:bg-[var(--brand)]/10"
-            >
-              Edit
-            </button>
-          </div>
+              <p className="mt-3 text-xs font-medium text-[var(--text-secondary)]">Stamps issued</p>
 
-          <div className="mt-6 flex items-baseline gap-2">
-            <span className="font-headline text-5xl font-extrabold tracking-[-0.05em] text-[var(--accent-text,var(--text-primary))]">
-              {todayStamps}
-            </span>
-
-            <span className="font-headline text-xl font-semibold text-[var(--text-tertiary)]">
-              / {effectiveGoal ?? "—"}
-            </span>
-
-            <span className="ml-2 text-sm text-[var(--text-tertiary)]">
-              stamps issued
-            </span>
-          </div>
-
-          <div className="mt-5">
-            <GoalProgress
-              value={todayStamps}
-              goal={effectiveGoal}
-            />
-          </div>
-
-          {!effectiveGoal && (
-            <div className="mt-4 rounded-2xl bg-[var(--surface-container-low)] p-4">
-              <p className="text-xs leading-5 text-[var(--text-secondary)]">
-                Set a daily goal to start tracking this team
-                member&apos;s performance.
+              <p className="mt-1 text-xl font-bold tracking-tight tabular-nums">
+                {analytics.stampsIssued.toLocaleString()}
               </p>
             </div>
-          )}
+
+            <div className="rounded-[var(--radius-md)] border border-[var(--border-light)] bg-[var(--background)] p-4">
+              <span className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] bg-[var(--brand-light)] text-brand">
+                <Users className="h-4 w-4" />
+              </span>
+
+              <p className="mt-3 text-xs font-medium text-[var(--text-secondary)]">Customers served</p>
+
+              <p className="mt-1 text-xl font-bold tracking-tight tabular-nums">
+                {analytics.customersServed.toLocaleString()}
+              </p>
+            </div>
+          </div>
         </section>
 
-        {/* Performance */}
-        <section className="mt-5 overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_30px_rgba(0,0,0,0.025)]">
-          <div className="flex flex-col gap-4 border-b border-[var(--border-light)] p-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
-            <SectionLabel icon={Stamp}>
-              Performance
-            </SectionLabel>
+        {/* ── Details (definition list) ──────────────────────────────── */}
+        <section>
+          <h3 className="mb-3 text-sm font-bold sm:text-base">Details</h3>
 
-            <Tabs
-              label="Performance period"
-              idPrefix="perf-period"
-              value={period}
-              onChange={setPeriod}
-              items={PERIODS.map((p) => ({
-                value: p.value,
-                label: p.label,
-              }))}
+          <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
+            <DetailRow icon={<Mail className="h-4 w-4" />} label="Email" value={analytics.email} />
+
+            <DetailRow
+              icon={<Clock className="h-4 w-4" />}
+              label="Last active"
+              value={status.text.replace("Active ", "")}
+            />
+
+            <DetailRow
+              icon={<Target className="h-4 w-4" />}
+              label="Daily goal"
+              value={
+                effectiveGoal
+                  ? `${effectiveGoal} stamps${analytics.dailyGoalOverride ? " · personal" : " · default"}`
+                  : "Not set"
+              }
+              last
             />
           </div>
-
-          <div className="grid grid-cols-2 divide-x divide-[var(--border-light)]">
-            <div className="p-5 sm:p-7">
-              <Metric
-                label="Stamps issued"
-                value={analytics.stampsIssued.toLocaleString()}
-              />
-            </div>
-
-            <div className="p-5 sm:p-7">
-              <Metric
-                label="Customers served"
-                value={analytics.customersServed.toLocaleString()}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 border-t border-[var(--border-light)] bg-[var(--surface-container-low)] px-5 py-4 sm:flex-row sm:justify-between sm:px-7">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-              All-time stamps{" "}
-              <strong className="text-[var(--text-secondary)]">
-                {analytics.totalStampsAllTime.toLocaleString()}
-              </strong>
-            </span>
-
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-              Unique customers{" "}
-              <strong className="text-[var(--text-secondary)]">
-                {analytics.totalCustomersAllTime.toLocaleString()}
-              </strong>
-            </span>
-          </div>
         </section>
 
-        {/* Recent activity */}
-        <section className="mt-5">
-          <div className="mb-3 flex items-center justify-between px-1">
-            <SectionLabel icon={QrCode}>
-              Recent activity
-            </SectionLabel>
+        {/* ── Recent activity ────────────────────────────────────────── */}
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-bold sm:text-base">Recent activity</h3>
 
             <Link
               href={`/dashboard/business/staff/${staffId}/activity`}
-              className="group inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--brand)] transition-colors hover:bg-[var(--brand)]/10"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
             >
               View all
-              <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 
-          <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_30px_rgba(0,0,0,0.025)]">
+          <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
             {activityLoading ? (
-              <div className="divide-y divide-[var(--border-light)]">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-[76px] skeleton"
-                  />
+              <div className="space-y-px">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="flex items-center gap-3 border-b border-[var(--border-light)] p-3 last:border-b-0">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3 w-28 rounded" />
+                      <Skeleton className="h-3 w-20 rounded" />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : recentActivity.length === 0 ? (
-              <div className="px-6 py-12 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-container-low)] text-[var(--text-muted)]">
-                  <QrCode className="h-5 w-5" />
-                </div>
+              <div className="px-6 py-10 text-center">
+                <p className="text-sm font-semibold">No activity yet</p>
 
-                <p className="mt-4 text-sm font-bold text-[var(--text-primary)]">
-                  No activity yet
-                </p>
-
-                <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-[var(--text-tertiary)]">
+                <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-[var(--text-secondary)]">
                   Stamps and rewards will appear here once{" "}
                   {analytics.fullName.split(" ")[0]} starts scanning.
                 </p>
               </div>
             ) : (
-              <ul className="divide-y divide-[var(--border-light)]">
-                {recentActivity.map((item) => (
-                  <ActivityRow
-                    key={`${item.activityType}-${item.activityId}`}
-                    item={item}
-                  />
-                ))}
+              <ul>
+                {recentActivity.map((item) => {
+                  const isStamp = item.activityType === "stamp";
+
+                  return (
+                    <li
+                      key={`${item.activityType}-${item.activityId}`}
+                      className="flex items-center gap-3 border-b border-[var(--border-light)] p-3 last:border-b-0 sm:px-4"
+                    >
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                          isStamp
+                            ? "bg-brand-surface text-brand"
+                            : "bg-[var(--accent-light)] text-[var(--accent-text)]"
+                        }`}
+                      >
+                        {isStamp ? <Target className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {isStamp ? "Issued stamp" : "Redeemed reward"}
+                        </p>
+
+                        <p className="truncate text-xs text-[var(--text-secondary)]">
+                          for {item.customerName}
+                        </p>
+                      </div>
+
+                      <span className="shrink-0 text-xs tabular-nums text-[var(--text-tertiary)]">
+                        {timeAgo(item.stampedAt)}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
         </section>
 
-        {/* Access */}
-        <section className="mt-5 rounded-[20px] border border-[var(--border-light,var(--border))] bg-[var(--surface)] p-5 shadow-[0_8px_24px_rgba(31,108,58,0.06)] sm:p-7">
-          <SectionLabel icon={ShieldCheck}>
-            System Access &amp; Permissions
-          </SectionLabel>
+        {/* ── Access levels ──────────────────────────────────────────── */}
+        <section>
+          <h3 className="mb-3 text-sm font-bold sm:text-base">Access levels</h3>
 
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
             {[
-              {
-                icon: QrCode,
-                label: "Scan stamps",
-                granted: true,
-              },
-              {
-                icon: ShieldCheck,
-                label: "Verified account access",
-                granted: true,
-              },
-            ].map(({ icon: Icon, label, granted }) => (
-              <span
+              { label: "Issue stamps", granted: true },
+              { label: "Redeem rewards", granted: true },
+              { label: "Manage programs", granted: false },
+            ].map(({ label, granted }, index, all) => (
+              <div
                 key={label}
-                className={[
-                  "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium",
-                  granted
-                    ? "bg-[var(--surface-container-low,var(--surface-raised))] text-[var(--text-primary)]"
-                    : "bg-[var(--surface-container-low,var(--surface-raised))] text-[var(--text-muted)] line-through opacity-60",
-                ].join(" ")}
+                className={`flex items-center justify-between px-4 py-3 ${
+                  index < all.length - 1 ? "border-b border-[var(--border-light)]" : ""
+                }`}
               >
-                <Icon className={granted ? "h-3.5 w-3.5 text-[var(--brand)]" : "h-3.5 w-3.5"} aria-hidden />
-                {label}
-                {granted && <Check className="h-3.5 w-3.5 text-[var(--success)]" aria-hidden />}
-              </span>
+                <span className={`text-sm ${granted ? "font-medium" : "text-[var(--text-tertiary)]"}`}>
+                  {label}
+                </span>
+
+                {granted ? (
+                  <CheckCircle2 role="img" aria-label="Granted" className="h-4 w-4 text-brand" />
+                ) : (
+                  <XCircle role="img" aria-label="Not granted" className="h-4 w-4 text-[var(--text-muted)]" />
+                )}
+              </div>
             ))}
           </div>
         </section>
-      </div>
+      </main>
 
+      {/* Goal editor — responsive Modal (sheet on mobile → dialog on desktop) */}
       <EditGoalModal
         open={goalModalOpen}
         onClose={() => setGoalModalOpen(false)}
@@ -619,6 +582,7 @@ export default function StaffDetailPage() {
         onSave={saveGoal}
         saving={savingGoal}
       />
-    </main>
+    </div>
   );
 }
+

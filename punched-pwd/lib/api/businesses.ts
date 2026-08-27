@@ -132,6 +132,12 @@ export const businessesApi = {
       .put<ApiResponse<StaffMember>>(`/businesses/me/staff/${staffUserId}/daily-goal`, { dailyGoal })
       .then((r) => r.data),
 
+  /** Activate/deactivate a staff member (soft status toggle). */
+  setStaffStatus: (staffUserId: string, isActive: boolean) =>
+    apiClient
+      .put<ApiResponse<StaffMember>>(`/businesses/me/staff/${staffUserId}/status`, { isActive })
+      .then((r) => r.data),
+
   getStaffAnalytics: () =>
     cachedFetch("staff:analytics", () =>
       apiClient

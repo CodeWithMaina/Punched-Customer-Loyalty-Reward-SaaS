@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 import type { AppointmentResponse, BusinessCustomer, StaffMember } from "@/types";
 import {
   END_HOUR,
@@ -18,7 +18,7 @@ import { StatusBadge } from "@/components/ui";
 import { WeekDateStrip } from "./WeekDateStrip";
 
 /**
- * The "Calendar" view: day navigation, week strip and the
+ * The "Calendar" view: filters trigger, week strip and the
  * hour-grid schedule for the selected day.
  */
 export function AppointmentCalendar({
@@ -34,8 +34,7 @@ export function AppointmentCalendar({
   onShiftWeek,
   onCurrentWeek,
   onSelectDate,
-  onToday,
-  onShiftDay,
+  onOpenFilters,
 }: {
   appointments: AppointmentResponse[];
   customerMap: Map<string, BusinessCustomer>;
@@ -50,8 +49,8 @@ export function AppointmentCalendar({
   onShiftWeek: (delta: number) => void;
   onCurrentWeek: () => void;
   onSelectDate: (date: string) => void;
-  onToday: () => void;
-  onShiftDay: (delta: number) => void;
+  /** Opens the right-side filter drawer. */
+  onOpenFilters: () => void;
 }) {
   return (
     <section id="appointments-panel-calendar" role="tabpanel" aria-labelledby="appointments-tab-calendar">
@@ -70,19 +69,15 @@ export function AppointmentCalendar({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button onClick={() => onShiftDay(-1)} aria-label="Previous day" className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--brand)]">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-
-          <button onClick={onToday} className="h-9 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold hover:border-[var(--brand)]">
-            Today
-          </button>
-
-          <button onClick={() => onShiftDay(1)} aria-label="Next day" className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--brand)]">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+        {/* Filters — opens the right-side drawer */}
+        <button
+          onClick={onOpenFilters}
+          aria-haspopup="dialog"
+          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold hover:border-[var(--brand)]"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filters
+        </button>
       </div>
 
       {/* Week navigation */}

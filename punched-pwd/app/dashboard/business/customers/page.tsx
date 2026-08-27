@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Download, Eye, SlidersHorizontal,
+} from "lucide-react";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { businessesApi } from "@/lib/api/businesses";
@@ -10,19 +12,16 @@ import type {
   BusinessCustomer, CustomerOverviewResponse,
 } from "@/types";
 import {
-  ChevronLeft, Download, Search,
-} from "lucide-react";
-import { EmptyState, ErrorState, SearchInput } from "@/components/ui/States";
-import { Tabs } from "@/components/ui/Tabs";
-import { Pagination } from "@/components/ui/Pagination";
-import { CustomerOverview } from "./_components/CustomerOverview";
-import { CustomerCard, CustomerCardSkeleton } from "./_components/CustomerCard";
+  ActionMenu, Button, Pagination, SearchInput, Select,
+} from "@/components/ui";
+import { CustomerSummaryCards } from "./_components/CustomerOverview";
 import {
-  CustomerFilterDrawer, CustomerFilterChips, CustomerFilterTrigger,
-} from "./_components/CustomerFilterDrawer";
+  CustomerCard, CustomerItemSkeleton, CustomerRow,
+} from "./_components/CustomerCard";
+import { CustomersRosterEmptyState } from "./_components/states";
 import {
   cycleSort, parseCustomerListState, sortLabel, customerListStateToParams,
-  type CustomerListFilters, type CustomerListState,
+  type CustomerListState,
 } from "./_components/filters";
 
 const PAGE_SIZE = 25;
@@ -81,8 +80,6 @@ export default function BusinessCustomersPage() {
   const [searchInput, setSearchInput] = useState(state.search);
   const debouncedSearch = useDebouncedValue(searchInput);
 
-  const [view, setView] = useState<"overview" | "roster">("overview");
-
   const [items, setItems] = useState<BusinessCustomer[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -90,15 +87,9 @@ export default function BusinessCustomersPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [overview, setOverview] = useState<CustomerOverviewResponse | null>(null);
-  const [overviewLoading, setOverviewLoading] = useState(true);
 
-  // Filter drawer draft state.
+  // Mobile collapsible filter panel.
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [draftFilters, setDraftFilters] = useState<CustomerListFilters>({
-    status: state.status,
-    enrolledFrom: state.enrolledFrom,
-    enrolledTo: state.enrolledTo,
-  });
 
   // Debounce the committed search state.
   useEffect(() => {
@@ -111,10 +102,6 @@ export default function BusinessCustomersPage() {
     router.replace(qs ? `?${qs}` : "?", { scroll: false });
   }, [state, router]);
 
-  const activeFilterCount =
-    Number(Boolean(state.status)) +
-    Number(Boolean(state.enrolledFrom)) +
-    Number(Boolean(state.enrolledTo));
   const fetchCustomers = useCallback((s: CustomerListState) => {
     let cancelled = false;
     setIsLoading(true);
@@ -155,12 +142,10 @@ export default function BusinessCustomersPage() {
   useEffect(() => fetchCustomers(state), [state, fetchCustomers]);
 
   const fetchOverview = useCallback(() => {
-    setOverviewLoading(true);
     businessesApi
       .getCustomerOverview()
       .then((res) => res.success && res.data && setOverview(res.data))
-      .catch(() => undefined)
-      .finally(() => setOverviewLoading(false));
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -170,200 +155,240 @@ export default function BusinessCustomersPage() {
   const patchState = (patch: Partial<CustomerListState>) =>
     setState((s) => ({ ...s, ...patch }));
 
-  const applyDraftFilters = () => {
-    patchState({ ...draftFilters, page: 1 });
-    setFiltersOpen(false);
-  };
-
   const clearAllFilters = () => {
-    const cleared: CustomerListFilters = {
-      status: undefined,
-      enrolledFrom: undefined,
-      enrolledTo: undefined,
-    };
-    setDraftFilters(cleared);
-    patchState({ ...cleared, page: 1 });
+    setSearchInput("");
+    patchState({ status: undefined, enrolledFrom: undefined, enrolledTo: undefined, page: 1 });
   };
 
-  const removeFilter = (key: keyof CustomerListFilters) => {
-    setDraftFilters((d) => ({ ...d, [key]: undefined }));
-    patchState({ [key]: undefined, page: 1 } as Partial<CustomerListState>);
-  };
-
+  const activeFilterCount =
+    Number(Boolean(state.status)) +
+    Number(Boolean(state.enrolledFrom)) +
+    Number(Boolean(state.enrolledTo));
   const hasAnyFilter =
     Boolean(state.search) ||
     Boolean(state.status) ||
     Boolean(state.enrolledFrom) ||
     Boolean(state.enrolledTo);
-return (
-    <div className="max-w-xl lg:max-w-4xl mx-auto pb-10">
-      {/* Header */}
-      <header className="px-5 pt-6 pb-3 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-accent mb-1 flex items-center gap-1.5">
-            <Link href="/dashboard/business" aria-label="Back to business dashboard" className="hover:text-brand inline-flex">
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Link>
-            Customer Relationships
-          </p>
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Customers</h1>
-          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-            Your loyalty base, their progress and who needs attention.
-          </p>
+
+  /** Contextual ⋮ actions for one customer. */
+  const menuFor = (customer: BusinessCustomer) => (
+    <ActionMenu
+      label={`Actions for ${customer.fullName}`}
+      items={[
+        { label: "View details", icon: <Eye className="h-3.5 w-3.5" />, href: `/dashboard/business/customers/${customer.userId}` },
+      ]}
+    />
+  );
+
+  return (
+    <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
+      {/* ── Sticky Action Header + database search ──────────────────── */}
+      <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur">
+        <div className="mx-auto max-w-[1600px] space-y-3 px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">Customers</h1>
+
+              <p className="hidden text-xs text-[var(--text-secondary)] sm:block">
+                Track loyalty activity across your customer base
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Mobile filter toggle with active-filter count */}
+              <button
+                onClick={() => setFiltersOpen((value) => !value)}
+                aria-label={`Filters${activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ""}`}
+                aria-expanded={filtersOpen}
+                className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors hover:border-brand hover:text-brand md:hidden"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+
+                {activeFilterCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-white">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<Download className="h-4 w-4" />}
+                onClick={() => downloadCsv(items)}
+                disabled={items.length === 0}
+              >
+                <span className="hidden sm:inline">Export</span>
+                <span className="sr-only">Export customers as CSV</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Server-backed search — always visible in the sticky header */}
+          <SearchInput
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search by name, email or phone…"
+            label="Search customers"
+            className="md:max-w-xl"
+          />
         </div>
-        <button
-          onClick={() => downloadCsv(items)}
-          disabled={items.length === 0}
-          title="Export current page as CSV"
-          aria-label="Export customers as CSV"
-          className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand bg-brand-surface px-3 py-2 rounded-xl hover:bg-brand-light transition-colors disabled:opacity-40 min-h-[36px]"
-        >
-          <Download className="h-3.5 w-3.5" />
-          Export
-        </button>
       </header>
 
-      {/* View switcher */}
-      <div className="px-5 pt-2">
-        <Tabs
-          label="Customer views"
-          idPrefix="cust-view"
-          value={view}
-          onChange={setView}
-          items={[
-            { value: "overview", label: "Overview" },
-            { value: "roster", label: "All customers" },
-          ]}
-          className="w-full sm:w-auto"
-        />
-      </div>
+      <main className="mx-auto max-w-[1600px] px-4 py-5 pb-16 sm:px-6 lg:px-8 lg:py-8">
+        {/* ── Overview stat cards (merged into this page) ────────────── */}
+        <CustomerSummaryCards overview={overview} isLoading={overview === null} />
 
-      {view === "overview" ? (
-        <>
-          <CustomerOverview overview={overview} isLoading={overviewLoading} />
-          {overview && overview.totalCustomers > 0 && (
-            <div className="mx-5 mt-5">
+        {/* ── Filter bar (search lives in the sticky header) ─────────── */}
+        <section className="mb-6 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
+          {/* Desktop inline filters + sort */}
+          <div className="hidden flex-wrap items-center gap-2 p-3 md:flex">
+            <Select
+              value={state.status ?? ""}
+              onChange={(event) => patchState({ status: (event.target.value || undefined) as CustomerListState["status"], page: 1 })}
+              label="Filter by status"
+            >
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="ready">Ready to redeem</option>
+            </Select>
+
+            {activeFilterCount > 0 && (
               <button
-                onClick={() => setView("roster")}
-                className="w-full rounded-2xl border border-brand/40 bg-brand-surface text-brand text-xs font-semibold px-4 py-3 transition-colors hover:bg-brand-light"
+                onClick={() => patchState({ enrolledFrom: undefined, enrolledTo: undefined, page: 1 })}
+                className="text-xs font-semibold text-[var(--text-secondary)] hover:text-brand"
               >
-                View all {overview.totalCustomers} customer{overview.totalCustomers !== 1 ? "s" : ""}
+                Clear filters
+              </button>
+            )}
+
+            {/* Sort pills double as the desktop sort control */}
+            <div className="ml-auto border-l border-[var(--border-light)] pl-3">
+              <SortPills state={state} onCycle={(key) => patchState(cycleSort(state, key))} />
+            </div>
+          </div>
+
+          {/* Mobile collapsible filter panel */}
+          {filtersOpen && (
+            <div className="grid gap-3 border-t border-[var(--border)] p-3 md:hidden">
+              <Select
+                fullWidth
+                value={state.status ?? ""}
+                onChange={(event) => patchState({ status: (event.target.value || undefined) as CustomerListState["status"], page: 1 })}
+                label="Filter by status"
+              >
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="ready">Ready to redeem</option>
+              </Select>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[var(--text-secondary)]">
+                  Enrolled from
+                </span>
+
+                <input
+                  type="date"
+                  value={state.enrolledFrom ?? ""}
+                  onChange={(event) => patchState({ enrolledFrom: event.target.value || undefined, page: 1 })}
+                  aria-label="Enrolled from"
+                  className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-[var(--brand-ring)]"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[var(--text-secondary)]">
+                  Enrolled to
+                </span>
+
+                <input
+                  type="date"
+                  value={state.enrolledTo ?? ""}
+                  onChange={(event) => patchState({ enrolledTo: event.target.value || undefined, page: 1 })}
+                  aria-label="Enrolled to"
+                  className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-[var(--brand-ring)]"
+                />
+              </label>
+
+              <div className="flex flex-wrap gap-1.5">
+                <SortPills state={state} onCycle={(key) => patchState(cycleSort(state, key))} />
+              </div>
+
+              <button
+                onClick={clearAllFilters}
+                disabled={!hasAnyFilter}
+                className="h-10 rounded-[var(--radius-md)] border border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] hover:border-brand hover:text-brand disabled:pointer-events-none disabled:opacity-40"
+              >
+                Clear filters
               </button>
             </div>
           )}
-        </>
-      ) : (
-        <>
-          {/* Search + filter trigger */}
-          <div className="sticky top-[57px] z-10 bg-[var(--background)] px-5 pt-3 pb-3 space-y-3">
-            <div className="flex gap-2">
-              <SearchInput
-                value={searchInput}
-                onChange={setSearchInput}
-                placeholder="Search by name, email or phone…"
-                label="Search customers"
-              />
-              <CustomerFilterTrigger
-                count={activeFilterCount}
-                active={filtersOpen}
-                onClick={() => {
-                  setDraftFilters({
-                    status: state.status,
-                    enrolledFrom: state.enrolledFrom,
-                    enrolledTo: state.enrolledTo,
-                  });
-                  setFiltersOpen(true);
-                }}
-              />
-            </div>
+        </section>
 
-            {/* Active filter chips / sort pills + result count */}
-            <div className="flex flex-wrap items-center gap-2 min-h-[24px]">
-              {hasAnyFilter ? (
-                <CustomerFilterChips applied={state} onRemove={removeFilter} onClearAll={clearAllFilters} />
-              ) : (
-                <SortPills state={state} onCycle={(key) => patchState(cycleSort(state, key))} />
-              )}
-              <span
-                className="ml-auto text-[11px] text-[var(--text-tertiary)] whitespace-nowrap tabular-nums"
-                aria-live="polite"
-              >
-                {isLoading ? "…" : `${total} result${total !== 1 ? "s" : ""}`}
-              </span>
-            </div>
+        {/* ── Roster: clickable rows (≥md) / user cards (<md) ─────────── */}
+        {error ? (
+          <div className="py-10">
+            <ErrorInline message={error} onRetry={() => fetchCustomers(state)} />
           </div>
-{/* Advanced filters: mobile bottom sheet → desktop right drawer */}
-          <CustomerFilterDrawer
-            open={filtersOpen}
-            onClose={() => setFiltersOpen(false)}
-            draft={draftFilters}
-            onDraftChange={setDraftFilters}
-            onApply={applyDraftFilters}
-            onClear={clearAllFilters}
-          />
-
-          {/* Roster */}
-          {error ? (
-            <ErrorState message={error} onRetry={() => fetchCustomers(state)} />
-          ) : isLoading ? (
-            <div className="mx-5 rounded-2xl border border-[var(--border-light)] divide-y divide-[var(--border-light)] overflow-hidden" aria-busy="true">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <CustomerCardSkeleton key={i} />
+        ) : isLoading && items.length === 0 ? (
+          <div
+            className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]"
+            aria-busy="true"
+          >
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="border-b border-[var(--border-light)] last:border-b-0">
+                <CustomerItemSkeleton variant="row" />
+                <CustomerItemSkeleton variant="card" />
+              </div>
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <CustomersRosterEmptyState hasAnyFilter={hasAnyFilter} onClear={clearAllFilters} />
+        ) : (
+          <>
+            {/* Desktop: bordered surface of clickable rows with ⋮ actions */}
+            <div className="hidden overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] md:block">
+              {items.map((customer, index) => (
+                <CustomerRow
+                  key={customer.cardId ?? customer.userId}
+                  customer={customer}
+                  rank={(state.page - 1) * PAGE_SIZE + index + 1}
+                  showRank={state.sortBy === "stamps" && state.sortDirection === "desc"}
+                  menu={menuFor(customer)}
+                />
               ))}
             </div>
-          ) : items.length === 0 ? (
-            <div className="mx-5 mt-4">
-              <EmptyState
-                icon={<Search className="h-6 w-6" />}
-                title={state.search ? "No customers match your search." : "No customers match these filters."}
-                description={
-                  hasAnyFilter
-                    ? "Try removing a filter or clearing your search."
-                    : "Customers will appear here once they join your loyalty program."
-                }
-                action={
-                  hasAnyFilter ? (
-                    <button
-                      onClick={() => {
-                        setSearchInput("");
-                        clearAllFilters();
-                      }}
-                      className="mt-1 px-4 py-2.5 rounded-xl border border-brand text-brand text-xs font-semibold hover:bg-brand-surface transition-colors"
-                    >
-                      Clear search &amp; filters
-                    </button>
-                  ) : undefined
-                }
+
+            {/* Mobile: stacked user cards with ⋮ actions */}
+            <div className="grid gap-3 md:hidden">
+              {items.map((customer, index) => (
+                <CustomerCard
+                  key={customer.cardId ?? customer.userId}
+                  customer={customer}
+                  rank={(state.page - 1) * PAGE_SIZE + index + 1}
+                  showRank={state.sortBy === "stamps" && state.sortDirection === "desc"}
+                  menu={menuFor(customer)}
+                />
+              ))}
+            </div>
+
+            {/* Shared pager */}
+            <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
+              <Pagination
+                page={state.page}
+                totalPages={totalPages}
+                total={total}
+                noun="customer"
+                onChange={(page) => patchState({ page })}
               />
             </div>
-          ) : (
-            <>
-              <div className="mx-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                {items.map((c: BusinessCustomer, index: number) => (
-                  <CustomerCard
-                    key={c.cardId}
-                    customer={c}
-                    rank={(state.page - 1) * PAGE_SIZE + index + 1}
-                    showRank={state.sortBy === "stamps" && state.sortDirection === "desc"}
-                  />
-                ))}
-              </div>
-              <div className="mx-5 mt-3 rounded-2xl border border-[var(--border-light)] bg-[var(--surface)] shadow-card overflow-hidden">
-                <Pagination
-                  page={state.page}
-                  totalPages={totalPages}
-                  total={total}
-                  noun="customer"
-                  onChange={(page) => patchState({ page })}
-                />
-              </div>
-            </>
-          )}
-        </>
-      )}
+          </>
+        )}
+      </main>
     </div>
   );
 }
+
 
 /** Compact sort selector shown when no filters are applied. */
 function SortPills({
@@ -374,23 +399,41 @@ function SortPills({
   onCycle: (key: CustomerListState["sortBy"]) => void;
 }) {
   return (
-    <div className="flex gap-1.5 flex-wrap">
+    <div className="flex flex-wrap gap-1.5">
       {SORT_OPTIONS.map((opt) => (
         <button
           key={opt.key}
           onClick={() => onCycle(opt.key)}
           aria-pressed={state.sortBy === opt.key}
           title={state.sortBy === opt.key ? `Current: ${sortLabel(state)} — tap to flip` : undefined}
-          className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
+          className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
             state.sortBy === opt.key
-              ? "bg-[var(--text-primary)] text-[var(--surface)] border-[var(--text-primary)]"
+              ? "border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--surface)]"
               : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:border-brand"
           }`}
         >
           {opt.label}
-          {state.sortBy === opt.key && <span aria-hidden>{state.sortDirection === "asc" ? "↑" : "↓"}</span>}
+
+          {state.sortBy === opt.key && (
+            <span aria-hidden>{state.sortDirection === "asc" ? "↑" : "↓"}</span>
+          )}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** Inline error for a failed roster fetch (retryable). */
+function ErrorInline({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center space-y-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--border)] bg-[var(--surface)] px-6 py-12 text-center">
+      <h3 className="text-sm font-bold">Could not load customers</h3>
+
+      <p className="mx-auto max-w-sm text-xs leading-5 text-[var(--text-secondary)]">{message}</p>
+
+      <Button size="sm" variant="outline" onClick={onRetry}>
+        Try again
+      </Button>
     </div>
   );
 }

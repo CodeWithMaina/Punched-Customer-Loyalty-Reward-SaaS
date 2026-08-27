@@ -3,12 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Button, Drawer, Select } from "@/components/ui";
 
 import { AppointmentsHeader } from "./_components/AppointmentsHeader";
 import { SummaryCards } from "./_components/SummaryCards";
 import { AppointmentViewTabs, type AppointmentsView } from "./_components/AppointmentViewTabs";
-import { AppointmentFilters } from "./_components/AppointmentFilters";
+import {
+  DATE_OPTIONS,
+  PRICE_OPTIONS,
+  STATUS_OPTIONS,
+} from "./_components/AppointmentFilters";
 import { AppointmentCalendar } from "./_components/AppointmentCalendar";
 import { AppointmentList } from "./_components/AppointmentList";
 import { AppointmentDetailsDrawer } from "./_components/AppointmentDetailsDrawer";
@@ -61,8 +65,6 @@ export default function BusinessAppointmentsPage() {
     setSelectedDate,
     shiftWeek,
     goCurrentWeek,
-    goToToday,
-    shiftDay,
   } = useAppointmentCalendar();
 
   const {
@@ -113,8 +115,10 @@ export default function BusinessAppointmentsPage() {
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
       <AppointmentsHeader
-        onToggleFilters={() => setFiltersOpen((value) => !value)}
+        onToggleFilters={() => setFiltersOpen(true)}
         onBook={() => setBookOpen(true)}
+        query={filters.query}
+        onQueryChange={setQuery}
       />
 
       <main className="mx-auto max-w-[1600px] px-4 py-5 pb-24 sm:px-6 lg:px-8 lg:py-8">
@@ -122,18 +126,6 @@ export default function BusinessAppointmentsPage() {
 
         {/* View switcher */}
         <AppointmentViewTabs view={view} onChange={changeView} />
-
-        {/* Search + filters */}
-        <AppointmentFilters
-          filters={filters}
-          setQuery={setQuery}
-          setFilter={setFilter}
-          clearAll={clearAll}
-          services={services}
-          staff={staff}
-          customers={customers}
-          open={filtersOpen}
-        />
 
         {view === "calendar" ? (
           <AppointmentCalendar
@@ -149,8 +141,7 @@ export default function BusinessAppointmentsPage() {
             onShiftWeek={shiftWeek}
             onCurrentWeek={goCurrentWeek}
             onSelectDate={setSelectedDate}
-            onToday={goToToday}
-            onShiftDay={shiftDay}
+            onOpenFilters={() => setFiltersOpen(true)}
           />
         ) : (
           <AppointmentList
@@ -189,6 +180,82 @@ export default function BusinessAppointmentsPage() {
         </Button>
       </div>
 
+      {/* Filters drawer — small right-side sliding panel */}
+      <Drawer
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        title="Filter appointments"
+        description="Narrow down the visible schedule"
+        size="sm"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="outline" fullWidth onClick={clearAll}>
+              Clear filters
+            </Button>
+
+            <Button fullWidth onClick={() => setFiltersOpen(false)}>
+              Apply filters
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <FilterField label="Date">
+            <Select fullWidth value={filters.dateFilter} onChange={(event) => setFilter("dateFilter", event.target.value)} aria-label="Filter by date">
+              {DATE_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </Select>
+          </FilterField>
+
+          <FilterField label="Status">
+            <Select fullWidth value={filters.statusFilter} onChange={(event) => setFilter("statusFilter", event.target.value)} aria-label="Filter by status">
+              {STATUS_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </Select>
+          </FilterField>
+
+          <FilterField label="Price">
+            <Select fullWidth value={filters.priceFilter} onChange={(event) => setFilter("priceFilter", event.target.value)} aria-label="Filter by price">
+              {PRICE_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </Select>
+          </FilterField>
+
+          <FilterField label="Service">
+            <Select fullWidth value={filters.serviceFilter} onChange={(event) => setFilter("serviceFilter", event.target.value)} aria-label="Filter by service">
+              <option value="all">All services</option>
+
+              {services.map((service) => (
+                <option key={service.id} value={service.id}>{service.name}</option>
+              ))}
+            </Select>
+          </FilterField>
+
+          <FilterField label="Staff">
+            <Select fullWidth value={filters.staffFilter} onChange={(event) => setFilter("staffFilter", event.target.value)} aria-label="Filter by staff">
+              <option value="all">All staff</option>
+
+              {staff.map((member) => (
+                <option key={member.userId} value={member.userId}>{member.fullName}</option>
+              ))}
+            </Select>
+          </FilterField>
+
+          <FilterField label="Customer">
+            <Select fullWidth value={filters.customerFilter} onChange={(event) => setFilter("customerFilter", event.target.value)} aria-label="Filter by customer">
+              <option value="all">All customers</option>
+
+              {customers.map((customer) => (
+                <option key={customer.userId} value={customer.userId}>{customer.fullName}</option>
+              ))}
+            </Select>
+          </FilterField>
+        </div>
+      </Drawer>
+
       {/* Booking sheet */}
       {bookOpen && (
         <BookAppointmentSheet
@@ -202,6 +269,23 @@ export default function BusinessAppointmentsPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+
+/** Labeled field unit for the filter drawer. */
+function FilterField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold text-[var(--text-secondary)]">{label}</p>
+      {children}
     </div>
   );
 }

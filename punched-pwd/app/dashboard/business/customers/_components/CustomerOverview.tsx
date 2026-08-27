@@ -106,6 +106,40 @@ function MiniCustomerList({
  * Customer management overview: who is enrolled, how they're doing and who
  * needs attention. Links into the roster and individual detail pages.
  */
+/**
+ * Summary stat tiles only — used on the combined Customers page
+ * above the roster list.
+ */
+export function CustomerSummaryCards({
+  overview,
+  isLoading,
+}: {
+  overview: CustomerOverviewResponse | null;
+  isLoading: boolean;
+}) {
+  if (isLoading || !overview) {
+    return (
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-hidden>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-[104px] rounded-[var(--radius-lg)] skeleton" />
+        ))}
+      </div>
+    );
+  }
+
+  if (overview.totalCustomers === 0) return null;
+
+  return (
+    <section aria-label="Customer summary" className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 animate-fade-in motion-reduce:animate-none">
+      <SummaryTile icon={Users} label="Total customers" value={overview.totalCustomers} />
+      <SummaryTile icon={Sparkles} label="Active 7 days" value={overview.active7d} tone="emerald" />
+      <SummaryTile icon={Gift} label="Ready to redeem" value={overview.rewardReady} tone="amber" />
+      <SummaryTile icon={UserPlus} label="New this week" value={overview.newThisWeek} />
+      <SummaryTile icon={AlertTriangle} label="Cooling / at risk" value={overview.atRisk} tone="red" />
+    </section>
+  );
+}
+
 export function CustomerOverview({
   overview,
   isLoading,
@@ -115,7 +149,7 @@ export function CustomerOverview({
 }) {
   if (isLoading || !overview) {
     return (
-      <div className="mx-5 mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" aria-hidden>
+      <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" aria-hidden>
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="h-[104px] rounded-2xl skeleton" />
         ))}
@@ -125,7 +159,7 @@ export function CustomerOverview({
 
   if (overview.totalCustomers === 0) {
     return (
-      <div className="mx-5 mt-6">
+      <div className="mt-6">
         <EmptyState
           icon={<UserPlus className="h-6 w-6" />}
           title="No customers yet"
@@ -136,7 +170,7 @@ export function CustomerOverview({
   }
 
   return (
-    <div className="mx-5 mt-6 space-y-5 animate-fade-in motion-reduce:animate-none">
+    <div className="space-y-6 animate-fade-in motion-reduce:animate-none">
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <SummaryTile icon={Users} label="Total customers" value={overview.totalCustomers} />
@@ -195,3 +229,4 @@ export function CustomerOverview({
     </div>
   );
 }
+
