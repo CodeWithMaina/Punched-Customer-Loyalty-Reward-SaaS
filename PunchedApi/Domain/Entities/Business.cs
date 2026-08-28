@@ -85,6 +85,17 @@ public class Business : BaseEntity
 
     // ── Navigation ──────────────────────────────────────────
     /// <summary>
+    /// The business's current subscription (one per business).
+    /// Null when the business has never subscribed.
+    /// </summary>
+    public virtual BusinessSubscription? CurrentSubscription { get; set; }
+
+    /// <summary>
+    /// Per-business module enablement overrides.
+    /// </summary>
+    public virtual ICollection<BusinessModule> BusinessModules { get; set; } = new List<BusinessModule>();
+
+    /// <summary>
     /// All loyalty programs for this business.
     /// </summary>
     public virtual ICollection<LoyaltyProgram> LoyaltyPrograms { get; set; } = new List<LoyaltyProgram>();

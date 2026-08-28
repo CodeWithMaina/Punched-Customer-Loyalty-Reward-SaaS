@@ -42,6 +42,11 @@ public class ApplicationDbContext : DbContext
     public DbSet<StaffServiceAssignment> StaffServiceAssignments => Set<StaffServiceAssignment>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<StaffInvitation> StaffInvitations => Set<StaffInvitation>();
+    public DbSet<Module> Modules => Set<Module>();
+    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
+    public DbSet<PlanModule> PlanModules => Set<PlanModule>();
+    public DbSet<BusinessSubscription> BusinessSubscriptions => Set<BusinessSubscription>();
+    public DbSet<BusinessModule> BusinessModules => Set<BusinessModule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
