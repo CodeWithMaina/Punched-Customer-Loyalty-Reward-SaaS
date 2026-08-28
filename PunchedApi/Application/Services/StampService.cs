@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using PunchedApi.Application.Authorization;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Entities;
 using PunchedApi.Domain.Interfaces;
@@ -19,6 +20,7 @@ public class StampService : IStampService
         private readonly IAnalyticsAggregationService _analyticsAggregationService;
     private readonly INotificationsService _notificationsService;
     private readonly IBusinessScopeResolver _businessScopeResolver;
+    private readonly IPermissionService _permissionService;
     private readonly ILogger<StampService> _logger;
 
     public StampService(
@@ -30,6 +32,7 @@ public class StampService : IStampService
         IAnalyticsAggregationService analyticsAggregationService,
         INotificationsService notificationsService,
         IBusinessScopeResolver businessScopeResolver,
+        IPermissionService permissionService,
         ILogger<StampService> logger)
     {
         _unitOfWork = unitOfWork;
@@ -40,6 +43,7 @@ public class StampService : IStampService
         _analyticsAggregationService = analyticsAggregationService;
         _notificationsService = notificationsService;
         _businessScopeResolver = businessScopeResolver;
+        _permissionService = permissionService;
         _logger = logger;
     }
 
@@ -50,6 +54,13 @@ public class StampService : IStampService
             var actor = await _unitOfWork.Users.GetByIdAsync(staffOrBusinessUserId);
             if (actor == null)
                 return ApiResponse<StampAwardedResponse>.Fail("UNAUTHORIZED", "Authenticated user not found.");
+
+            // Fine-grained permission gate (G6): stamp awarding requires
+            // stamps.award — held by Business AND Staff (staff awarding is
+            // allowed; other roles are rejected below anyway).
+            if (!_permissionService.HasPermission(actor.Role.ToString(), "stamps.award"))
+                return ApiResponse<StampAwardedResponse>.Fail(
+                    "FORBIDDEN", "You do not have permission to award stamps (stamps.award required).");
 
             Guid? scopedBusinessId = null;
             if (actor.Role == UserRole.Staff)

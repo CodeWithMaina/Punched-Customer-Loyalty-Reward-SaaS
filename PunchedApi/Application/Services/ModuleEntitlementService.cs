@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using PunchedApi.Application.Modules;
 using PunchedApi.Domain.Entities;
 using PunchedApi.Infrastructure.Data;
 
@@ -33,6 +34,32 @@ public class ModuleEntitlementService : IModuleEntitlementService
 
     /// <summary>Cache key for a business's resolved entitlements.</summary>
     internal static string CacheKey(Guid businessId) => $"modules:entitlements:{businessId}";
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> ValidateConfiguration(IEnumerable<(string ModuleKey, bool Enabled)> overrides)
+    {
+        var problems = new List<string>();
+        var state = overrides
+            .GroupBy(o => o.ModuleKey, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Last().Enabled, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (moduleKey, enabled) in state)
+        {
+            if (!enabled) continue;
+
+            var definition = ModuleCatalog.Find(moduleKey);
+            if (definition == null) continue;
+
+            foreach (var dependency in definition.Dependencies)
+            {
+                var depEnabled = state.TryGetValue(dependency, out var on) && on;
+                if (!depEnabled)
+                    problems.Add($"module '{moduleKey}' enabled without dependency '{dependency}'");
+            }
+        }
+
+        return problems;
+    }
 
     public async Task<ModuleEntitlementResult> GetBusinessModulesAsync(Guid businessId, Guid? userId = null)
     {

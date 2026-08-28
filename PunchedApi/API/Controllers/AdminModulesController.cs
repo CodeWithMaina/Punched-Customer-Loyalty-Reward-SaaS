@@ -101,6 +101,32 @@ public class AdminModulesController : ControllerBase
             return NotFound(ApiResponse<MessageResponse>.Fail(
                 "MODULE_NOT_FOUND", $"No active module with key '{moduleKey}'."));
 
+        // Dependency validation (G7): validate the RESULTING override set —
+        // the new value for this module layered over the existing overrides.
+        // Force=true bypasses the check for deliberate out-of-band grants.
+        if (!request.Force)
+        {
+            var existingOverrides = await _context.BusinessModules
+                .Where(bm => bm.BusinessId == businessId && bm.ModuleId != module.Id)
+                .Join(_context.Modules,
+                    bm => bm.ModuleId,
+                    m => m.Id,
+                    (bm, m) => new { m.Key, bm.IsEnabled })
+                .Select(x => new { x.Key, x.IsEnabled })
+                .ToListAsync();
+
+            var overrideSet = existingOverrides
+                .Select(x => (ModuleKey: x.Key, Enabled: x.IsEnabled))
+                .ToList();
+            overrideSet.Add((module.Key, request.Enabled));
+
+            var problems = _entitlementService.ValidateConfiguration(overrideSet);
+            if (problems.Count > 0)
+                return BadRequest(ApiResponse<MessageResponse>.Fail(
+                    "DEPENDENCY_MISSING",
+                    $"Override rejected: {string.Join("; ", problems)}. Retry with force=true to bypass."));
+        }
+
         var adminUserId = CurrentUserId();
         var overrideRow = await _context.BusinessModules
             .FirstOrDefaultAsync(bm => bm.BusinessId == businessId && bm.ModuleId == module.Id);

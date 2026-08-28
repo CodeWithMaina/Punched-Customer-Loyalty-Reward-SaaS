@@ -87,6 +87,13 @@ public class AdminSetModuleOverrideRequest
 
     /// <summary>Audit reason for the override (e.g. "Enterprise custom agreement").</summary>
     public string? Reason { get; set; }
+
+    /// <summary>
+    /// When true, bypasses dependency validation (G7). When false (default),
+    /// enabling a module whose dependencies are not enabled returns
+    /// 400 DEPENDENCY_MISSING.
+    /// </summary>
+    public bool Force { get; set; }
 }
 
 /// <summary>

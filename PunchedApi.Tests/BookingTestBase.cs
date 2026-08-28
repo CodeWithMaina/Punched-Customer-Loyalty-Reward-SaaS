@@ -45,6 +45,7 @@ internal static class BookingTestBase
             context,
             new AppointmentAvailabilityService(context, TestHelpers.CreateLogger<AppointmentAvailabilityService>()),
             CreateMapper(),
+            new PunchedApi.Application.Authorization.PermissionService(),
             TestHelpers.CreateLogger<AppointmentService>());
 
     public static AppointmentAvailabilityService CreateAvailabilityService(ApplicationDbContext context)

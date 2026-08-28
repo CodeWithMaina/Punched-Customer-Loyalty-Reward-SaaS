@@ -32,6 +32,15 @@ public interface IModuleEntitlementService
     /// of the business's subscription, plan, or module overrides.
     /// </summary>
     void Invalidate(Guid businessId);
+
+    /// <summary>
+    /// Authoring-time dependency validation (plan §14.1, G7): given the full
+    /// intended override configuration for a business, returns one problem
+    /// string per dependency violation, e.g.
+    /// "module 'analytics' enabled without dependency 'loyalty'".
+    /// An empty list means the configuration is dependency-consistent.
+    /// </summary>
+    IReadOnlyList<string> ValidateConfiguration(IEnumerable<(string ModuleKey, bool Enabled)> overrides);
 }
 
 /// <summary>

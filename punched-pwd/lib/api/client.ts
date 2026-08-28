@@ -177,3 +177,44 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
+
+// ═══════════════════════════════════════════════════════════════
+//  MODULE_DISABLED error surfacing (Step 4.2)
+//  The backend returns 403 MODULE_DISABLED (via [RequireModule]) when a
+//  business lacks a module. The page-level <RequireModule> guard already
+//  shows <UpgradePrompt/> on direct navigation; this helper lets any
+//  fetch/action toast surface upgrade messaging instead of a terse error
+//  when a locked-module endpoint is hit through the API client.
+// ═══════════════════════════════════════════════════════════════
+
+/** True when the error is an axios 403 whose envelope carries MODULE_DISABLED. */
+export function isModuleDisabledError(error: unknown): boolean {
+  const code =
+    (error as { response?: { data?: { error?: { code?: string } } } })
+      ?.response?.data?.error?.code;
+  return code === "MODULE_DISABLED";
+}
+
+/** Upgrade messaging surfaced in error toasts for locked modules. */
+export const MODULE_DISABLED_MESSAGE =
+  "This feature isn't part of your current plan. Upgrade to unlock it.";
+
+/**
+ * Extracts a toast-friendly message from any error. Special-cases
+ * MODULE_DISABLED (403) so the frontend surfaces upgrade guidance instead
+ * of the raw backend "module is not enabled" string. Falls back to the
+ * axios/fallback message otherwise.
+ */
+export function getApiErrorMessage(error: unknown, fallback = "Something went wrong."): string {
+  if (isModuleDisabledError(error)) return MODULE_DISABLED_MESSAGE;
+
+  if (error && typeof error === "object" && "response" in error) {
+    const response = (error as { response?: { data?: { error?: { message?: string } } } })
+      .response;
+    const message = response?.data?.error?.message;
+    if (message) return message;
+  }
+
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}

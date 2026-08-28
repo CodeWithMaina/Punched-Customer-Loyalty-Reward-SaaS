@@ -9,6 +9,7 @@ namespace PunchedApi.API.Controllers;
 [ApiController]
 [Route("v1/referrals")]
 [Authorize]
+[RequireModule("referral")]
 public class ReferralController : ControllerBase
 {
     private readonly IReferralService _referralService;

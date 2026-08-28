@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using PunchedApi.Application.Authorization;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Entities;
 using PunchedApi.Domain.Interfaces;
@@ -19,6 +20,7 @@ public class AppointmentService : IAppointmentService
     private readonly ApplicationDbContext _context;
     private readonly AppointmentAvailabilityService _availability;
     private readonly IMapper _mapper;
+    private readonly IPermissionService _permissionService;
     private readonly ILogger<AppointmentService> _logger;
 
     public AppointmentService(
@@ -26,14 +28,32 @@ public class AppointmentService : IAppointmentService
         ApplicationDbContext context,
         AppointmentAvailabilityService availability,
         IMapper mapper,
+        IPermissionService permissionService,
         ILogger<AppointmentService> logger)
     {
         _unitOfWork = unitOfWork;
         _context = context;
         _availability = availability;
         _mapper = mapper;
+        _permissionService = permissionService;
         _logger = logger;
     }
+
+    /// <summary>
+    /// Fine-grained permission gate (G6): staff members do NOT hold
+    /// <c>appointments.manage</c> (PermissionMatrix), so staff creating,
+    /// rescheduling or cancelling business appointments is forbidden.
+    /// Distinct from MODULE_DISABLED — this is a permission failure, not an
+    /// entitlement one. Confirm/complete/no-show transitions of a staff
+    /// member's OWN appointments remain allowed (staff workflow, not
+    /// business-appointment management).
+    /// </summary>
+    private ApiResponse<AppointmentResponse>? StaffManagePermissionGuard(string role) =>
+        IsRole(role, "Staff") && !_permissionService.HasPermission("Staff", "appointments.manage")
+            ? ApiResponse<AppointmentResponse>.Fail(
+                "FORBIDDEN",
+                "Staff members do not have permission to manage business appointments (appointments.manage required).")
+            : null;
 
     // ═══════════════════════════════════════════════════════════
     //  AVAILABILITY
@@ -66,6 +86,9 @@ public class AppointmentService : IAppointmentService
         }
         else if (IsRole(role, "Staff"))
         {
+            var manageGuard = StaffManagePermissionGuard(role);
+            if (manageGuard != null) return manageGuard;
+
             var staffMember = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Id == callerUserId && u.StaffBusinessId == request.BusinessId);
             if (staffMember == null)
                 return ApiResponse<AppointmentResponse>.Fail("FORBIDDEN", "You are not authorized for this business.");
@@ -113,6 +136,9 @@ public class AppointmentService : IAppointmentService
         }
         else if (IsRole(role, "Staff"))
         {
+            var manageGuard = StaffManagePermissionGuard(role);
+            if (manageGuard != null) return manageGuard;
+
             var staffMember = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Id == callerUserId && u.StaffBusinessId == request.BusinessId);
             if (staffMember == null)
                 return ApiResponse<AppointmentResponse>.Fail("FORBIDDEN", "You are not authorized for this business.");
@@ -159,6 +185,9 @@ public class AppointmentService : IAppointmentService
         var ownershipError = await AssertOwnershipAsync(callerUserId, role, appointment);
         if (ownershipError != null)
             return ownershipError;
+
+        var manageGuard = StaffManagePermissionGuard(role);
+        if (manageGuard != null) return manageGuard;
 
         // Determine effective services (replace when provided, else keep current).
         Guid[] serviceIds;
@@ -262,6 +291,9 @@ public class AppointmentService : IAppointmentService
         var ownershipError = await AssertOwnershipAsync(callerUserId, role, appointment);
         if (ownershipError != null)
             return ownershipError;
+
+        var manageGuard = StaffManagePermissionGuard(role);
+        if (manageGuard != null) return manageGuard;
 
         return await TransitionAsync(appointment, "cancelled", callerUserId, request.Note, role, staffOrOwnerOnly: false);
     }

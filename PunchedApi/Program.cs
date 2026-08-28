@@ -391,6 +391,8 @@ try
     app.UseCors("AllowFrontend");
     app.UseRateLimiter();
     app.UseAuthentication();
+    // Module gating is enforced per-endpoint via [RequireModule] filters
+    // (MODULE_SYSTEM_STATUS_AND_PLAN.md Step 4); no coarse middleware by design.
     app.UseAuthorization();
     app.UseOutputCache();
 
