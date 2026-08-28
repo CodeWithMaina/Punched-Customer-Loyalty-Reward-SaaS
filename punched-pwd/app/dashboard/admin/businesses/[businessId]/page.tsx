@@ -8,7 +8,7 @@ import { adminApi } from "@/lib/api/admin";
 import type { AdminBusinessSummary } from "@/types";
 import {
   Loader2, Store, ArrowLeft, MapPin, Users, Stamp, Gift,
-  UserCheck, CreditCard, Calendar, Mail, Trash2, BarChart3,
+  UserCheck, CreditCard, Calendar, Mail, Trash2, BarChart3, ShieldCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -77,12 +77,20 @@ export default function AdminBusinessDetail() {
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-5 pb-24">
       {/* Back */}
-      <Link
-        href="/dashboard/admin/businesses"
-        className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-secondary)] transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" /> Businesses
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link
+          href="/dashboard/admin/businesses"
+          className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-secondary)] transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" /> Businesses
+        </Link>
+        <Link
+          href={`/dashboard/admin/businesses/${businessId}/modules`}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"
+        >
+          <ShieldCheck className="h-4 w-4" /> Module Overrides
+        </Link>
+      </div>
 
       {/* Hero Card */}
       <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-card overflow-hidden">
