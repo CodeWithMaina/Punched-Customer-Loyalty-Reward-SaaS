@@ -75,13 +75,15 @@ export function useModules(): UseModulesResult {
 
   const isAdmin = role === "Admin";
 
-  // Fail open: when the fetch itself failed (data === null but loaded),
-  // treat every catalog module as entitled so the UI keeps working.
+  // Fail open: whenever we have NO loaded entitlement payload (still loading
+  // OR the fetch failed), treat every catalog module as entitled so the UI
+  // keeps working. The backend [RequireModule] filter is the security
+  // boundary — the UI must never lock users out over a cache blip.
   const explicit = useMemo(() => {
     if (isAdmin) return moduleRegistry.map((m) => m.id);
     if (data) return data.entitlements;
-    return isLoaded ? [] : moduleRegistry.map((m) => m.id);
-  }, [data, isAdmin, isLoaded]);
+    return moduleRegistry.map((m) => m.id);
+  }, [data, isAdmin]);
 
   const accessSet = useMemo(() => closeDependencies(explicit), [explicit]);
 

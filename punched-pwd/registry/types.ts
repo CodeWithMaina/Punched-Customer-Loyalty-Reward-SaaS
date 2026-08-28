@@ -50,4 +50,10 @@ export interface ShellProfile {
   moduleOrder: string[];
   /** Always-present items (Dashboard, Settings, etc.) — not entitlement-gated. */
   coreRoutes: NavItem[];
+  /**
+   * Optional floating bottom-bar actions for the shell (e.g. Staff's flanking
+   * Activity/Appointments buttons around the center Scan FAB). Derived from the
+   * registry so the legacy hardcoded arrays can be deleted.
+   */
+  floatingActions?: NavItem[];
 }

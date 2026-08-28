@@ -9,6 +9,7 @@ import {
   Users,
   Zap,
   User,
+  CalendarDays,
 } from "lucide-react";
 import type { NavItem, ShellProfile, ShellScope } from "./types";
 
@@ -60,6 +61,12 @@ export const shellProfiles: Record<ShellScope, ShellProfile> = {
     moduleOrder: ["appointments", "stamps", "customers", "settings"],
     coreRoutes: [
       { label: "Activity", href: "/dashboard/staff/activity", icon: BarChart2, scope: "Staff", exact: false },
+    ],
+    // Floating bottom-bar flanks (Activity + Appointments) mirror the legacy
+    // staffBottomNav[0] / [1]; the center Scan action stays a hardcoded FAB.
+    floatingActions: [
+      { label: "Activity", href: "/dashboard/staff/activity", icon: BarChart2, scope: "Staff", exact: false },
+      { label: "Appointments", href: "/dashboard/staff/appointments", icon: CalendarDays, scope: "Staff", exact: false },
     ],
   },
   Admin: {

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useModuleNav } from "@/hooks/useModuleNav";
+import { useShellFloatingActions } from "@/hooks/useShellFloatingActions";
 import { businessesApi } from "@/lib/api/businesses";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import type { StaffBusinessResponse } from "@/types";
@@ -15,21 +16,7 @@ import {
   LogOut,
   Bell,
   CreditCard,
-  Home,
-  Compass,
-  Award,
-  LayoutDashboard,
-  Users,
-  UserCheck,
-  User,
-  BarChart2,
   ScanLine,
-  Shield,
-  TrendingUp,
-  Store,
-  Zap,
-  CalendarDays,
-
 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -58,6 +45,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           : "Customer";
 
   const moduleNav = useModuleNav(scope);
+  const floatingActions = useShellFloatingActions(scope);
 
   /* ═══════════════════════════════════════════════════════════════
      AUTHENTICATION
@@ -117,209 +105,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     CUSTOMER NAVIGATION
-     ═══════════════════════════════════════════════════════════════ */
-
-  const customerNav = [
-    {
-      href: "/dashboard",
-      label: "Home",
-      icon: Home,
-      exact: true,
-    },
-    {
-      href: "/dashboard/explore",
-      label: "Explore",
-      icon: Compass,
-      exact: false,
-    },
-    {
-      href: "/dashboard/appointments",
-      label: "Appointments",
-      icon: CalendarDays,
-      exact: false,
-    },
-
-    {
-      href: "/dashboard/cards",
-      label: "Rewards",
-      icon: Award,
-      exact: false,
-    },
-    {
-      href: "/dashboard/profile",
-      label: "Profile",
-      icon: User,
-      exact: false,
-    },
-  ];
-
-  /* ═══════════════════════════════════════════════════════════════
-     BUSINESS NAVIGATION
-     ═══════════════════════════════════════════════════════════════ */
-
-  const businessNav = [
-    {
-      href: "/dashboard/business",
-      label: "Overview",
-      icon: LayoutDashboard,
-      exact: true,
-    },
-    {
-      href: "/dashboard/business/analytics",
-      label: "Analytics",
-      icon: TrendingUp,
-      exact: false,
-    },
-    {
-      href: "/dashboard/business/customers",
-      label: "Customers",
-      icon: Users,
-      exact: false,
-    },
-    {
-      href: "/dashboard/business/staff",
-      label: "Staff",
-      icon: UserCheck,
-      exact: false,
-    },
-    {
-      href: "/dashboard/business/appointments",
-      label: "Appointments",
-      icon: CalendarDays,
-      exact: false,
-    },
-
-    {
-      href: "/dashboard/business/profile",
-      label: "Settings",
-      icon: User,
-      exact: false,
-    },
-  ];
-
-  /* ═══════════════════════════════════════════════════════════════
-     STAFF DESKTOP NAVIGATION
-     ═══════════════════════════════════════════════════════════════ */
-
-  const staffSideNav = [
-    {
-      href: "/dashboard/staff/activity",
-      label: "Activity",
-      icon: BarChart2,
-      exact: false,
-    },
-    {
-      href: "/dashboard/staff/appointments",
-      label: "Appointments",
-      icon: CalendarDays,
-      exact: false,
-    },
-
-    {
-      href: "/dashboard/staff/scan",
-      label: "Scan",
-      icon: ScanLine,
-      exact: false,
-    },
-    {
-      href: "/dashboard/profile",
-      label: "Profile",
-      icon: User,
-      exact: false,
-    },
-  ];
-
-  /* ═══════════════════════════════════════════════════════════════
-     STAFF MOBILE NAVIGATION
-     
-     Scan is deliberately kept as a floating center action.
-     ═══════════════════════════════════════════════════════════════ */
-
-  const staffBottomNav = [
-    {
-      href: "/dashboard/staff/activity",
-      label: "Activity",
-      icon: BarChart2,
-      exact: false,
-    },
-    {
-      href: "/dashboard/staff/appointments",
-      label: "Appointments",
-      icon: CalendarDays,
-      exact: false,
-    },
-
-    {
-      href: "/dashboard/profile",
-      label: "Profile",
-      icon: User,
-      exact: false,
-    },
-  ];
-
-  /* ═══════════════════════════════════════════════════════════════
-     ADMIN NAVIGATION
-     ═══════════════════════════════════════════════════════════════ */
-
-  const adminNav = [
-    {
-      href: "/dashboard/admin",
-      label: "Overview",
-      icon: Shield,
-      exact: true,
-    },
-    {
-      href: "/dashboard/admin/analytics",
-      label: "Analytics",
-      icon: TrendingUp,
-      exact: false,
-    },
-    {
-      href: "/dashboard/admin/businesses",
-      label: "Businesses",
-      icon: Store,
-      exact: false,
-    },
-    {
-      href: "/dashboard/admin/users",
-      label: "Users",
-      icon: Users,
-      exact: false,
-    },
-    {
-      href: "/dashboard/admin/insights",
-      label: "Insights",
-      icon: Zap,
-      exact: false,
-    },
-    {
-      href: "/dashboard/admin/profile",
-      label: "Profile",
-      icon: User,
-      exact: false,
-    },
-  ];
-
-  /* ═══════════════════════════════════════════════════════════════
      ROLE DETECTION
      ═══════════════════════════════════════════════════════════════ */
 
   const isStaff = user?.role === "Staff";
   const isBusiness = user?.role === "Business";
   const isAdmin = user?.role === "Admin";
-
-  // ═══════════════════════════════════════════════════════════════
-  //  REGRESSION SNAPSHOT — legacy hardcoded nav arrays. Kept until
-  //  the generated nav is verified identical for all four roles
-  //  (cleanup removes these in Phase 9).
-  // ═══════════════════════════════════════════════════════════════
-
-  void customerNav;
-  void businessNav;
-  void staffSideNav;
-  void staffBottomNav;
-  void adminNav;
 
   const sideNavItems = moduleNav;
   const bottomNavItems = moduleNav.filter((item) => !item.hideInBottom);
@@ -617,7 +408,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   ─────────────────────────────────────────────── */}
 
                 {(() => {
-                  const item = staffBottomNav[0];
+                  const item = floatingActions[0];
 
                   const isActive = isNavItemActive(item.href, item.exact);
 
@@ -783,7 +574,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   ─────────────────────────────────────────────── */}
 
                 {(() => {
-                  const item = staffBottomNav[1];
+                  const item = floatingActions[1];
 
                   const isActive = isNavItemActive(item.href, item.exact);
 
