@@ -1147,3 +1147,22 @@ export interface AppointmentFormData {
   note?: string;
 }
 
+
+// ── Plans & subscription billing (Step 7.5) ───────────────────
+
+/** Item of GET /v1/plans — an active plan with its bundled modules. */
+export interface PlanSummary {
+  key: string;
+  name: string;
+  description?: string | null;
+  price: number;
+  billingInterval: string;
+  modules: string[];
+}
+
+/** Result of POST /v1/businesses/me/subscription/upgrade. */
+export interface UpgradePlanResponse {
+  planKey: string;
+  status: string;
+  paymentReference?: string | null;
+}

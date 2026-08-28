@@ -4,25 +4,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { modulesApi } from "@/lib/api/modules";
+import { plansApi } from "@/lib/api/plans";
+import { invalidateCache } from "@/lib/api/cache";
+import { addonPriceFor } from "@/lib/api/plans";
 import { moduleRegistry } from "@/registry/modules";
-import type { BusinessModuleDetail } from "@/types";
-import { ArrowLeft, Loader2, Lock, Sparkles } from "lucide-react";
+import type { BusinessModuleDetail, PlanSummary } from "@/types";
+import { ArrowLeft, Loader2, Lock, Sparkles, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ═══════════════════════════════════════════════════════════════
 //  Owner module management — toggle add-on modules for the business.
 //  Optimistic UI: the switch flips instantly and rolls back if the
 //  API call fails. Every successful toggle busts modules:* caches.
-//  (Display-level pricing; server-side plan pricing remains the
-//  billing authority — see docs/modules-entitlements.md.)
+//  Pricing is derived from GET /v1/plans (the billing authority) —
+//  no client-side hardcoded prices. See docs/modules-entitlements.md.
 // ═══════════════════════════════════════════════════════════════
-
-/** Monthly add-on pricing shown for modules NOT included in the plan. */
-const ADDON_PRICING: Record<string, string> = {
-  analytics: "$9/mo",
-  loyalty: "$6/mo",
-  referral: "$6/mo",
-};
 
 const SOURCE_LABEL: Record<string, string> = {
   PLAN: "In plan",
@@ -35,9 +31,36 @@ export default function BusinessModulesPage() {
 
   const [modules, setModules] = useState<BusinessModuleDetail[]>([]);
   const [planName, setPlanName] = useState<string | null>(null);
+  const [plans, setPlans] = useState<PlanSummary[]>([]);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgrading, setUpgrading] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
   const mounted = useRef(true);
+
+  const upgradeTo = useCallback(async (planKey: string) => {
+    if (upgrading) return;
+    setUpgrading(planKey);
+    try {
+      const res = await plansApi.upgrade(planKey);
+      if (!res.success) throw new Error(res.error?.message || "Upgrade failed");
+      toast.success("Plan updated");
+      invalidateCache("modules:");
+      if (mounted.current) {
+        setUpgradeOpen(false);
+        // Re-fetch modules so plan-derived availability reflects the new plan.
+        const refreshed = await modulesApi.getMyBusinessModules();
+        if (refreshed.success && refreshed.data && mounted.current) {
+          setModules(refreshed.data.modules);
+          setPlanName(refreshed.data.plan?.name ?? null);
+        }
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upgrade failed");
+    } finally {
+      if (mounted.current) setUpgrading(null);
+    }
+  }, [upgrading]);
 
   const toggleModule = useCallback(
     async (mod: BusinessModuleDetail, nextEnabled: boolean) => {
@@ -82,15 +105,17 @@ export default function BusinessModulesPage() {
 
   useEffect(() => {
     mounted.current = true;
-    modulesApi
-      .getMyBusinessModules()
-      .then((res) => {
+    Promise.all([modulesApi.getMyBusinessModules(), plansApi.getPlans()])
+      .then(([modRes, planRes]) => {
         if (!mounted.current) return;
-        if (res.success && res.data) {
-          setModules(res.data.modules);
-          setPlanName(res.data.plan?.name ?? null);
+        if (modRes.success && modRes.data) {
+          setModules(modRes.data.modules);
+          setPlanName(modRes.data.plan?.name ?? null);
         } else {
-          toast.error(res.error?.message || "Failed to load modules");
+          toast.error(modRes.error?.message || "Failed to load modules");
+        }
+        if (planRes.success && planRes.data) {
+          setPlans(planRes.data);
         }
       })
       .catch(() => {
@@ -122,19 +147,104 @@ export default function BusinessModulesPage() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-lg font-bold text-[var(--text-primary)]">Modules</h1>
           <p className="text-xs text-[var(--text-tertiary)]">
             {planName ? `Manage add-ons on the ${planName} plan` : "Manage your add-on modules"}
           </p>
         </div>
+        <button
+          onClick={() => setUpgradeOpen(true)}
+          className="text-xs font-bold px-3 py-2 rounded-xl bg-brand text-white flex items-center gap-1.5 flex-shrink-0"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Upgrade
+        </button>
       </div>
       <ModuleList
         modules={modules}
         planName={planName}
+        plans={plans}
         pendingKeys={pendingKeys}
         onToggle={toggleModule}
       />
+      {upgradeOpen && (
+        <UpgradeModal
+          plans={plans}
+          upgrading={upgrading}
+          onClose={() => setUpgradeOpen(false)}
+          onSelect={upgradeTo}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Compact upgrade modal listing plans (prices straight from the API). */
+function UpgradeModal({
+  plans,
+  upgrading,
+  onClose,
+  onSelect,
+}: {
+  plans: PlanSummary[];
+  upgrading: string | null;
+  onClose: () => void;
+  onSelect: (planKey: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+      <div className="bg-[var(--surface)] w-full max-w-md rounded-2xl shadow-card border border-[var(--border-light)] p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-[var(--text-primary)]">Choose a plan</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close upgrade dialog"
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-[var(--text-tertiary)] hover:bg-[var(--border-light)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="space-y-2">
+          {plans.map((plan) => (
+            <button
+              key={plan.key}
+              disabled={upgrading !== null}
+              onClick={() => onSelect(plan.key)}
+              className={`w-full text-left p-3 rounded-xl border transition-colors flex items-center justify-between gap-3 ${
+                upgrading === plan.key
+                  ? "border-brand bg-brand/5"
+                  : "border-[var(--border-light)] hover:border-brand"
+              } ${upgrading && upgrading !== plan.key ? "opacity-50" : ""}`}
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-[var(--text-primary)]">{plan.name}</p>
+                <p className="text-[11px] text-[var(--text-tertiary)] truncate">
+                  {plan.modules.length} modules · {plan.modules.slice(0, 4).join(", ")}
+                  {plan.modules.length > 4 ? "…" : ""}
+                </p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                {upgrading === plan.key ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-brand ml-auto" />
+                ) : (
+                  <p className="text-sm font-bold text-[var(--text-primary)]">
+                    KES {plan.price.toLocaleString()}
+                    <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                      /{plan.billingInterval === "yearly" ? "yr" : "mo"}
+                    </span>
+                  </p>
+                )}
+              </div>
+            </button>
+          ))}
+          {plans.length === 0 && (
+            <p className="text-xs text-[var(--text-tertiary)] text-center py-4">
+              No plans available right now.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -142,11 +252,13 @@ export default function BusinessModulesPage() {
 function ModuleList({
   modules,
   planName,
+  plans,
   pendingKeys,
   onToggle,
 }: {
   modules: BusinessModuleDetail[];
   planName: string | null;
+  plans: PlanSummary[];
   pendingKeys: Set<string>;
   onToggle: (mod: BusinessModuleDetail, nextEnabled: boolean) => void;
 }) {
@@ -158,7 +270,7 @@ function ModuleList({
         const Icon = manifest.icon;
         const isPending = pendingKeys.has(detail.key);
         const isCore = detail.isCore;
-        const addonPrice = ADDON_PRICING[detail.key];
+        const addonPrice = addonPriceFor(plans, detail.key);
         const included = detail.source === "PLAN" || detail.source === "ADMIN";
 
         return (
