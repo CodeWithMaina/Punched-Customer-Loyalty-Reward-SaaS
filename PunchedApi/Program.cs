@@ -10,7 +10,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using PunchedApi.API.Middleware;
+using PunchedApi.Application.Authorization;
 using PunchedApi.Application.Mappings;
+using PunchedApi.Application.Modules;
 using PunchedApi.Application.Services;
 using PunchedApi.Application.Settings;
 using PunchedApi.Application.Validators;
@@ -148,11 +150,22 @@ try
     builder.Services.AddScoped<AppointmentAvailabilityService>();
     builder.Services.AddScoped<IServiceCatalogService, ServiceCatalogService>();
 
+    // ── Module entitlements (plugin architecture Phases 1-3) ─
+    builder.Services.AddScoped<IModuleEntitlementService, ModuleEntitlementService>();
+
+    // ── Module enforcement (plugin architecture Phases 4-6) ──
+    builder.Services.Configure<ModuleEnforcementOptions>(
+        builder.Configuration.GetSection(ModuleEnforcementOptions.SectionName));
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<IBusinessContext, BusinessContext>();
+    builder.Services.AddScoped<IPermissionService, PermissionService>();
+
     // ── Seed framework ─────────────────────────────────────
     builder.Services.AddSingleton<ISeedRandom, SeedRandom>();
     builder.Services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
     builder.Services.AddScoped<IDatabaseCliRunner, DatabaseCliRunner>();
     builder.Services.AddScoped<IAdminBootstrapper, AdminBootstrapper>();
+    builder.Services.AddScoped<IModuleCatalogSeeder, ModuleCatalogSeeder>();
     builder.Services.AddScoped<ISeedStep, DatabasePreparationSeedStep>();
     builder.Services.AddScoped<ISeedStep, IdentitySeedStep>();
     builder.Services.AddScoped<ISeedStep, BusinessSeedStep>();
@@ -350,6 +363,12 @@ try
         await seeder.RunAsync();
         var adminBootstrapper = scope.ServiceProvider.GetRequiredService<IAdminBootstrapper>();
         await adminBootstrapper.EnsureDefaultAdminAsync();
+
+        // Module catalog (modules/plans/plan_modules) — idempotent, runs in
+        // every environment because entitlement resolution depends on it.
+        var moduleCatalogSeeder = scope.ServiceProvider.GetRequiredService<IModuleCatalogSeeder>();
+        await moduleCatalogSeeder.EnsureModuleCatalogAsync();
+        Log.Information("Module catalog verified.");
     }
 
     // ── Middleware Pipeline ──────────────────────────────────
