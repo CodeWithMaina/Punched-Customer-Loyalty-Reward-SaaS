@@ -119,4 +119,7 @@ public class ModuleEntitlement
     /// Effective access flag: enabled AND covered by an active subscription.
     /// </summary>
     public bool HasAccess { get; set; }
+
+    /// <summary>Audit reason recorded when an override was applied (null for plan grants).</summary>
+    public string? Reason { get; set; }
 }

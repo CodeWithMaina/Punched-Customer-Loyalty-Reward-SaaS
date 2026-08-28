@@ -115,6 +115,7 @@ public class ModuleEntitlementService : IModuleEntitlementService
             {
                 entitlement.IsEnabled = overrideEntry.IsEnabled;
                 entitlement.Source = overrideEntry.Source;
+                entitlement.Reason = overrideEntry.Reason;
             }
             else
             {

@@ -62,7 +62,8 @@ public class AdminModulesController : ControllerBase
                 Source = m.Source,
                 HasAccess = m.HasAccess,
                 Dependencies = m.Dependencies,
-                IsCore = m.IsCore
+                IsCore = m.IsCore,
+                Reason = m.Reason
             }).ToList()
         };
 
@@ -145,6 +146,7 @@ public class AdminModulesController : ControllerBase
         overrideRow.Source = "ADMIN";
         overrideRow.OverridesAt = DateTime.UtcNow;
         overrideRow.OverriddenByUserId = adminUserId;
+        overrideRow.Reason = request.Reason;
         await _context.SaveChangesAsync();
 
         _entitlementService.Invalidate(businessId);

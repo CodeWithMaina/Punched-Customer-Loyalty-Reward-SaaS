@@ -65,6 +65,9 @@ public class BusinessModuleDetail
 
     /// <summary>Core modules are always available to every business.</summary>
     public bool IsCore { get; set; }
+
+    /// <summary>Audit reason recorded when an override was applied (null for plan grants).</summary>
+    public string? Reason { get; set; }
 }
 
 /// <summary>

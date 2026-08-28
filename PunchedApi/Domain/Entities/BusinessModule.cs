@@ -41,6 +41,12 @@ public class BusinessModule : BaseEntity
     /// </summary>
     public Guid? OverriddenByUserId { get; set; }
 
+    /// <summary>
+    /// Audit reason for the override (e.g. "Enterprise custom agreement").
+    /// </summary>
+    [MaxLength(500)]
+    public string? Reason { get; set; }
+
     // ── Navigation ──────────────────────────────────────────
     /// <summary>
     /// The business this override belongs to.
