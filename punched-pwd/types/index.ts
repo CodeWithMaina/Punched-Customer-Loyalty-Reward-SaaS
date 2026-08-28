@@ -79,6 +79,45 @@ export interface RequestEmailRequest {
   email: string;
 }
 
+// -- Module entitlements (plugin architecture) -------------------------
+
+/** Current plan summary included in MyModulesResponse. */
+export interface CallerPlanInfo {
+  key: string;
+  name: string;
+  status: string;
+  endsAt: string | null;
+}
+
+/** Response of GET /v1/me/modules — effective modules + permissions. */
+export interface MyModulesResponse {
+  entitlements: string[];
+  permissions: string[];
+  plan: CallerPlanInfo | null;
+}
+
+/** Full entitlement detail for a single module (owner/admin management view). */
+export interface BusinessModuleDetail {
+  key: string;
+  name: string;
+  description: string | null;
+  /** Whether the module is enabled for the business (plan grant or override). */
+  enabled: boolean;
+  /** Origin of the entitlement: PLAN, OVERRIDE, or ADMIN. */
+  source: string;
+  /** Effective access flag: enabled AND covered by an active subscription. */
+  hasAccess: boolean;
+  dependencies: string[];
+  isCore: boolean;
+}
+
+/** Response of GET /v1/businesses/me/modules (owner) and
+ *  GET /v1/admin/businesses/{id}/modules (admin). */
+export interface BusinessModulesResponse {
+  modules: BusinessModuleDetail[];
+  plan: CallerPlanInfo | null;
+}
+
 export interface UpdateProfileRequest {
   fullName?: string;
   phoneNumber?: string;

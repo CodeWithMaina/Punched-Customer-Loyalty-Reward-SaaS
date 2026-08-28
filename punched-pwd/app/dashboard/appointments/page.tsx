@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
@@ -53,7 +55,7 @@ function AppointmentCard({ appointment }: { appointment: AppointmentResponse }) 
   );
 }
 
-export default function MyAppointmentsPage() {
+function MyAppointmentsPageContent() {
   useRoleGuard("Customer");
   const [appointments, setAppointments] = useState<AppointmentResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,5 +111,13 @@ export default function MyAppointmentsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MyAppointmentsPage() {
+  return (
+    <RequireModule module="appointments">
+      <MyAppointmentsPageContent />
+    </RequireModule>
   );
 }

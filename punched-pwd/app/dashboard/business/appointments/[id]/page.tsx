@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -44,7 +46,7 @@ function hhmm(iso: string): string {
 const START_HOUR = 9;
 const END_HOUR = 20;
 
-export default function BusinessAppointmentDetailPage() {
+function BusinessAppointmentDetailPageContent() {
   useRoleGuard("Business");
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -426,5 +428,13 @@ function RescheduleSheet({
         </button>
       </div>
     </div>
+  );
+}
+
+export default function BusinessAppointmentDetailPage() {
+  return (
+    <RequireModule module="appointments">
+      <BusinessAppointmentDetailPageContent />
+    </RequireModule>
   );
 }

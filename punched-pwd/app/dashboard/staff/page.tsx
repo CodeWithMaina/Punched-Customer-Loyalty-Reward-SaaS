@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
+import { useModules } from "@/hooks/useModules";
 import { appointmentsApi } from "@/lib/api/appointments";
 import { businessesApi } from "@/lib/api/businesses";
 import { invalidateCache } from "@/lib/api/cache";
@@ -15,12 +16,14 @@ import {
   QrCode,
   ScanLine,
 } from "lucide-react";
+import { UpgradeBadge } from "@/components/modules/UpgradePrompt";
 
 import { STATUS_LABEL } from "@/lib/appointment-status";
 
 export default function StaffDashboardPage() {
   useRoleGuard("Staff");
 
+  const { hasModule, isLoaded } = useModules();
   const [appointments, setAppointments] = useState<AppointmentResponse[]>([]);
   const [business, setBusiness] = useState<StaffBusinessResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,7 +143,7 @@ export default function StaffDashboardPage() {
             Ask your business owner to invite you as staff.
           </p>
         </div>
-      ) : (
+      ) : hasModule('appointments') ? (
         <>
           {/* Today's Log */}
           <section>
@@ -171,7 +174,11 @@ export default function StaffDashboardPage() {
             )}
           </section>
         </>
-      )}
+      ) : isLoaded ? (
+        <div className="py-6">
+          <UpgradeBadge module="appointments" />
+        </div>
+      ) : null}
     </div>
   );
 }

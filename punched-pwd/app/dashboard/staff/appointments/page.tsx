@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState } from "react";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { appointmentsApi } from "@/lib/api/appointments";
@@ -9,7 +11,7 @@ import { Clock, Loader2 } from "lucide-react";
 
 import { STATUS_LABEL } from "@/lib/appointment-status";
 
-export default function StaffAppointmentsPage() {
+function StaffAppointmentsPageContent() {
   useRoleGuard("Staff");
   const [appointments, setAppointments] = useState<AppointmentResponse[]>([]);
   const [business, setBusiness] = useState<StaffBusinessResponse | null>(null);
@@ -171,5 +173,13 @@ function StaffAppointmentCard({
         </button>
       )}
     </div>
+  );
+}
+
+export default function StaffAppointmentsPage() {
+  return (
+    <RequireModule module="appointments">
+      <StaffAppointmentsPageContent />
+    </RequireModule>
   );
 }

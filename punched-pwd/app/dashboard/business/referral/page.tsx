@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState } from "react";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { referralsApi } from "@/lib/api/referrals";
@@ -23,7 +25,7 @@ const REWARD_TYPES: { value: ReferralRewardType; label: string; description: str
   { value: "FreeItem", label: "Free Item", description: "Award a free product or service" },
 ];
 
-export default function BusinessReferralPage() {
+function BusinessReferralPageContent() {
   useRoleGuard("Business");
   const [program, setProgram] = useState<ReferralProgram | null>(null);
   const [, setBusinessId] = useState<string | null>(null);
@@ -266,5 +268,13 @@ export default function BusinessReferralPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+export default function BusinessReferralPage() {
+  return (
+    <RequireModule module="referral">
+      <BusinessReferralPageContent />
+    </RequireModule>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
@@ -14,7 +16,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 const HEADLINE = "'Plus Jakarta Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
 
-export default function BookingWizardPage() {
+function BookingWizardPageContent() {
   useRoleGuard("Customer");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -311,5 +313,13 @@ export default function BookingWizardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BookingWizardPage() {
+  return (
+    <RequireModule module="appointments">
+      <BookingWizardPageContent />
+    </RequireModule>
   );
 }

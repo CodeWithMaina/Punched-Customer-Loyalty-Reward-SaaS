@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
@@ -24,7 +26,7 @@ import { MetricCard, PeriodTabs, SectionTitle, MomentumRing, PIE_COLORS, DAYS } 
 // "Why is my business performing this way, and where should I focus?"
 // Denser, richer view than the Dashboard — trends, breakdowns, comparisons.
 
-export default function BusinessAnalyticsPage() {
+function BusinessAnalyticsPageContent() {
   useRoleGuard("Business");
   const [analytics, setAnalytics] = useState<BusinessAnalyticsResponse | null>(null);
   const [compare, setCompare] = useState<BusinessAnalyticsComparisonResponse | null>(null);
@@ -587,5 +589,13 @@ function HeroStat({ label, current, sub }: { label: string; current: string; sub
       </p>
       {sub && <p className="text-[8.5px] text-white/60 mt-1 truncate">{sub}</p>}
     </div>
+  );
+}
+
+export default function BusinessAnalyticsPage() {
+  return (
+    <RequireModule module="analytics">
+      <BusinessAnalyticsPageContent />
+    </RequireModule>
   );
 }

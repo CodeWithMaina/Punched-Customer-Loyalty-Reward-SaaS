@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
@@ -54,7 +56,7 @@ function formatCountdown(ms: number): string {
   return `${s}s`;
 }
 
-export default function CardDetailPage() {
+function CardDetailPageContent() {
   useRoleGuard("Customer");
   const { cardId } = useParams<{ cardId: string }>();
   const [card, setCard] = useState<LoyaltyCard | null>(null);
@@ -344,5 +346,13 @@ export default function CardDetailPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function CardDetailPage() {
+  return (
+    <RequireModule module="rewards">
+      <CardDetailPageContent />
+    </RequireModule>
   );
 }

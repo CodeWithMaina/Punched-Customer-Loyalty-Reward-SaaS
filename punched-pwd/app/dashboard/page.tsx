@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
+import { useModules } from "@/hooks/useModules";
 import { loyaltyApi } from "@/lib/api/loyalty";
 import { appointmentsApi } from "@/lib/api/appointments";
 import type { AppointmentResponse, LoyaltyCard } from "@/types";
@@ -18,10 +19,12 @@ import {
   CalendarDays,
   Clock,
 } from "lucide-react";
+import { UpgradeBadge } from "@/components/modules/UpgradePrompt";
 
 export default function CustomerDashboardPage() {
   const router = useRouter();
   const { user, isLoading } = useAuthStore();
+  const { hasModule, isLoaded } = useModules();
   const [cards, setCards] = useState<LoyaltyCard[]>([]);
   const [cardsLoading, setCardsLoading] = useState(true);
   const [appointments, setAppointments] = useState<AppointmentResponse[]>([]);
@@ -84,6 +87,7 @@ export default function CustomerDashboardPage() {
       </div>
 
       {/* Upcoming Appointments */}
+      {hasModule('appointments') ? (
       <div className="px-4 pb-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
@@ -145,8 +149,14 @@ export default function CustomerDashboardPage() {
           </div>
         )}
       </div>
+      ) : isLoaded ? (
+        <div className="px-4 pb-4">
+          <UpgradeBadge module="appointments" />
+        </div>
+      ) : null}
 
       {/* Active Stacks */}
+      {hasModule('stamps') ? (
       <div className="px-4 pb-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-bold text-[var(--text-primary)]">Your Active Stacks</h3>
@@ -201,6 +211,11 @@ export default function CustomerDashboardPage() {
           </div>
         )}
       </div>
+      ) : isLoaded ? (
+        <div className="px-4 pb-4">
+          <UpgradeBadge module="stamps" />
+        </div>
+      ) : null}
 
       {/* Discover more — accent (10%) CTA */}
       <div className="px-4 pb-6">

@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { stampsApi } from "@/lib/api/stamps";
@@ -14,7 +16,7 @@ import {
   Store,
 } from "lucide-react";
 
-export default function StaffScanPage() {
+function StaffScanPageContent() {
   useRoleGuard("Staff");
 
   const [businessId, setBusinessId] = useState("");
@@ -297,5 +299,13 @@ export default function StaffScanPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function StaffScanPage() {
+  return (
+    <RequireModule module="stamps">
+      <StaffScanPageContent />
+    </RequireModule>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
@@ -9,7 +11,7 @@ import { QRScanner } from "@/components/loyalty/QRScanner";
 import { StampSuccessOverlay } from "@/components/loyalty/StampSuccessOverlay";
 import { Loader2, QrCode, ScanLine } from "lucide-react";
 
-export default function BusinessScanPage() {
+function BusinessScanPageContent() {
   useRoleGuard("Business");
   const [business, setBusiness] = useState<Business | null>(null);
   const [isLoadingBusiness, setIsLoadingBusiness] = useState(true);
@@ -180,5 +182,13 @@ export default function BusinessScanPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function BusinessScanPage() {
+  return (
+    <RequireModule module="stamps">
+      <BusinessScanPageContent />
+    </RequireModule>
   );
 }

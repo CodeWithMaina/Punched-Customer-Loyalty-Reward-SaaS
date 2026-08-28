@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useMemo, useState } from "react";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { Plus } from "lucide-react";
@@ -37,7 +39,7 @@ import { useAppointmentActions } from "./_hooks/useAppointmentActions";
    in hooks; UI lives in _components. Theme-aware.
    ============================================================ */
 
-export default function BusinessAppointmentsPage() {
+function BusinessAppointmentsPageContent() {
   useRoleGuard("Business");
 
   /* View state (URL-shareable: /appointments?view=list) */
@@ -290,3 +292,10 @@ function FilterField({
   );
 }
 
+export default function BusinessAppointmentsPage() {
+  return (
+    <RequireModule module="appointments">
+      <BusinessAppointmentsPageContent />
+    </RequireModule>
+  );
+}

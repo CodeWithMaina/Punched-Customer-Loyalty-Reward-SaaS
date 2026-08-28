@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -76,7 +78,7 @@ function DetailRow({
   );
 }
 
-export default function CustomerDetailPage() {
+function CustomerDetailPageContent() {
   useRoleGuard("Business");
   const router = useRouter();
   const { customerId } = useParams<{ customerId: string }>();
@@ -525,5 +527,10 @@ export default function CustomerDetailPage() {
   );
 }
 
-
-
+export default function CustomerDetailPage() {
+  return (
+    <RequireModule module="customers">
+      <CustomerDetailPageContent />
+    </RequireModule>
+  );
+}

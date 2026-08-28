@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -88,7 +90,7 @@ function DetailRow({
   );
 }
 
-export default function StaffDetailPage() {
+function StaffDetailPageContent() {
   useRoleGuard("Business");
   const router = useRouter();
 
@@ -586,3 +588,10 @@ export default function StaffDetailPage() {
   );
 }
 
+export default function StaffDetailPage() {
+  return (
+    <RequireModule module="staff">
+      <StaffDetailPageContent />
+    </RequireModule>
+  );
+}

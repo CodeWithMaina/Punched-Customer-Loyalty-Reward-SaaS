@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -161,7 +163,7 @@ function SummaryMetric({
   );
 }
 
-export default function StaffActivityPage() {
+function StaffActivityPageContent() {
   useRoleGuard("Business");
 
   const { staffId } = useParams<{ staffId: string }>();
@@ -496,5 +498,13 @@ export default function StaffActivityPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function StaffActivityPage() {
+  return (
+    <RequireModule module="staff">
+      <StaffActivityPageContent />
+    </RequireModule>
   );
 }

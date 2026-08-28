@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -137,7 +139,7 @@ function FilterSelect({
   );
 }
 
-export default function BusinessStaffPage() {
+function BusinessStaffPageContent() {
   useRoleGuard("Business");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -619,3 +621,10 @@ export default function BusinessStaffPage() {
 
 }
 
+export default function BusinessStaffPage() {
+  return (
+    <RequireModule module="staff">
+      <BusinessStaffPageContent />
+    </RequireModule>
+  );
+}

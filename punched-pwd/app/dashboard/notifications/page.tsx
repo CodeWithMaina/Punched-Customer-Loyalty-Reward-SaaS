@@ -1,8 +1,10 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { Bell } from "lucide-react";
 
-export default function NotificationsPage() {
+function NotificationsPageContent() {
   return (
     <div className="mx-auto w-full max-w-xl px-5 py-6">
       <div className="flex items-center gap-3">
@@ -21,5 +23,13 @@ export default function NotificationsPage() {
         <p className="mt-1 text-xs text-[var(--text-tertiary)]">New activity will appear here when notification history is available.</p>
       </section>
     </div>
+  );
+}
+
+export default function NotificationsPage() {
+  return (
+    <RequireModule module="notifications">
+      <NotificationsPageContent />
+    </RequireModule>
   );
 }

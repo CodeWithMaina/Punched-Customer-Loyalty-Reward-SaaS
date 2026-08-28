@@ -5,9 +5,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleNav } from "@/hooks/useModuleNav";
 import { businessesApi } from "@/lib/api/businesses";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import type { StaffBusinessResponse } from "@/types";
+import type { ShellScope } from "@/registry/types";
 import {
   Loader2,
   LogOut,
@@ -38,6 +40,24 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { logout } = useAuth();
 
   const [headerLabel, setHeaderLabel] = useState<string | null>(null);
+
+  /* ═══════════════════════════════════════════════════════════════
+     MODULE-DRIVEN NAVIGATION (Phase 6)
+     Generated from the module registry + GET /v1/me/modules
+     entitlements. The legacy arrays below are kept as a regression
+     snapshot until the generated output is verified identical.
+     ═══════════════════════════════════════════════════════════════ */
+
+  const scope: ShellScope =
+    user?.role === "Admin"
+      ? "Admin"
+      : user?.role === "Business"
+        ? "Business"
+        : user?.role === "Staff"
+          ? "Staff"
+          : "Customer";
+
+  const moduleNav = useModuleNav(scope);
 
   /* ═══════════════════════════════════════════════════════════════
      AUTHENTICATION
@@ -289,21 +309,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const isBusiness = user?.role === "Business";
   const isAdmin = user?.role === "Admin";
 
-  const sideNavItems = isAdmin
-    ? adminNav
-    : isBusiness
-      ? businessNav
-      : isStaff
-        ? staffSideNav
-        : customerNav;
+  // ═══════════════════════════════════════════════════════════════
+  //  REGRESSION SNAPSHOT — legacy hardcoded nav arrays. Kept until
+  //  the generated nav is verified identical for all four roles
+  //  (cleanup removes these in Phase 9).
+  // ═══════════════════════════════════════════════════════════════
 
-  const bottomNavItems = isAdmin
-    ? adminNav
-    : isBusiness
-      ? businessNav
-      : isStaff
-        ? staffBottomNav
-        : customerNav;
+  void customerNav;
+  void businessNav;
+  void staffSideNav;
+  void staffBottomNav;
+  void adminNav;
+
+  const sideNavItems = moduleNav;
+  const bottomNavItems = moduleNav.filter((item) => !item.hideInBottom);
 
   const fallbackLabel = isAdmin
     ? "Admin"

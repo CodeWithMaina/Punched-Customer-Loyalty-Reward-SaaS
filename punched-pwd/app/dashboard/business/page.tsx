@@ -1,5 +1,7 @@
 "use client";
 
+import { useModules } from "@/hooks/useModules";
+import { UpgradeBadge } from "@/components/modules/UpgradePrompt";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
@@ -45,6 +47,7 @@ export default function BusinessOverviewPage() {
   useRoleGuard("Business");
 
   const [business, setBusiness] = useState<Business | null>(null);
+  const { hasModule, isLoaded } = useModules();
   const [customers, setCustomers] = useState<BusinessCustomer[]>([]);
   const [dashboard, setDashboard] =
     useState<BusinessDashboardResponse | null>(null);
@@ -449,6 +452,7 @@ export default function BusinessOverviewPage() {
             Today's / Upcoming appointments with status badges.
             ═══════════════════════════════════════════════════════ */}
 
+        {hasModule('appointments') ? (
         <section className="mb-5 w-full">
           <div className="mb-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -539,6 +543,11 @@ export default function BusinessOverviewPage() {
             </div>
           )}
         </section>
+        ) : isLoaded ? (
+          <div className="mb-5 w-full">
+            <UpgradeBadge module="appointments" />
+          </div>
+        ) : null}
 
 
 
@@ -565,12 +574,16 @@ export default function BusinessOverviewPage() {
               href="/dashboard/business/scan"
             />
 
+            {hasModule('analytics') ? (
             <QuickAction
               icon={BarChart3}
               label="Stats"
               description="View insights"
               href="/dashboard/business/analytics"
             />
+            ) : isLoaded ? (
+            <UpgradeBadge module="analytics" compact />
+            ) : null}
 
             <QuickAction
               icon={Users}
@@ -579,12 +592,16 @@ export default function BusinessOverviewPage() {
               href="/dashboard/business/customers"
             />
 
+            {hasModule('staff') ? (
             <QuickAction
               icon={UserCheck}
               label="Staff"
               description="Manage team"
               href="/dashboard/business/staff"
             />
+            ) : isLoaded ? (
+            <UpgradeBadge module="staff" compact />
+            ) : null}
           </div>
         </section>
 
@@ -632,7 +649,7 @@ export default function BusinessOverviewPage() {
             TEAM
             ═══════════════════════════════════════════════════════ */}
 
-        {(dashboard?.staffMini?.length ?? 0) > 0 && (
+        {hasModule('staff') && (dashboard?.staffMini?.length ?? 0) > 0 && (
           <section className="mb-5 w-full">
             <YourTeamSection staff={dashboard!.staffMini!} />
           </section>

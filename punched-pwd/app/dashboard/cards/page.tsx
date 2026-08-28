@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
@@ -7,7 +9,7 @@ import { loyaltyApi } from "@/lib/api/loyalty";
 import type { LoyaltyCard } from "@/types";
 import { QrCode, Gift, CheckCircle, Loader2, Store, Compass, Trophy, Stamp } from "lucide-react";
 
-export default function MyCardsPage() {
+function MyCardsPageContent() {
   useRoleGuard("Customer");
   const [cards, setCards] = useState<LoyaltyCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -164,3 +166,10 @@ function LoyaltyCardItem({ card }: { card: LoyaltyCard }) {
   );
 }
 
+export default function MyCardsPage() {
+  return (
+    <RequireModule module="rewards">
+      <MyCardsPageContent />
+    </RequireModule>
+  );
+}

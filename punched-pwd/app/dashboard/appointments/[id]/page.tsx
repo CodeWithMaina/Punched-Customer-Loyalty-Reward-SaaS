@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -15,7 +17,7 @@ const MONO = "'Space Mono', monospace";
 
 import { STATUS_LABEL } from "@/lib/appointment-status";
 
-export default function AppointmentDetailPage() {
+function AppointmentDetailPageContent() {
   useRoleGuard("Customer");
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -256,5 +258,13 @@ export default function AppointmentDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AppointmentDetailPage() {
+  return (
+    <RequireModule module="appointments">
+      <AppointmentDetailPageContent />
+    </RequireModule>
   );
 }

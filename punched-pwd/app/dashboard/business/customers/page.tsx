@@ -1,5 +1,7 @@
 "use client";
 
+import { RequireModule } from "@/components/modules/RequireModule";
+
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -68,7 +70,7 @@ function downloadCsv(customers: BusinessCustomer[]) {
   URL.revokeObjectURL(url);
 }
 
-export default function BusinessCustomersPage() {
+function BusinessCustomersPageContent() {
   useRoleGuard("Business");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -435,5 +437,13 @@ function ErrorInline({ message, onRetry }: { message: string; onRetry: () => voi
         Try again
       </Button>
     </div>
+  );
+}
+
+export default function BusinessCustomersPage() {
+  return (
+    <RequireModule module="customers">
+      <BusinessCustomersPageContent />
+    </RequireModule>
   );
 }
