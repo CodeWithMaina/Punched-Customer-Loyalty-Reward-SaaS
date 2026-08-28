@@ -78,3 +78,31 @@ Phase 9 items intentionally **not** executed yet, per their preconditions:
 2. Delete legacy nav arrays from `app/dashboard/layout.tsx` once
    `useModuleNav` output is regression-verified for all four roles.
 3. Remove the one-time back-compat `pro` plan grant seed.
+
+## Production rollout checklist
+
+The enforcement toggle (`Modules:EnforcementEnabled`) is **false** in the
+committed production `appsettings.json` and must remain so as a code
+change. Flipping it **on** is an **operations action**, not a code change.
+`true` is permitted only in `appsettings.Development.json` (local testing)
+and in test-server fixture config.
+
+1. **Confirm the back-compat grant ran.** On startup the seeder writes a
+   log line — `"Back-compat pro grant applied to {N} businesses."`. This
+   grants every pre-existing business with no active/trial subscription a
+   complimentary `pro` plan so enforcement does not lock them out. Confirm
+   `N > 0` covers your existing tenant base before continuing.
+2. **Flip the toggle in staging first.** Set
+   `Modules:EnforcementEnabled = true` in the staging environment config and
+   deploy. Run the Step 5 toggle-on integration matrix
+   (`ModuleEnforcementIntegrationTests`) as a gate.
+3. **Watch `MODULE_DISABLED` 403 metrics for 48h.** The `[RequireModule]`
+   filter returns `403 MODULE_DISABLED` (envelope code, not a throw), so it
+   flows through normal API logging. Monitor the rate of `MODULE_DISABLED`
+   403s; a spike indicates a business whose entitlement does not match their
+   expected plan (typically a missing subscription — the back-compat grant
+   or the future billing lifecycle owns the fix).
+4. **Flip in production.** Set `Modules:EnforcementEnabled = true` in the
+   production config (outside this repository as an operation), deploy, and
+   continue monitoring. Once stable, the toggle + `ModuleEnforcementOptions`
+   and the back-compat grant seed can be removed (see deferred cleanup).
