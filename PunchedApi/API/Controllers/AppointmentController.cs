@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PunchedApi.API.Filters;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
 
@@ -15,6 +16,7 @@ namespace PunchedApi.API.Controllers;
 [Route("v1/appointments")]
 [Produces("application/json")]
 [Authorize]
+[RequireModule("appointments")]
 public class AppointmentController : ControllerBase
 {
     private readonly IAppointmentService _appointmentService;

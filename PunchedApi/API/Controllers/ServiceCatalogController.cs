@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PunchedApi.API.Filters;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
 
@@ -13,6 +14,7 @@ namespace PunchedApi.API.Controllers;
 [ApiController]
 [Route("v1/services")]
 [Produces("application/json")]
+    [RequireModule("serviceCatalog")]
 public class ServiceCatalogController : ControllerBase
 {
     private readonly IServiceCatalogService _catalogService;

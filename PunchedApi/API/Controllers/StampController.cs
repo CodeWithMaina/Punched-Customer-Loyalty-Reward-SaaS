@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PunchedApi.API.Filters;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
 
@@ -14,6 +15,7 @@ namespace PunchedApi.API.Controllers;
 [Route("v1/stamps")]
 [Produces("application/json")]
 [Authorize(Roles = "Business,Staff")]
+[RequireModule("stamps")]
 public class StampController : ControllerBase
 {
     private readonly IStampService _stampService;

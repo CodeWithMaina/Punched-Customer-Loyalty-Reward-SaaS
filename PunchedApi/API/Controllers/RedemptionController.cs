@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PunchedApi.API.Filters;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
 
@@ -14,6 +15,7 @@ namespace PunchedApi.API.Controllers;
 [Route("v1/redemptions")]
 [Produces("application/json")]
 [Authorize(Roles = "Customer")]
+    [RequireModule("rewards")]
 public class RedemptionController : ControllerBase
 {
     private readonly IRedemptionService _redemptionService;

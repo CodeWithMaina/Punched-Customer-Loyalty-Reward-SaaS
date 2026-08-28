@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PunchedApi.API.Filters;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
 
@@ -16,6 +17,7 @@ namespace PunchedApi.API.Controllers;
 [Route("v1/businesses/me/staff/invitations")]
 [Produces("application/json")]
 [Authorize(Roles = "Business")]
+[RequireModule("staff")]
 public class StaffInvitationsController : ControllerBase
 {
     private readonly IInvitationService _invitationService;

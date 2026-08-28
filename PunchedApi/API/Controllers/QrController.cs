@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PunchedApi.API.Filters;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
 
@@ -14,6 +15,7 @@ namespace PunchedApi.API.Controllers;
 [Route("v1/qr")]
 [Produces("application/json")]
 [Authorize(Roles = "Customer")]
+    [RequireModule("stamps")]
 public class QrController : ControllerBase
 {
     private readonly IQrService _qrService;
