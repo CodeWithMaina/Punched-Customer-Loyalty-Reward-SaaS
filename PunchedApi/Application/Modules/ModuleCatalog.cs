@@ -148,7 +148,10 @@ public static class ModuleCatalog
             Key: "analytics", Name: "Analytics",
             Description: "Business analytics",
             Version: "1.0.0", Visibility: ModuleVisibility.Premium,
-            Dependencies: Array.Empty<string>(),
+            // Must stay in sync with ModuleSeedData.DependenciesJson
+            // (["customers","stamps","loyalty"]) — asserted by
+            // ModuleCatalogSyncTests.
+            Dependencies: new[] { "customers", "stamps", "loyalty" },
             RequiredRoles: new[] { "Business" },
             Permissions: new[]
             {
