@@ -153,6 +153,11 @@ try
     // ── Module entitlements (plugin architecture Phases 1-3) ─
     builder.Services.AddScoped<IModuleEntitlementService, ModuleEntitlementService>();
 
+    // ── Subscription lifecycle & billing (Steps 7) ──────────
+    builder.Services.AddScoped<ISubscriptionLifecycleService, SubscriptionLifecycleService>();
+    builder.Services.AddScoped<SubscriptionExpiryService>();
+    builder.Services.AddScoped<IBillingGateway, FakeMpesaStkGateway>();
+
     // ── Module enforcement (plugin architecture Phases 4-6) ──
     builder.Services.Configure<ModuleEnforcementOptions>(
         builder.Configuration.GetSection(ModuleEnforcementOptions.SectionName));
@@ -186,6 +191,7 @@ try
     builder.Services.AddHostedService<CleanupService>();
     builder.Services.AddHostedService<PayoutWorker>();
     builder.Services.AddHostedService<AnalyticsWorker>();
+    builder.Services.AddHostedService<SubscriptionExpiryWorker>();
 
     // ── AutoMapper ──────────────────────────────────────────
     builder.Services.AddAutoMapper(typeof(MappingProfile));
