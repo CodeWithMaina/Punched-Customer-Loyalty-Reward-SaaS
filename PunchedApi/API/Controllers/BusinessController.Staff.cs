@@ -13,7 +13,7 @@ namespace PunchedApi.API.Controllers;
 /// Split from BusinessController.cs (plugin module architecture, Phase 5).
 /// Routes are identical to the pre-split controller; each action is gated on
 /// its owning module via [RequireModule] (403 MODULE_DISABLED when
-/// Modules:EnforcementEnabled=true and the business lacks the module).
+/// 403 MODULE_DISABLED (fail-closed: the business lacks the module).
 /// </summary>
 public partial class BusinessController
 {

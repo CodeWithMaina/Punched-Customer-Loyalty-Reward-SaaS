@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using PunchedApi.Application.Modules;
 using PunchedApi.Application.Services;
 using PunchedApi.Infrastructure.Data;
@@ -41,7 +40,6 @@ public sealed class BusinessContext : IBusinessContext
     private readonly IBusinessScopeResolver _scopeResolver;
     private readonly IModuleEntitlementService _entitlementService;
     private readonly ApplicationDbContext _context;
-    private readonly ModuleEnforcementOptions _options;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     private Guid? _businessId;
@@ -52,13 +50,11 @@ public sealed class BusinessContext : IBusinessContext
         IBusinessScopeResolver scopeResolver,
         IModuleEntitlementService entitlementService,
         ApplicationDbContext context,
-        IOptions<ModuleEnforcementOptions> options,
         IHttpContextAccessor httpContextAccessor)
     {
         _scopeResolver = scopeResolver;
         _entitlementService = entitlementService;
         _context = context;
-        _options = options.Value;
         _httpContextAccessor = httpContextAccessor;
     }
 
@@ -106,9 +102,6 @@ public sealed class BusinessContext : IBusinessContext
     public async Task<bool> HasModuleAsync(string moduleKey)
     {
         var role = GetRole();
-
-        // Rollout safety: enforcement disabled → zero lockout, pass-through.
-        if (!_options.EnforcementEnabled) return true;
 
         // Admin is platform-level; module gating does not apply.
         if (role == "Admin") return true;

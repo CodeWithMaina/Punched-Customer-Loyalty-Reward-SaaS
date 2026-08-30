@@ -159,8 +159,7 @@ try
     builder.Services.AddScoped<IBillingGateway, FakeMpesaStkGateway>();
 
     // ── Module enforcement (plugin architecture Phases 4-6) ──
-    builder.Services.Configure<ModuleEnforcementOptions>(
-        builder.Configuration.GetSection(ModuleEnforcementOptions.SectionName));
+    // Fail-closed by default — enforcement is unconditional (Step 8).
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IBusinessContext, BusinessContext>();
     builder.Services.AddScoped<IPermissionService, PermissionService>();

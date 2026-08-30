@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using PunchedApi.Application.Modules;
 using PunchedApi.Domain.Entities;
 using PunchedApi.Infrastructure.SeedData;
@@ -26,16 +25,13 @@ public interface IModuleCatalogSeeder
 public sealed class ModuleCatalogSeeder : IModuleCatalogSeeder
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly ModuleEnforcementOptions _options;
     private readonly ILogger<ModuleCatalogSeeder> _logger;
 
     public ModuleCatalogSeeder(
         ApplicationDbContext dbContext,
-        IOptions<ModuleEnforcementOptions> options,
         ILogger<ModuleCatalogSeeder> logger)
     {
         _dbContext = dbContext;
-        _options = options.Value;
         _logger = logger;
     }
 
@@ -141,76 +137,5 @@ public sealed class ModuleCatalogSeeder : IModuleCatalogSeeder
         {
             _logger.LogDebug("Module catalog already up to date.");
         }
-
-        await ApplyBackCompatProGrantAsync(cancellationToken);
-    }
-
-    /// <summary>
-    /// Back-compat grant (G2). While <c>Modules:BackCompatGrantEnabled</c> is
-    /// true (default), every business with NO active/trial subscription gets a
-    /// complimentary "pro" subscription so existing businesses keep full access
-    /// when module enforcement is eventually switched on. The grant only adds
-    /// subscriptions — it never removes or changes existing ones.
-    ///
-    /// Idempotency: "grant only where no active/trial subscription exists" is
-    /// restart-safe. NOTE: new businesses registered after rollout would also
-    /// match this rule — set <c>Modules:BackCompatGrantEnabled=false</c> after
-    /// the migration grace period so billing owns subscription creation.
-    ///
-    /// Runs in ALL environments: this method is invoked from
-    /// <c>EnsureModuleCatalogAsync</c>, which Program.cs calls on every boot
-    /// after migrations, outside any demo-data <c>SeedOptions</c> skip.
-    /// </summary>
-    private async Task ApplyBackCompatProGrantAsync(CancellationToken cancellationToken)
-    {
-        if (!_options.BackCompatGrantEnabled)
-        {
-            _logger.LogDebug("Back-compat pro grant disabled (Modules:BackCompatGrantEnabled=false).");
-            return;
-        }
-
-        var proPlan = await _dbContext.SubscriptionPlans
-            .FirstOrDefaultAsync(p => p.Key == "pro", cancellationToken);
-        if (proPlan == null)
-        {
-            _logger.LogWarning("Back-compat pro grant skipped: 'pro' plan not found in catalog.");
-            return;
-        }
-
-        var businessIdsWithActiveSubscription = await _dbContext.BusinessSubscriptions
-            .Where(s => s.Status == "active" || s.Status == "trial")
-            .Select(s => s.BusinessId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-
-        var businessIds = await _dbContext.Businesses
-            .Select(b => b.Id)
-            .ToListAsync(cancellationToken);
-
-        var granted = 0;
-        foreach (var businessId in businessIds)
-        {
-            if (businessIdsWithActiveSubscription.Contains(businessId))
-            {
-                continue;
-            }
-
-            _dbContext.BusinessSubscriptions.Add(new BusinessSubscription
-            {
-                BusinessId = businessId,
-                PlanId = proPlan.Id,
-                Status = "active",
-                StartsAt = DateTime.UtcNow,
-                EndsAt = null
-            });
-            granted++;
-        }
-
-        if (granted > 0)
-        {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
-
-        _logger.LogInformation("Back-compat pro grant applied to {Count} businesses.", granted);
     }
 }

@@ -8,8 +8,8 @@ namespace PunchedApi.API.Filters;
 /// Module entitlement gate. Runs as an authorization filter — i.e. AFTER
 /// authentication ([Authorize]) and after server-side tenant resolution inside
 /// IBusinessContext. Never reads businessId from route/query/body.
-/// Returns 403 MODULE_DISABLED when the caller's business lacks the module
-/// (no-op while Modules:EnforcementEnabled=false).
+/// Returns 403 MODULE_DISABLED when the caller's business lacks the module.
+/// Enforcement is unconditional (fail-closed) — there is no toggle.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
 public class RequireModuleAttribute : Attribute, IAsyncAuthorizationFilter

@@ -21,7 +21,7 @@ namespace PunchedApi.Tests;
 
 /// <summary>
 /// Step 5 toggle-on enforcement matrix (G3). Exercises the REAL BusinessContext
-/// + RequireModuleAttribute pipeline with Modules:EnforcementEnabled=true —
+/// + RequireModuleAttribute pipeline with hard fail-closed enforcement —
 /// the unit route, since no WebApplicationFactory dependency exists in this
 /// project (none was added per prompt constraints). Every scenario mirrors the
 /// documented entitlement semantics: plan → overrides → subscription gate →
@@ -89,8 +89,7 @@ public class ModuleEnforcementIntegrationTests : IDisposable
     }
 
     private BusinessContext CreateContext(
-        string role, Guid? userId, Guid? ownedBusinessId,
-        bool enforcementEnabled = true)
+        string role, Guid? userId, Guid? ownedBusinessId)
     {
         var claims = new List<Claim>();
         if (role != null) claims.Add(new Claim(ClaimTypes.Role, role));
@@ -110,7 +109,6 @@ public class ModuleEnforcementIntegrationTests : IDisposable
             resolver,
             new ModuleEntitlementService(_db, TestHelpers.CreateLogger<ModuleEntitlementService>()),
             CreateDb(),
-            Options.Create(new ModuleEnforcementOptions { EnforcementEnabled = enforcementEnabled }),
             accessor);
     }
 
@@ -248,16 +246,6 @@ public class ModuleEnforcementIntegrationTests : IDisposable
             var expected = module.RequiredRoles.Contains("Customer", StringComparer.OrdinalIgnoreCase);
             Assert.Equal(expected, await ctx.HasModuleAsync(module.Key));
         }
-    }
-
-    [Fact]
-    public async Task ToggleOff_FailsOpen_EvenWithoutSubscription()
-    {
-        var business = await CreateBusinessAsync("No Sub Biz"); // no subscription at all
-        var ctx = CreateContext("Business", Guid.NewGuid(), business.Id, enforcementEnabled: false);
-
-        Assert.True(await ctx.HasModuleAsync("analytics"));
-        Assert.True(await ctx.HasModuleAsync("rewards"));
     }
 
     [Fact]
