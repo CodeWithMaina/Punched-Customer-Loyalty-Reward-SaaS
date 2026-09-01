@@ -5,6 +5,7 @@ using PunchedApi.Application.DTOs;
 using PunchedApi.Application.Services;
 using PunchedApi.Domain.Entities;
 using PunchedApi.Infrastructure.Data;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -18,6 +19,7 @@ namespace PunchedApi.API.Controllers;
 [ApiController]
 [Produces("application/json")]
 [Authorize(Roles = "Admin")]
+[EnableRateLimiting("general")]
 public class AdminModulesController : ControllerBase
 {
     private readonly IModuleEntitlementService _entitlementService;

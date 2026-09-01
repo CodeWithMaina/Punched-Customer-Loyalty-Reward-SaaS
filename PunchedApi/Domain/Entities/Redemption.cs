@@ -41,11 +41,37 @@ public class Redemption : BaseEntity
     public decimal RewardValue { get; set; }
 
     /// <summary>
-    /// Redemption status: "pending", "processing", "completed", "failed".
+    /// Redemption lifecycle status: Pending → Fulfilled | Cancelled.
+    /// Replaces the legacy free-text status column.
     /// </summary>
     [Required]
-    [MaxLength(50)]
-    public string Status { get; set; } = "pending";
+    public RedemptionStatus Status { get; set; } = RedemptionStatus.Pending;
+
+    /// <summary>FK to the Business/Staff user that fulfilled this redemption. Null until fulfilled.</summary>
+    public Guid? FulfilledByUserId { get; set; }
+
+    /// <summary>UTC timestamp when the business fulfilled the reward at the counter.</summary>
+    public DateTime? FulfilledAt { get; set; }
+
+    /// <summary>SHA256 hash of the 6-char fulfilment code. The plaintext is only shown once to the customer.</summary>
+    [MaxLength(255)]
+    public string? FulfilmentCodeHash { get; set; }
+
+    /// <summary>
+    /// Payout lifecycle state (distinct from the reward-fulfillment Status):
+    /// pending → processing → completed | failed.
+    /// </summary>
+    [MaxLength(20)]
+    public string? PayoutStatus { get; set; }
+
+    /// <summary>Number of wrong fulfilment-code attempts so far. >= 5 locks the code.</summary>
+    public int FailedAttempts { get; set; }
+
+    /// <summary>True once 5 wrong fulfilment-code attempts have locked this redemption.</summary>
+    public bool CodeLocked { get; set; }
+
+    /// <summary>Number of stamps consumed at claim — restorable on cancellation.</summary>
+    public int StampsConsumed { get; set; }
 
     /// <summary>
     /// M-Pesa transaction reference ID. Null until M-Pesa confirms.
@@ -106,4 +132,7 @@ public class Redemption : BaseEntity
     /// The user who performed this redemption action.
     /// </summary>
     public virtual User? PerformedByUser { get; set; }
+
+    /// <summary>The Business/Staff user that fulfilled this reward at the counter.</summary>
+    public virtual User? FulfilledByUser { get; set; }
 }

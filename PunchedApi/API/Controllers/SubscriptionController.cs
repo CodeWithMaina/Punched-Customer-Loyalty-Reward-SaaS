@@ -5,6 +5,7 @@ using PunchedApi.Application.Authorization;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Application.Services;
 using PunchedApi.Infrastructure.Data;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -21,6 +22,7 @@ namespace PunchedApi.API.Controllers;
 [ApiController]
 [Produces("application/json")]
 [Authorize]
+[EnableRateLimiting("general")]
 public class SubscriptionController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -186,19 +188,43 @@ public class SubscriptionController : ControllerBase
     /// Payment gateway webhook. Documented payload:
     /// <c>{ "event": "payment.completed", "reference": "…", "businessId": "…",
     /// "planKey": "…", "occurredAt": "…" }</c>. "payment.completed" switches
-    /// (or renews) the business's plan. Signature verification is a no-op on
-    /// the fake gateway; a real gateway MUST verify before trusting the body.
+    /// (or renews) the business's plan. The request MUST carry an
+    /// <c>X-Punched-Signature</c> header with the HMAC-SHA256 (hex) of the raw
+    /// body computed with <c>Billing:WebhookSecret</c>; verification is
+    /// fail-closed, so unsigned or wrongly signed payloads are always rejected.
     /// </summary>
     [HttpPost("v1/webhooks/payments")]
     [AllowAnonymous]
+    [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<MessageResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> PaymentWebhook([FromBody] PaymentWebhookRequest request)
+    public async Task<IActionResult> PaymentWebhook(CancellationToken cancellationToken)
     {
-        var rawPayload = System.Text.Json.JsonSerializer.Serialize(request);
-        if (!_billingGateway.VerifyWebhookSignature(rawPayload))
-            return BadRequest(ApiResponse<MessageResponse>.Fail(
+        byte[] rawPayload;
+        using (var ms = new MemoryStream())
+        {
+            await Request.Body.CopyToAsync(ms, cancellationToken);
+            rawPayload = ms.ToArray();
+        }
+
+        if (!_billingGateway.VerifyWebhookSignature(rawPayload, Request.Headers["X-Punched-Signature"].FirstOrDefault()))
+            return Unauthorized(ApiResponse<MessageResponse>.Fail(
                 "INVALID_SIGNATURE", "Webhook signature verification failed."));
+
+        PaymentWebhookRequest? request;
+        try
+        {
+            request = System.Text.Json.JsonSerializer.Deserialize<PaymentWebhookRequest>(
+                rawPayload, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            request = null;
+        }
+
+        if (request == null || request.BusinessId == Guid.Empty || string.IsNullOrWhiteSpace(request.PlanKey))
+            return BadRequest(ApiResponse<MessageResponse>.Fail(
+                "INVALID_PAYLOAD", "Webhook payload is invalid."));
 
         if (!string.Equals(request.Event, "payment.completed", StringComparison.OrdinalIgnoreCase))
         {

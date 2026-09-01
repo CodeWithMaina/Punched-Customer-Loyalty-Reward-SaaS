@@ -18,6 +18,7 @@ public class AuthService : IAuthService
     private readonly IEmailService _emailService;
     private readonly IMapper _mapper;
     private readonly ILogger<AuthService> _logger;
+    private readonly ISubscriptionProvisioningService _subscriptionProvisioning;
 
     // ── Constants ────────────────────────────────────────────
     private const int MaxFailedLoginAttempts = 5;
@@ -32,13 +33,15 @@ public class AuthService : IAuthService
         JwtTokenService jwtService,
         IEmailService emailService,
         IMapper mapper,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        ISubscriptionProvisioningService subscriptionProvisioning)
     {
         _unitOfWork = unitOfWork;
         _jwtService = jwtService;
         _emailService = emailService;
         _mapper = mapper;
         _logger = logger;
+        _subscriptionProvisioning = subscriptionProvisioning;
     }
 
     /// <inheritdoc />
@@ -205,6 +208,11 @@ public class AuthService : IAuthService
 
             // Atomic commit — all three records are persisted or none are.
             await _unitOfWork.SaveChangesAsync();
+
+            // Give the new business immediate module access (default Starter plan)
+            // so it is not locked out. Best-effort: no-op if the Starter plan is
+            // not yet seeded or provisioning fails.
+            await _subscriptionProvisioning.EnsureDefaultSubscriptionAsync(business.Id);
 
             await _emailService.SendVerificationCodeAsync(normalizedEmail, verificationCode);
 

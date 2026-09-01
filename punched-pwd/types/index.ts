@@ -246,6 +246,8 @@ export interface GenerateQrRequest {
 export interface AwardStampRequest {
   token: string;
   businessId: string;
+  /** Number of stamps to award (1..program.MaxStampsPerVisit). Defaults to 1. */
+  stampCount?: number;
 }
 
 export interface StampAwardedResponse {
@@ -347,10 +349,105 @@ export interface RedemptionResponse {
   id: string;
   cardId: string;
   businessName: string;
+  customerName?: string;
   rewardValue: number;
   rewardDescription: string;
   status: string;
+  /** One-time 6-char fulfilment code, only present on the claim response. */
+  fulfilmentCode?: string;
   redeemedAt: string;
+}
+
+// -- Stamping ecosystem (Phases 1-3) ----------------------------------
+
+export type StampAdjustmentReason =
+  | "VoidMistake"
+  | "ManualCorrection"
+  | "Goodwill"
+  | "SystemFix";
+
+export interface StampAdjustmentRequest {
+  cardId: string;
+  delta: number;
+  reason: StampAdjustmentReason;
+  note?: string;
+}
+
+export interface StampAdjustmentResponse {
+  cardId: string;
+  totalStampsBefore: number;
+  totalStampsAfter: number;
+  delta: number;
+  customerName: string;
+  stampsRequired: number;
+  rewardReady: boolean;
+  adjustedAt: string;
+}
+
+/** Pre-commit QR preview — resolving never consumes the token. */
+export interface ResolveQrResponse {
+  customerId: string;
+  customerFirstName: string;
+  customerLastName: string;
+  cardId: string;
+  totalStamps: number;
+  stampsRequired: number;
+  stampsRemaining: number;
+  rewardReady: boolean;
+  programName: string;
+  rewardValue: number;
+  maxStampsPerVisit: number;
+  expiresAt: string;
+}
+
+export interface ManualLookupRequest {
+  phone: string;
+  businessId: string;
+}
+
+export interface ManualLookupResponse {
+  customerId: string;
+  maskedName: string;
+  cardId: string;
+  cardStatus: string;
+  /** One-time manual token (120s) to pass to /stamps/award. */
+  token: string;
+  tokenExpiresAt: string;
+}
+
+export interface EnrollAndStampRequest {
+  token: string;
+  businessId: string;
+  stamps?: number;
+}
+
+export interface FulfillRedemptionRequest {
+  cardId: string;
+  code: string;
+  businessId: string;
+}
+
+export interface FulfillRedemptionResponse {
+  redemptionId: string;
+  cardId: string;
+  customerName: string;
+  rewardDescription: string;
+  status: string;
+  fulfilledAt: string;
+}
+
+export interface CancelRedemptionRequest {
+  note?: string;
+}
+
+export interface CancelRedemptionResponse {
+  redemptionId: string;
+  cardId: string;
+  status: string;
+  stampsRestored: number;
+  totalStampsAfter: number;
+  cancelledAt: string;
+  note?: string;
 }
 
 // -- Forgot password types -------------------------------------------
@@ -676,6 +773,11 @@ export interface AdminBusinessSummary {
   totalStaff: number;
   programCount: number;
   createdAt: string;
+  /** Current subscription summary (admin billing view). */
+  planKey?: string | null;
+  planName?: string | null;
+  subscriptionStatus?: string | null;
+  subscriptionEndsAt?: string | null;
 }
 
 export interface AdminBusinessAnalyticsResponse {
@@ -1043,6 +1145,7 @@ export interface ServiceCatalogItemResponse {
   id: string;
   businessId: string;
   name: string;
+  description?: string | null;
   durationMinutes: number;
   price: number;
   isActive: boolean;
@@ -1052,6 +1155,7 @@ export interface ServiceCatalogItemResponse {
 /** Creates a new catalog service. */
 export interface CreateServiceRequest {
   name: string;
+  description?: string | null;
   durationMinutes: number;
   price: number;
 }
@@ -1059,9 +1163,17 @@ export interface CreateServiceRequest {
 /** Partially updates a catalog service (only provided fields applied). */
 export interface UpdateServiceRequest {
   name?: string;
+  description?: string | null;
   durationMinutes?: number;
   price?: number;
   isActive?: boolean;
+}
+
+/** A staff member eligible to perform the selected services (public view). */
+export interface EligibleStaffResponse {
+  userId: string;
+  fullName: string;
+  avatarUrl?: string | null;
 }
 
 /** A single bookable slot produced by the availability engine. */

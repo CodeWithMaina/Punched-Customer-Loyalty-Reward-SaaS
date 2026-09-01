@@ -11,6 +11,8 @@ export const stampsModule: ModuleManifest = {
   nav: [
     // Scan is deliberately kept as a floating center action on staff mobile.
     { label: "Scan", href: "/dashboard/staff/scan", icon: ScanLine, scope: "Staff", exact: false, hideInBottom: true },
+    // Business owner: dedicated stamping management experience.
+    { label: "Stamping", href: "/dashboard/business/stamping", icon: ScanLine, scope: "Business", exact: false },
   ],
   requiredPermissions: ["stamps.view", "stamps.award"],
   dependencies: ["customers"],

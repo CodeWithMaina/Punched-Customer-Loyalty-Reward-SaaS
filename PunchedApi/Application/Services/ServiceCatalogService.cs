@@ -73,6 +73,7 @@ public class ServiceCatalogService : IServiceCatalogService
             Id = Guid.NewGuid(),
             BusinessId = business.Id,
             Name = request.Name.Trim(),
+            Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
             DurationMinutes = request.DurationMinutes,
             Price = request.Price,
             IsActive = true,
@@ -99,6 +100,8 @@ public class ServiceCatalogService : IServiceCatalogService
 
         if (!string.IsNullOrWhiteSpace(request.Name))
             service.Name = request.Name.Trim();
+        if (request.Description != null)
+            service.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
         if (request.DurationMinutes.HasValue)
             service.DurationMinutes = request.DurationMinutes.Value;
         if (request.Price.HasValue)
@@ -132,11 +135,57 @@ public class ServiceCatalogService : IServiceCatalogService
         return ApiResponse<bool>.Ok(true);
     }
 
+    public async Task<ApiResponse<List<EligibleStaffResponse>>> GetEligibleStaffAsync(Guid businessId, Guid[] serviceIds)
+    {
+        var business = await _unitOfWork.Businesses.FirstOrDefaultAsync(b => b.Id == businessId);
+        if (business == null)
+            return ApiResponse<List<EligibleStaffResponse>>.Fail("NOT_FOUND", "Business not found.");
+
+        var distinct = (serviceIds ?? Array.Empty<Guid>()).Distinct().ToArray();
+
+        // Resolve the candidate staff set from the staff-service assignments.
+        List<Guid> staffIds;
+        if (distinct.Length == 0)
+        {
+            // No service filter: every staff member of this business is eligible.
+            var allStaff = await _unitOfWork.Users.FindAsync(u => u.StaffBusinessId == businessId);
+            staffIds = allStaff.Select(u => u.Id).ToList();
+        }
+        else
+        {
+            var assignments = await _unitOfWork.StaffServiceAssignments
+                .FindAsync(a => a.BusinessId == businessId && distinct.Contains(a.ServiceCatalogItemId));
+
+            // A staff member is eligible only when assigned to ALL requested services.
+            staffIds = assignments
+                .GroupBy(a => a.StaffUserId)
+                .Where(g => g.Select(x => x.ServiceCatalogItemId).Distinct().Count() == distinct.Length)
+                .Select(g => g.Key)
+                .ToList();
+        }
+
+        if (staffIds.Count == 0)
+            return ApiResponse<List<EligibleStaffResponse>>.Ok(new List<EligibleStaffResponse>());
+
+        var staff = await _unitOfWork.Users.FindAsync(u => staffIds.Contains(u.Id) && u.StaffBusinessId == businessId);
+
+        return ApiResponse<List<EligibleStaffResponse>>.Ok(staff
+            .OrderBy(u => u.FullName)
+            .Select(u => new EligibleStaffResponse
+            {
+                UserId = u.Id,
+                FullName = u.FullName,
+                AvatarUrl = u.AvatarUrl
+            })
+            .ToList());
+    }
+
     private static ServiceCatalogItemResponse Map(ServiceCatalogItem s) => new()
     {
         Id = s.Id,
         BusinessId = s.BusinessId,
         Name = s.Name,
+        Description = s.Description,
         DurationMinutes = s.DurationMinutes,
         Price = s.Price ?? 0,
         IsActive = s.IsActive,

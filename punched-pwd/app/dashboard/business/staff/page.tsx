@@ -5,31 +5,54 @@ import { RequireModule } from "@/components/modules/RequireModule";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Activity, Download, Eye, SlidersHorizontal, Mail, Clock, TrendingUp,
-  Users, UserPlus, UserMinus,
+  Activity,
+  Download,
+  Eye,
+  SlidersHorizontal,
+  Mail,
+  Clock,
+  TrendingUp,
+  Users,
+  UserPlus,
+  UserMinus,
 } from "lucide-react";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { businessesApi } from "@/lib/api/businesses";
 import { onboardingApi } from "@/lib/api/onboarding";
 import type {
-  StaffInvitation, StaffListResponse, StaffOverviewResponse, StaffMember,
+  StaffInvitation,
+  StaffListResponse,
+  StaffOverviewResponse,
+  StaffMember,
 } from "@/types";
 import toast from "react-hot-toast";
 import { InviteStaffModal } from "@/components/invitations/InviteStaffModal";
 import {
-  ActionMenu, Avatar, Badge, Button, ConfirmationDialog, Pagination,
-  SearchInput, Select,
+  ActionMenu,
+  Avatar,
+  Badge,
+  Button,
+  ConfirmationDialog,
+  Pagination,
+  SearchInput,
+  Select,
 } from "@/components/ui";
 import {
-  StaffCard, StaffRow, type ActivityTone,
+  StaffCard,
+  StaffRow,
+  type ActivityTone,
 } from "./_components/StaffCard";
 import {
-  StaffErrorState, StaffListEmptyState, StaffLoadingState,
+  StaffErrorState,
+  StaffListEmptyState,
+  StaffLoadingState,
 } from "./_components/states";
 import {
-  parseStaffListState, staffListStateToParams,
-  type StaffListFilters, type StaffListState,
+  parseStaffListState,
+  staffListStateToParams,
+  type StaffListFilters,
+  type StaffListState,
 } from "./_components/filters";
 
 const PAGE_SIZE = 20;
@@ -57,7 +80,10 @@ function activityLabel(lastActivityAt?: string | null): {
 
 function goalPercent(staff: StaffMember) {
   if (!staff.dailyGoal || staff.dailyGoal <= 0) return null;
-  return Math.min(Math.round(((staff.stampsToday ?? 0) / staff.dailyGoal) * 100), 100);
+  return Math.min(
+    Math.round(((staff.stampsToday ?? 0) / staff.dailyGoal) * 100),
+    100,
+  );
 }
 
 function escapeCsv(value: string | number | null | undefined): string {
@@ -67,7 +93,14 @@ function escapeCsv(value: string | number | null | undefined): string {
 }
 
 function downloadStaffCsv(staff: StaffMember[]) {
-  const header = ["Name", "Email", "Total Stamps", "Stamps Today", "Daily Goal", "Last Active"].join(",");
+  const header = [
+    "Name",
+    "Email",
+    "Total Stamps",
+    "Stamps Today",
+    "Daily Goal",
+    "Last Active",
+  ].join(",");
   const rows = staff.map((m) =>
     [
       m.fullName,
@@ -78,7 +111,7 @@ function downloadStaffCsv(staff: StaffMember[]) {
       m.lastActivityAt ?? "",
     ]
       .map(escapeCsv)
-      .join(",")
+      .join(","),
   );
   const csv = [header, ...rows].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -115,7 +148,11 @@ type Option = readonly [value: string, label: string];
 
 /** Native-select wrapper matching the shared Select API. */
 function FilterSelect({
-  value, onChange, options, label, fullWidth = false,
+  value,
+  onChange,
+  options,
+  label,
+  fullWidth = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -146,7 +183,7 @@ function BusinessStaffPageContent() {
 
   // URL-mirrored list state (shareable / refresh-safe).
   const [state, setState] = useState<StaffListState>(() =>
-    parseStaffListState(Object.fromEntries(searchParams.entries()))
+    parseStaffListState(Object.fromEntries(searchParams.entries())),
   );
   const [searchInput, setSearchInput] = useState(state.search);
   const debouncedSearch = useDebouncedValue(searchInput);
@@ -163,12 +200,17 @@ function BusinessStaffPageContent() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Deactivation confirmation flow.
-  const [pendingDeactivate, setPendingDeactivate] = useState<StaffMember | null>(null);
+  const [pendingDeactivate, setPendingDeactivate] =
+    useState<StaffMember | null>(null);
   const [deactivating, setDeactivating] = useState(false);
 
   // Debounce the committed search state (single source of truth).
   useEffect(() => {
-    setState((s) => (s.search === debouncedSearch ? s : { ...s, search: debouncedSearch, page: 1 }));
+    setState((s) =>
+      s.search === debouncedSearch
+        ? s
+        : { ...s, search: debouncedSearch, page: 1 },
+    );
   }, [debouncedSearch]);
 
   // Mirror committed state into the URL.
@@ -242,11 +284,19 @@ function BusinessStaffPageContent() {
     setState((s) => ({ ...s, ...patch }));
 
   const setFilter = (key: keyof StaffListFilters, value: string) =>
-    patchState({ [key]: value || undefined, page: 1 } as Partial<StaffListState>);
+    patchState({
+      [key]: value || undefined,
+      page: 1,
+    } as Partial<StaffListState>);
 
   const clearAllFilters = () => {
     setSearchInput("");
-    patchState({ status: undefined, activity: undefined, goalStatus: undefined, page: 1 });
+    patchState({
+      status: undefined,
+      activity: undefined,
+      goalStatus: undefined,
+      page: 1,
+    });
   };
 
   const handleResend = async (inv: StaffInvitation) => {
@@ -282,7 +332,10 @@ function BusinessStaffPageContent() {
     if (!pendingDeactivate) return;
     setDeactivating(true);
     try {
-      const res = await businessesApi.setStaffStatus(pendingDeactivate.userId, false);
+      const res = await businessesApi.setStaffStatus(
+        pendingDeactivate.userId,
+        false,
+      );
       if (res.success) {
         toast.success(`${pendingDeactivate.fullName} deactivated`);
         setPendingDeactivate(null);
@@ -312,10 +365,30 @@ function BusinessStaffPageContent() {
       : 0;
 
   const summary = [
-    { icon: <Users className="h-4 w-4" />, label: "Total staff", value: overview?.totalStaff ?? 0, suffix: "" },
-    { icon: <Clock className="h-4 w-4" />, label: "Active this week", value: overview?.activeStaff7d ?? 0, suffix: "" },
-    { icon: <TrendingUp className="h-4 w-4" />, label: "Avg. goal progress", value: avgGoalPct, suffix: "%" },
-    { icon: <Mail className="h-4 w-4" />, label: "Pending invites", value: invitations.length, suffix: "" },
+    {
+      icon: <Users className="h-4 w-4" />,
+      label: "Total staff",
+      value: overview?.totalStaff ?? 0,
+      suffix: "",
+    },
+    {
+      icon: <Clock className="h-4 w-4" />,
+      label: "Active this week",
+      value: overview?.activeStaff7d ?? 0,
+      suffix: "",
+    },
+    {
+      icon: <TrendingUp className="h-4 w-4" />,
+      label: "Avg. goal progress",
+      value: avgGoalPct,
+      suffix: "%",
+    },
+    {
+      icon: <Mail className="h-4 w-4" />,
+      label: "Pending invites",
+      value: invitations.length,
+      suffix: "",
+    },
   ];
 
   /** Contextual ⋮ actions for one staff member. */
@@ -323,9 +396,22 @@ function BusinessStaffPageContent() {
     <ActionMenu
       label={`Actions for ${member.fullName}`}
       items={[
-        { label: "View details", icon: <Eye className="h-3.5 w-3.5" />, href: `/dashboard/business/staff/${member.userId}` },
-        { label: "Activity", icon: <Activity className="h-3.5 w-3.5" />, href: `/dashboard/business/staff/${member.userId}/activity` },
-        { label: "Deactivate staff", icon: <UserMinus className="h-3.5 w-3.5" />, danger: true, onSelect: () => setPendingDeactivate(member) },
+        {
+          label: "View details",
+          icon: <Eye className="h-3.5 w-3.5" />,
+          href: `/dashboard/business/staff/${member.userId}`,
+        },
+        {
+          label: "Activity",
+          icon: <Activity className="h-3.5 w-3.5" />,
+          href: `/dashboard/business/staff/${member.userId}/activity`,
+        },
+        {
+          label: "Deactivate staff",
+          icon: <UserMinus className="h-3.5 w-3.5" />,
+          danger: true,
+          onSelect: () => setPendingDeactivate(member),
+        },
       ]}
     />
   );
@@ -347,12 +433,23 @@ function BusinessStaffPageContent() {
         <div className="mx-auto max-w-[1600px] space-y-3 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">Staff</h1>
+              <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">
+                Staff
+              </h1>
 
               <p className="hidden text-xs text-[var(--text-secondary)] sm:block">
                 Manage your team, track performance and invitations
               </p>
             </div>
+
+            {/* Server-backed search — always visible in the sticky header */}
+            <SearchInput
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder="Search staff by name or email..."
+              label="Search staff"
+              className="md:max-w-xl"
+            />
 
             <div className="flex items-center gap-2">
               {/* Mobile filter toggle with active-filter count */}
@@ -371,27 +468,25 @@ function BusinessStaffPageContent() {
                 )}
               </button>
 
-              <Button size="sm" leftIcon={<UserPlus className="h-4 w-4" />} onClick={() => setShowInviteModal(true)}>
+              <Button
+                size="sm"
+                leftIcon={<UserPlus className="h-4 w-4" />}
+                onClick={() => setShowInviteModal(true)}
+              >
                 <span className="hidden sm:inline">Invite staff</span>
                 <span className="sm:hidden">Invite</span>
               </Button>
             </div>
           </div>
-
-          {/* Server-backed search — always visible in the sticky header */}
-          <SearchInput
-            value={searchInput}
-            onChange={setSearchInput}
-            placeholder="Search staff by name or email..."
-            label="Search staff"
-            className="md:max-w-xl"
-          />
         </div>
       </header>
 
       <main className="mx-auto max-w-[1600px] px-4 py-5 pb-24 sm:px-6 lg:px-8 lg:py-8">
         {/* ── Summary strip ──────────────────────────────────────────── */}
-        <section aria-label="Staff summary" className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section
+          aria-label="Staff summary"
+          className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4"
+        >
           {summary.map(({ icon, label, value, suffix }) => (
             <div
               key={label}
@@ -408,7 +503,9 @@ function BusinessStaffPageContent() {
                 </span>
               </div>
 
-              <p className="mt-3 text-xs font-medium text-[var(--text-secondary)]">{label}</p>
+              <p className="mt-3 text-xs font-medium text-[var(--text-secondary)]">
+                {label}
+              </p>
             </div>
           ))}
         </section>
@@ -440,7 +537,14 @@ function BusinessStaffPageContent() {
 
             {activeFilterCount > 0 && (
               <button
-                onClick={() => patchState({ status: undefined, activity: undefined, goalStatus: undefined, page: 1 })}
+                onClick={() =>
+                  patchState({
+                    status: undefined,
+                    activity: undefined,
+                    goalStatus: undefined,
+                    page: 1,
+                  })
+                }
                 className="ml-auto text-xs font-semibold text-[var(--text-secondary)] hover:text-brand"
               >
                 Clear filters
@@ -451,9 +555,27 @@ function BusinessStaffPageContent() {
           {/* Mobile collapsible filter panel */}
           {filtersOpen && (
             <div className="grid gap-3 border-t border-[var(--border)] p-3 lg:hidden">
-              <FilterSelect fullWidth value={state.status ?? ""} onChange={(value) => setFilter("status", value)} options={STATUS_OPTIONS} label="Filter by status" />
-              <FilterSelect fullWidth value={state.activity ?? ""} onChange={(value) => setFilter("activity", value)} options={ACTIVITY_OPTIONS} label="Filter by activity" />
-              <FilterSelect fullWidth value={state.goalStatus ?? ""} onChange={(value) => setFilter("goalStatus", value)} options={GOAL_OPTIONS} label="Filter by goal" />
+              <FilterSelect
+                fullWidth
+                value={state.status ?? ""}
+                onChange={(value) => setFilter("status", value)}
+                options={STATUS_OPTIONS}
+                label="Filter by status"
+              />
+              <FilterSelect
+                fullWidth
+                value={state.activity ?? ""}
+                onChange={(value) => setFilter("activity", value)}
+                options={ACTIVITY_OPTIONS}
+                label="Filter by activity"
+              />
+              <FilterSelect
+                fullWidth
+                value={state.goalStatus ?? ""}
+                onChange={(value) => setFilter("goalStatus", value)}
+                options={GOAL_OPTIONS}
+                label="Filter by goal"
+              />
 
               <button
                 onClick={clearAllFilters}
@@ -493,14 +615,25 @@ function BusinessStaffPageContent() {
                         {invitation.email}
                       </p>
 
-                      <Badge variant={invitation.isExpired ? "danger" : "warning"} dot>
-                        {invitation.isExpired ? "Expired" : `Sent ${daysSince(invitation.createdAt) ?? 0}d ago`}
+                      <Badge
+                        variant={invitation.isExpired ? "danger" : "warning"}
+                        dot
+                      >
+                        {invitation.isExpired
+                          ? "Expired"
+                          : `Sent ${daysSince(invitation.createdAt) ?? 0}d ago`}
                       </Badge>
                     </div>
                   </div>
 
                   <div className="mt-4 flex gap-2 border-t border-[var(--border-light)] pt-4">
-                    <Button size="sm" variant="outline" fullWidth className="min-h-[40px] flex-1" onClick={() => handleResend(invitation)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      fullWidth
+                      className="min-h-[40px] flex-1"
+                      onClick={() => handleResend(invitation)}
+                    >
                       Resend
                     </Button>
 
@@ -539,7 +672,10 @@ function BusinessStaffPageContent() {
           </div>
 
           {staff.length === 0 ? (
-            <StaffListEmptyState filtered={hasAnyFilter} onInvite={() => setShowInviteModal(true)} />
+            <StaffListEmptyState
+              filtered={hasAnyFilter}
+              onInvite={() => setShowInviteModal(true)}
+            />
           ) : (
             <>
               {/* Desktop: bordered surface of clickable rows with ⋮ actions */}
@@ -580,7 +716,6 @@ function BusinessStaffPageContent() {
             </>
           )}
         </section>
-
       </main>
 
       {/* Floating mobile invite button */}
@@ -618,7 +753,6 @@ function BusinessStaffPageContent() {
       />
     </div>
   );
-
 }
 
 export default function BusinessStaffPage() {

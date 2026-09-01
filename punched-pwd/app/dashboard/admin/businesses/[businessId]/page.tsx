@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
@@ -9,7 +9,9 @@ import type { AdminBusinessSummary } from "@/types";
 import {
   Loader2, Store, ArrowLeft, MapPin, Users, Stamp, Gift,
   UserCheck, CreditCard, Calendar, Mail, Trash2, BarChart3, ShieldCheck,
+  Wallet, Puzzle,
 } from "lucide-react";
+import type { PlanSummary } from "@/types";
 import toast from "react-hot-toast";
 
 export default function AdminBusinessDetail() {
@@ -21,15 +23,19 @@ export default function AdminBusinessDetail() {
 
   const businessId = params.businessId as string;
 
+  const refresh = useCallback(() => {
+    return adminApi
+      .getBusiness(businessId)
+      .then((res) => { if (res.success && res.data) setBiz(res.data); })
+      .catch(() => {});
+  }, [businessId]);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user || user.role !== "Admin") { router.replace("/dashboard"); return; }
 
-    adminApi.getBusiness(businessId)
-      .then((res) => { if (res.success && res.data) setBiz(res.data); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [user, authLoading, router, businessId]);
+    refresh().finally(() => setLoading(false));
+  }, [user, authLoading, router, businessId, refresh]);
 
   const handleDelete = async () => {
     if (!biz) return;
@@ -143,6 +149,9 @@ export default function AdminBusinessDetail() {
         ))}
       </div>
 
+      {/* Subscription & Billing */}
+      <SubscriptionCard biz={biz} onChanged={refresh} onManageModules={() => router.push(`/dashboard/admin/businesses/${businessId}/modules`)} />
+
       {/* Performance Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-light)] shadow-card p-4">
@@ -242,6 +251,137 @@ function BusinessHealthCard({ biz }: { biz: AdminBusinessSummary }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function SubscriptionCard({
+  biz,
+  onChanged,
+  onManageModules,
+}: {
+  biz: AdminBusinessSummary;
+  onChanged: () => Promise<void>;
+  onManageModules: () => void;
+}) {
+  const [plans, setPlans] = useState<PlanSummary[]>([]);
+  const [selected, setSelected] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    adminApi
+      .getPlans()
+      .then((res) => {
+        if (res.success && res.data) setPlans(res.data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const active =
+    biz.subscriptionStatus === "active" || biz.subscriptionStatus === "trial";
+
+  const applyPlan = async () => {
+    if (!selected || busy) return;
+    setBusy(true);
+    try {
+      const res = await adminApi.assignPlan(biz.id, selected, "Assigned from admin business detail");
+      if (!res.success) throw new Error(res.error?.message || "Failed to assign plan");
+      toast.success(`Plan changed to "${selected}"`);
+      await onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to assign plan");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelSub = async () => {
+    if (busy) return;
+    if (!confirm(`Cancel the subscription for "${biz.name}"? The business will lose plan modules.`)) return;
+    setBusy(true);
+    try {
+      const res = await adminApi.cancelSubscription(biz.id);
+      if (!res.success) throw new Error(res.error?.message || "Failed to cancel");
+      toast.success("Subscription canceled");
+      await onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-light)] shadow-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-widest flex items-center gap-1.5">
+          <Wallet className="h-3.5 w-3.5" />
+          Subscription & Billing
+        </p>
+        <button
+          onClick={onManageModules}
+          className="text-xs font-bold px-3 py-1.5 rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--border-light)] transition-colors flex items-center gap-1.5"
+        >
+          <Puzzle className="h-3.5 w-3.5" />
+          Manage modules
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        {biz.planName ? (
+          <span
+            className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+              active ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"
+            }`}
+          >
+            {biz.planName} · {biz.subscriptionStatus}
+          </span>
+        ) : (
+          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-500">
+            No subscription
+          </span>
+        )}
+        {biz.subscriptionEndsAt && active && (
+          <span className="text-xs text-[var(--text-secondary)] flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5" />
+            Renews/ends {new Date(biz.subscriptionEndsAt).toLocaleDateString()}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2">
+        <select
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          className="flex-1 px-3 py-2.5 rounded-xl border border-[var(--border)] text-sm bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-brand/20"
+        >
+          <option value="">Change plan to…</option>
+          {plans.map((p) => (
+            <option key={p.key} value={p.key} disabled={p.key === biz.planKey}>
+              {p.name} — {p.price} {p.billingInterval} · {p.modules.length} modules
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={applyPlan}
+          disabled={!selected || busy}
+          className="px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-bold hover:opacity-90 disabled:opacity-40 transition-opacity"
+        >
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+        </button>
+        {active && (
+          <button
+            onClick={cancelSub}
+            disabled={busy}
+            className="px-4 py-2.5 rounded-xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 disabled:opacity-40 transition-colors"
+          >
+            Cancel subscription
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-[var(--text-tertiary)] mt-2">
+        Changing the plan invalidates the business&apos;s module entitlement cache immediately; module access updates in real time.
+      </p>
     </div>
   );
 }

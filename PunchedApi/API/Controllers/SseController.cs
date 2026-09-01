@@ -7,6 +7,7 @@ using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
 using PunchedApi.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -17,6 +18,7 @@ namespace PunchedApi.API.Controllers;
 [ApiController]
 [Route("v1/sse")]
 [Authorize(Roles = "Customer")]
+[EnableRateLimiting("general")]
 public class SseController : ControllerBase
 {
     private readonly ISseService _sseService;

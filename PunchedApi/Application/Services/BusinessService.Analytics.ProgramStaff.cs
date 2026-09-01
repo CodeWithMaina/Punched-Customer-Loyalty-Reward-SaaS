@@ -19,7 +19,7 @@ public partial class BusinessService
 
         var programRedemptions = await _context.Redemptions
             .Where(r => r.BusinessId == businessId && r.RedeemedAt >= periodStart && programIds.Contains(r.Card.ProgramId))
-            .Select(r => new { r.Card.ProgramId, r.RewardValue, r.PaidAt, r.Status, Date = r.RedeemedAt.Date }).ToListAsync();
+            .Select(r => new { r.Card.ProgramId, r.RewardValue, r.PaidAt, r.PayoutStatus, r.Status, Date = r.RedeemedAt.Date }).ToListAsync();
         var periodRedemptionCount = programRedemptions.GroupBy(r => r.ProgramId).ToDictionary(g => g.Key, g => g.Count());
 
         var programPerformance = new List<ProgramPerformanceItem>();
@@ -43,7 +43,7 @@ public partial class BusinessService
                 CompletionRate = progCards.Count > 0 ? Math.Round((double)completed / progCards.Count * 100, 1) : 0,
                 RewardPayoutKes = prRows.Sum(r => r.RewardValue),
                 RewardsPaidKes = prRows.Where(r => r.PaidAt != null).Sum(r => r.RewardValue),
-                RewardsPendingKes = prRows.Where(r => r.PaidAt == null && r.Status != "failed").Sum(r => r.RewardValue),
+                RewardsPendingKes = prRows.Where(r => r.PaidAt == null && r.PayoutStatus != "failed").Sum(r => r.RewardValue),
                 CompletionTrend = compTrend
             });
         }

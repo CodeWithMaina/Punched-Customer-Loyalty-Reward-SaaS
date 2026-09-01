@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using PunchedApi.API.Filters;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -16,6 +17,7 @@ namespace PunchedApi.API.Controllers;
 [Produces("application/json")]
 [Authorize(Roles = "Business")]
     [RequireModule("loyalty")]
+[EnableRateLimiting("general")]
 public class LoyaltyProgramController : ControllerBase
 {
     private readonly ILoyaltyService _loyaltyService;
@@ -87,6 +89,61 @@ public class LoyaltyProgramController : ControllerBase
         var result = await _loyaltyService.DeleteProgramAsync(userId.Value, id);
         if (!result.Success) return BadRequest(result);
         return Ok(result);
+    }
+
+    /// <summary>Activate a program — resumes accepting enrollments and stamps.</summary>
+    [HttpPost("me/{id:guid}/activate")]
+    [ProducesResponseType(typeof(ApiResponse<LoyaltyProgramResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ActivateProgram(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+        var result = await _loyaltyService.ActivateProgramAsync(userId.Value, id);
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    /// <summary>Pause a program — retains progress but stops new stamps/enrollments.</summary>
+    [HttpPost("me/{id:guid}/pause")]
+    [ProducesResponseType(typeof(ApiResponse<LoyaltyProgramResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> PauseProgram(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+        var result = await _loyaltyService.PauseProgramAsync(userId.Value, id);
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    /// <summary>Archive a program — terminal state, hidden from customer surfaces.</summary>
+    [HttpPost("me/{id:guid}/archive")]
+    [ProducesResponseType(typeof(ApiResponse<LoyaltyProgramResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ArchiveProgram(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+        var result = await _loyaltyService.ArchiveProgramAsync(userId.Value, id);
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    /// <summary>Duplicate a program as a new draft (for seasonal/variant programs).</summary>
+    [HttpPost("me/{id:guid}/duplicate")]
+    [ProducesResponseType(typeof(ApiResponse<LoyaltyProgramResponse>), StatusCodes.Status201Created)]
+    public async Task<IActionResult> DuplicateProgram(Guid id, [FromBody] DuplicateProgramRequest? request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+        var result = await _loyaltyService.DuplicateProgramAsync(userId.Value, id, request?.NewName);
+        return result.Success ? CreatedAtAction(nameof(GetProgram), new { id = result.Data?.Id }, result) : BadRequest(result);
+    }
+
+    /// <summary>Program overview + live performance metrics.</summary>
+    [HttpGet("me/{id:guid}/details")]
+    [ProducesResponseType(typeof(ApiResponse<ProgramDetailResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetProgramDetails(Guid id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+        var result = await _loyaltyService.GetProgramDetailAsync(userId.Value, id);
+        return result.Success ? Ok(result) : NotFound(result);
     }
 
     /// <summary>Legacy: Create or update the single loyalty program (kept for backward-compatibility).</summary>

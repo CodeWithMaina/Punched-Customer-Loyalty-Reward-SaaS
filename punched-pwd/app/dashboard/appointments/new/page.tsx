@@ -58,14 +58,16 @@ function BookingWizardPageContent() {
       scheduledAt: slot.startAtUtc, note: "",
     };
     if (rescheduleId) {
-      await rescheduleAppointment(rescheduleId, {
+      const ok = await rescheduleAppointment(rescheduleId, {
         scheduledAt: slot.startAtUtc, serviceIds,
         staffUserId: selectedStaffId ?? undefined,
       });
-    } else {
-      await createAppointment(payload);
+      if (!ok) setStep(3); // conflict/validation failure -> back to time selection
+      return;
     }
-    reset();
+    const booked = await createAppointment(payload);
+    // Server revalidated availability and rejected (e.g. OVERBOOKING) -> return to time selection
+    if (booked) reset(); else setStep(3);
   };
 
   const stepTitles = ["Services", "Staff", "Time", "Review"];
@@ -153,7 +155,7 @@ function BookingWizardPageContent() {
             <p className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] mb-3">
               Who would you prefer?
             </p>
-            <StaffSelector businessId={businessId} selectedStaffId={selectedStaffId} onSelect={setStaff} />
+            <StaffSelector businessId={businessId} serviceIds={serviceIds} selectedStaffId={selectedStaffId} onSelect={setStaff} />
           </div>
         )}
 

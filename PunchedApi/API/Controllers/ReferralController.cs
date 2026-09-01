@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PunchedApi.API.Filters;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -10,6 +11,7 @@ namespace PunchedApi.API.Controllers;
 [Route("v1/referrals")]
 [Authorize]
 [RequireModule("referral")]
+[EnableRateLimiting("general")]
 public class ReferralController : ControllerBase
 {
     private readonly IReferralService _referralService;

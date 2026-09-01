@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using PunchedApi.Application.DTOs;
@@ -149,23 +149,40 @@ public partial class BusinessController
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("Name,Email,Phone,DateOfBirth,Gender,TotalStamps,LifetimeStamps,TotalRedemptions,EnrolledAt,LastStampAt");
 
-        foreach (var c in result.Data!.Items)
-        {
-            static string Esc(string? v) =>
-                string.IsNullOrEmpty(v) ? "" : v.Contains(',') || v.Contains('"') ? $"\"{v.Replace("\"", "\"\"")}\"" : v;
+        static string Esc(string? v) =>
+            string.IsNullOrEmpty(v) ? "" : v.Contains(',') || v.Contains('"') ? $"\"{v.Replace("\"", "\"\"")}\"" : v;
 
-            sb.AppendLine(string.Join(",",
-                Esc(c.FullName),
-                Esc(c.Email),
-                Esc(c.PhoneNumber),
-                c.DateOfBirth?.ToString("yyyy-MM-dd") ?? "",
-                Esc(c.Gender),
-                c.TotalStamps,
-                c.LifetimeStamps,
-                c.TotalRedemptions,
-                c.EnrolledAt.ToString("yyyy-MM-dd"),
-                c.LastStampAt?.ToString("yyyy-MM-dd") ?? ""
-            ));
+        void AppendPage(List<BusinessCustomerResponse> items)
+        {
+            foreach (var c in items)
+            {
+                sb.AppendLine(string.Join(",",
+                    Esc(c.FullName),
+                    Esc(c.Email),
+                    Esc(c.PhoneNumber),
+                    c.DateOfBirth?.ToString("yyyy-MM-dd") ?? "",
+                    Esc(c.Gender),
+                    c.TotalStamps,
+                    c.LifetimeStamps,
+                    c.TotalRedemptions,
+                    c.EnrolledAt.ToString("yyyy-MM-dd"),
+                    c.LastStampAt?.ToString("yyyy-MM-dd") ?? ""
+                ));
+            }
+        }
+
+        AppendPage(result.Data!.Items);
+
+        // Export must include every matching customer, not just the first page.
+        var totalCount = result.Data.TotalCount;
+        const int ExportPageSize = 100;
+        var totalPages = (int)Math.Ceiling(totalCount / (double)ExportPageSize);
+        for (var page = 2; page <= totalPages; page++)
+        {
+            result = await _businessService.GetBusinessCustomersAsync(
+                userId.Value, search, null, null, null, "recent", "desc", page, ExportPageSize);
+            if (!result.Success || result.Data == null) break;
+            AppendPage(result.Data.Items);
         }
 
         var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using PunchedApi.API.Filters;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -16,6 +17,7 @@ namespace PunchedApi.API.Controllers;
 [Produces("application/json")]
 [Authorize]
 [RequireModule("loyalty")]
+[EnableRateLimiting("general")]
 public class LoyaltyCardController : ControllerBase
 {
     private readonly ILoyaltyService _loyaltyService;

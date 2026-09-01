@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
@@ -6,6 +6,7 @@ using PunchedApi.Application.DTOs;
 using PunchedApi.Application.Modules;
 using PunchedApi.API.Filters;
 using PunchedApi.Domain.Interfaces;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -16,6 +17,7 @@ namespace PunchedApi.API.Controllers;
 [ApiController]
 [Route("v1/businesses")]
 [Produces("application/json")]
+[EnableRateLimiting("general")]
 public partial class BusinessController : ControllerBase
 {
     private readonly IBusinessService _businessService;

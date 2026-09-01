@@ -158,6 +158,20 @@ public class AdminBusinessSummary
 
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; }
+
+    // ── Subscription summary (admin billing view) ────────────
+
+    [JsonPropertyName("planKey")]
+    public string? PlanKey { get; set; }
+
+    [JsonPropertyName("planName")]
+    public string? PlanName { get; set; }
+
+    [JsonPropertyName("subscriptionStatus")]
+    public string? SubscriptionStatus { get; set; }
+
+    [JsonPropertyName("subscriptionEndsAt")]
+    public DateTime? SubscriptionEndsAt { get; set; }
 }
 
 // ── Customer Analytics ──────────────────────────────────────

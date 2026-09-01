@@ -7,8 +7,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useThemeStore, THEMES } from "@/store/themeStore";
 import {
-  User, Store, Gift, Link2, HelpCircle, Lock, Blocks,
-  MessageCircle, LogOut, ChevronRight, Shield, Palette, Check, X,
+  User, Store, Gift, Link2, HelpCircle, Lock, Blocks, Wallet,
+  MessageCircle, LogOut, ChevronRight, Shield, Palette, Check, X, Layers,
 } from "lucide-react";
 
 const MENU_GROUPS = [
@@ -17,6 +17,7 @@ const MENU_GROUPS = [
     items: [
       { href: "/dashboard/business/profile/owner", icon: User, label: "Owner Profile", description: "Name, phone and avatar" },
       { href: "/dashboard/business/profile/business", icon: Store, label: "Business Profile", description: "Name, location, contact, branding" },
+      { href: "/dashboard/business/profile/subscription", icon: Wallet, label: "Subscription", description: "Plan, billing and upgrades" },
       { href: "/dashboard/business/profile/modules", icon: Blocks, label: "Modules", description: "Toggle add-on modules" },
       { href: "/dashboard/profile/password", icon: Lock, label: "Change Password", description: "Update your account password" },
     ],
@@ -25,6 +26,7 @@ const MENU_GROUPS = [
     label: "Programs",
     items: [
       { href: "/dashboard/business/profile/programs", icon: Gift, label: "Loyalty Programs", description: "Create and manage stamp programs" },
+      { href: "/dashboard/business/profile/services", icon: Layers, label: "Services", description: "Manage bookable services, durations and prices" },
       { href: "/dashboard/business/profile/referral", icon: Link2, label: "Referral Program", description: "Reward customers who refer friends" },
     ],
   },

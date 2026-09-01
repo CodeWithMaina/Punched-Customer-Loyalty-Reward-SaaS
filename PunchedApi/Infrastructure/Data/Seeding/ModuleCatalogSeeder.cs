@@ -137,5 +137,49 @@ public sealed class ModuleCatalogSeeder : IModuleCatalogSeeder
         {
             _logger.LogDebug("Module catalog already up to date.");
         }
+
+        // ── Backfill: every business must have a subscription ───
+        // Businesses created before the module system (or before the Starter
+        // plan existed) would otherwise have zero module access. Provision a
+        // default active Starter subscription for any business without one.
+        var defaultPlan = await _dbContext.SubscriptionPlans
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Key == "starter" && p.IsActive, cancellationToken);
+        if (defaultPlan != null)
+        {
+            var businessIdsWithoutSubscription = await _dbContext.Businesses
+                .IgnoreQueryFilters()
+                .Where(b => !_dbContext.BusinessSubscriptions.Any(s => s.BusinessId == b.Id))
+                .Select(b => b.Id)
+                .ToListAsync(cancellationToken);
+
+            if (businessIdsWithoutSubscription.Count > 0)
+            {
+                var backfillAt = DateTime.UtcNow;
+                foreach (var businessId in businessIdsWithoutSubscription)
+                {
+                    _dbContext.BusinessSubscriptions.Add(new BusinessSubscription
+                    {
+                        Id = Guid.NewGuid(),
+                        BusinessId = businessId,
+                        PlanId = defaultPlan.Id,
+                        Status = "active",
+                        StartsAt = backfillAt,
+                        EndsAt = backfillAt.AddMonths(1),
+                        CreatedAt = backfillAt
+                    });
+                }
+
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                _logger.LogInformation(
+                    "Backfilled default Starter subscription for {Count} business(es).",
+                    businessIdsWithoutSubscription.Count);
+            }
+        }
+        else
+        {
+            _logger.LogWarning(
+                "Subscription backfill skipped: no active 'starter' plan found.");
+        }
     }
 }

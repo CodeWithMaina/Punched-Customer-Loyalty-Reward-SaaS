@@ -464,7 +464,8 @@ public class ReferralService : IReferralService
                         BusinessId = businessId,
                         PerformedByRole = "System",
                         RewardValue = program.RewardValue,
-                        Status = "pending",
+                        Status = RedemptionStatus.Pending,
+                        PayoutStatus = "pending",
                         RedeemedAt = DateTime.UtcNow,
                         CreatedAt = DateTime.UtcNow
                     };

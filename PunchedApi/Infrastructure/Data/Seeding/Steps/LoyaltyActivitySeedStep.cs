@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PunchedApi.Application.Settings;
+using PunchedApi.Domain.Entities;
 
 namespace PunchedApi.Infrastructure.Data.Seeding.Steps;
 
@@ -124,7 +125,8 @@ public sealed class LoyaltyActivitySeedStep : ISeedStep
                     redemption.CardId = card.Id;
                     redemption.BusinessId = business.Id;
                     redemption.RewardValue = program.RewardValue;
-                    redemption.Status = "completed";
+                    redemption.Status = RedemptionStatus.Fulfilled;
+                    redemption.PayoutStatus = "completed";
                     redemption.RedeemedAt = redeemedAt;
                     redemption.PaidAt = redeemedAt.AddMinutes(15);
                     redemption.MpesaRef = $"MPESA-{businessDef.Key.ToUpperInvariant()}-{redemptionNo:D4}";
@@ -211,7 +213,8 @@ public sealed class LoyaltyActivitySeedStep : ISeedStep
                     CardId = card.Id,
                     BusinessId = card.BusinessId,
                     RewardValue = card.Program.RewardValue,
-                    Status = "completed",
+                    Status = RedemptionStatus.Fulfilled,
+                    PayoutStatus = "completed",
                     RedeemedAt = card.LastStampAt ?? DateTime.UtcNow,
                     PaidAt = card.LastStampAt?.AddMinutes(10),
                     MpesaRef = $"APPEND-{nonce}-{context.Random.NextInt(1000, 9999)}",

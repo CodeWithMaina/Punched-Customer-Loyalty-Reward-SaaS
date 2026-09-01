@@ -3,6 +3,7 @@ import { cachedFetch, invalidateCache } from "./cache";
 import type {
   ApiResponse,
   CreateServiceRequest,
+  EligibleStaffResponse,
   ServiceCatalogItemResponse,
   UpdateServiceRequest,
 } from "@/types";
@@ -23,6 +24,20 @@ export const servicesApi = {
           .then((r) => r.data),
       300_000
     ),
+
+  /**
+   * Public: staff eligible to perform the given services (booking wizard staff
+   * step). Anonymous-safe — never uses owner-scoped endpoints. Pass an empty
+   * list to return every staff member of the business.
+   */
+  getEligibleStaff: (businessId: string, serviceIds: string[]) => {
+    const qs = serviceIds.length ? "?serviceIds=" + serviceIds.join(",") : "";
+    return apiClient
+      .get<ApiResponse<EligibleStaffResponse[]>>(
+        "/services/" + businessId + "/staff" + qs
+      )
+      .then((r) => r.data);
+  },
 
   /** Owner list (includes inactive). */
   getMyServices: () =>

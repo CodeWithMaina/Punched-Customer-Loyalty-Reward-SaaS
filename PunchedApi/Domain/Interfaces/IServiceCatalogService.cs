@@ -24,4 +24,10 @@ public interface IServiceCatalogService
 
     /// <summary>Soft-deletes a service by setting IsActive = false.</summary>
     Task<ApiResponse<bool>> DeleteServiceAsync(Guid ownerUserId, Guid serviceId);
+
+    /// <summary>
+    /// Public: staff who can perform ALL of the given services for a business.
+    /// When no serviceIds are supplied, every staff member of the business is returned.
+    /// </summary>
+    Task<ApiResponse<List<EligibleStaffResponse>>> GetEligibleStaffAsync(Guid businessId, Guid[] serviceIds);
 }

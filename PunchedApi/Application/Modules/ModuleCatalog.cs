@@ -94,8 +94,9 @@ public static class ModuleCatalog
             RequiredRoles: new[] { "Business", "Staff", "Customer" },
             Permissions: new[]
             {
-                new PermissionDefinition("stamps.view",  new[] { "Business", "Staff", "Customer" }),
+                                new PermissionDefinition("stamps.view",  new[] { "Business", "Staff", "Customer" }),
                 new PermissionDefinition("stamps.award", new[] { "Business", "Staff" }),
+                new PermissionDefinition("stamps.adjust", new[] { "Business" }),
             }),
         new ModuleDefinition(
             Key: "notifications", Name: "Notifications",
@@ -141,8 +142,9 @@ public static class ModuleCatalog
             RequiredRoles: new[] { "Business", "Customer" },
             Permissions: new[]
             {
-                new PermissionDefinition("rewards.view",   new[] { "Business", "Customer" }),
+                                new PermissionDefinition("rewards.view",   new[] { "Business", "Customer" }),
                 new PermissionDefinition("rewards.manage", new[] { "Business" }),
+                new PermissionDefinition("redemptions.fulfill", new[] { "Business", "Staff" }),
             }),
         new ModuleDefinition(
             Key: "analytics", Name: "Analytics",

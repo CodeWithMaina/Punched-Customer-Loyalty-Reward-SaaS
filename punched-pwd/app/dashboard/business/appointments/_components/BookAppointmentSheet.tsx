@@ -12,17 +12,24 @@ import { Button, FormField, Modal, Select } from "@/components/ui";
 /**
  * Booking sheet: create an appointment on behalf of a customer.
  * Composed from shared UI primitives (Modal / FormField / Select).
+ *
+ * When `lockedCustomer` is provided (customer-contextual booking), the
+ * customer picker is replaced by a read-only summary — the sheet already
+ * knows who it is booking for.
  */
 export function BookAppointmentSheet({
   customers,
   services,
   staff,
+  lockedCustomer,
   onClose,
   onBook,
 }: {
   customers: BusinessCustomer[];
   services: ServiceCatalogItemResponse[];
   staff: StaffMember[];
+  /** Pre-selected customer — hides the picker (Customer Details booking). */
+  lockedCustomer?: { id: string; name: string };
   onClose: () => void;
   onBook: (book: {
     customerId: string;
@@ -31,7 +38,7 @@ export function BookAppointmentSheet({
     scheduledAt: string;
   }) => void;
 }) {
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(lockedCustomer?.id ?? "");
   const [serviceId, setServiceId] = useState("");
   const [staffUserId, setStaffUserId] = useState("");
   const [when, setWhen] = useState("");
@@ -43,7 +50,11 @@ export function BookAppointmentSheet({
       open
       onClose={onClose}
       title="Book appointment"
-      description="Create an appointment for a customer"
+      description={
+        lockedCustomer
+          ? `New appointment for ${lockedCustomer.name}`
+          : "Create an appointment for a customer"
+      }
     >
       <form
         className="space-y-5"
@@ -59,23 +70,33 @@ export function BookAppointmentSheet({
           });
         }}
       >
-        <FormField label="Customer">
-          <Select
-            fullWidth
-            className="h-12 text-sm"
-            value={customerId}
-            onChange={(event) => setCustomerId(event.target.value)}
-            label="Customer"
-          >
-            <option value="">Select customer</option>
+        {lockedCustomer ? (
+          <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] px-4 py-3">
+            <p className="text-xs font-medium text-[var(--text-secondary)]">Customer</p>
 
-            {customers.map((customer) => (
-              <option key={customer.userId} value={customer.userId}>
-                {customer.fullName}
-              </option>
-            ))}
-          </Select>
-        </FormField>
+            <p className="mt-0.5 text-sm font-semibold text-[var(--text-primary)]">
+              {lockedCustomer.name}
+            </p>
+          </div>
+        ) : (
+          <FormField label="Customer">
+            <Select
+              fullWidth
+              className="h-12 text-sm"
+              value={customerId}
+              onChange={(event) => setCustomerId(event.target.value)}
+              label="Customer"
+            >
+              <option value="">Select customer</option>
+
+              {customers.map((customer) => (
+                <option key={customer.userId} value={customer.userId}>
+                  {customer.fullName}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        )}
 
         <FormField label="Service">
           <Select

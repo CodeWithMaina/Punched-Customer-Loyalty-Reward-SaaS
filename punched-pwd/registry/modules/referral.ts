@@ -8,7 +8,9 @@ export const referralModule: ModuleManifest = {
   icon: Gift,
   version: "1.0.0",
   roles: ["Business", "Customer"],
-  nav: [],
+  nav: [
+    { label: "Referrals", href: "/dashboard/business/referral", icon: Gift, scope: "Business", exact: false },
+  ],
   requiredPermissions: ["referral.view", "referral.manage"],
   dependencies: ["loyalty", "stamps"],
   routes: ["/dashboard/business/referral", "/dashboard/profile/referral"],

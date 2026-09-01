@@ -219,4 +219,34 @@ public class AppointmentAvailabilityServiceTests
         Assert.False(result.Success);
         Assert.Equal("STAFF_NOT_FOUND", result.Error?.Code);
     }
+
+    [Fact]
+    public async Task CancelledAppointments_DoNotBlockSlots()
+    {
+        using var connection = BookingTestBase.CreateConnection();
+        using var context = BookingTestBase.CreateContext(connection);
+
+        var owner = BookingTestBase.CreateOwner();
+        var business = BookingTestBase.CreateBusiness(owner.Id);
+        var customer = BookingTestBase.CreateCustomer();
+        var staff = BookingTestBase.CreateStaff(business.Id);
+        var service = BookingTestBase.CreateService(business.Id, "Cut", 60, 500m);
+        var cancelled = BookingTestBase.CreateAppointment(
+            business.Id, customer.Id, staff.Id,
+            new DateTime(2026, 8, 20, 10, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 8, 20, 11, 0, 0, DateTimeKind.Utc),
+            status: "cancelled");
+
+        await BookingTestBase.SeedAsync(context, owner, business, customer, staff, service, cancelled,
+            BookingTestBase.CreateAssignment(business.Id, staff.Id, service.Id),
+            BookingTestBase.CreateShift(business.Id, staff.Id, Day, 9, 17));
+
+        var result = await CreateAvailability(context)
+            .GetAvailableSlotsAsync(business.Id, new[] { service.Id }, staff.Id, Day, Day);
+
+        Assert.True(result.Success, result.Error?.Message);
+
+        // 10:00–11:00 was cancelled, so a slot starting at 10:00 must be offered again.
+        Assert.Contains(result.Data!, s => s.StartAtUtc.Hour == 10 && s.StartAtUtc.Minute == 0);
+    }
 }

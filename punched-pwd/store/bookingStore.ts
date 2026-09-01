@@ -50,14 +50,23 @@ export const useBookingStore = create<BookingStore>()((set) => ({
   currentStep: 1,
 
   setBusiness: (id) => set({ businessId: id }),
-  setServices: (ids) => set({ serviceIds: ids }),
+  setServices: (ids) =>
+    set((s) => ({
+      serviceIds: ids,
+      // Dependent invalidation: a different service cart may have different
+      // eligible staff, and durations drive slot length — drop both.
+      selectedStaffId: null,
+      slot: null,
+    })),
   toggleService: (id) =>
     set((s) => ({
       serviceIds: s.serviceIds.includes(id)
         ? s.serviceIds.filter((x) => x !== id)
         : [...s.serviceIds, id],
+      selectedStaffId: null,
+      slot: null,
     })),
-  clearServices: () => set({ serviceIds: [] }),
+  clearServices: () => set({ serviceIds: [], selectedStaffId: null, slot: null }),
   setStaff: (id) => set({ selectedStaffId: id, slot: null }),
   setSlot: (slot) => set({ slot }),
   removeSlot: () => set({ slot: null }),

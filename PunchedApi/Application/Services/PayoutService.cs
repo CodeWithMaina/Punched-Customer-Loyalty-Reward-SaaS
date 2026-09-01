@@ -29,7 +29,7 @@ public sealed class PayoutService : IPayoutService
 
         var dueIds = await _context.Redemptions
             .Where(r =>
-                (r.Status == "pending" || (r.Status == "failed" && r.RetryCount < MaxRetries)) &&
+                (r.PayoutStatus == "pending" || (r.PayoutStatus == "failed" && r.RetryCount < MaxRetries)) &&
                 (r.NextRetryAt == null || r.NextRetryAt <= now) &&
                 r.PaidAt == null)
             .OrderBy(r => r.RedeemedAt)
@@ -43,11 +43,11 @@ public sealed class PayoutService : IPayoutService
         {
             var claimed = await _context.Redemptions
                 .Where(r => r.Id == redemptionId &&
-                    (r.Status == "pending" || (r.Status == "failed" && r.RetryCount < MaxRetries)) &&
+                    (r.PayoutStatus == "pending" || (r.PayoutStatus == "failed" && r.RetryCount < MaxRetries)) &&
                     (r.NextRetryAt == null || r.NextRetryAt <= now) &&
                     r.PaidAt == null)
                 .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(r => r.Status, "processing")
+                    .SetProperty(r => r.PayoutStatus, "processing")
                     .SetProperty(r => r.ProcessingStartedAt, now)
                     .SetProperty(r => r.ProcessingWorkerId, workerId)
                     .SetProperty(r => r.FailureReason, (string?)null),
@@ -79,7 +79,7 @@ public sealed class PayoutService : IPayoutService
                     await _context.Redemptions
                         .Where(r => r.Id == redemptionId)
                         .ExecuteUpdateAsync(set => set
-                            .SetProperty(r => r.Status, "completed")
+                            .SetProperty(r => r.PayoutStatus, "completed")
                             .SetProperty(r => r.ProcessingWorkerId, (string?)null), cancellationToken);
 
                     processed++;
@@ -94,7 +94,7 @@ public sealed class PayoutService : IPayoutService
                     await _context.Redemptions
                         .Where(r => r.Id == redemptionId)
                         .ExecuteUpdateAsync(set => set
-                            .SetProperty(r => r.Status, "completed")
+                            .SetProperty(r => r.PayoutStatus, "completed")
                             .SetProperty(r => r.PaidAt, paidAt)
                             .SetProperty(r => r.MpesaRef, result.Reference)
                             .SetProperty(r => r.ProcessingWorkerId, (string?)null)
@@ -139,7 +139,7 @@ public sealed class PayoutService : IPayoutService
         await _context.Redemptions
             .Where(r => r.Id == redemptionId)
             .ExecuteUpdateAsync(set => set
-                .SetProperty(r => r.Status, "failed")
+                .SetProperty(r => r.PayoutStatus, "failed")
                 .SetProperty(r => r.RetryCount, r => r.RetryCount + 1)
                 .SetProperty(r => r.NextRetryAt, nextRetry)
                 .SetProperty(r => r.ProcessingWorkerId, (string?)null)

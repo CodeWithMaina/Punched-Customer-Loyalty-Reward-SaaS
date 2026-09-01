@@ -84,4 +84,41 @@ public class NotificationAndStampSchemaTests
         Assert.Equal("ApiResponse`1", apiResponseType.Name);
         Assert.Equal("List`1", apiResponseType.GetGenericArguments()[0].Name);
     }
+
+    [Fact]
+    public void StampAdjustment_Entity_ExposesSeededReasons()
+    {
+        var type = typeof(StampAdjustment);
+        Assert.NotNull(type.GetProperty("CardId"));
+        Assert.NotNull(type.GetProperty("AdjustedByUserId"));
+        Assert.NotNull(type.GetProperty("AdjustedByRole"));
+        Assert.NotNull(type.GetProperty("Delta"));
+        Assert.NotNull(type.GetProperty("Reason"));
+        Assert.NotNull(type.GetProperty("Note"));
+        Assert.NotNull(type.GetProperty("RelatedStampId"));
+        Assert.Equal(typeof(int), type.GetProperty("Delta")!.PropertyType);
+    }
+
+    [Fact]
+    public void Redemption_StatusProperty_IsEnum()
+    {
+        var type = typeof(Redemption);
+        var statusProp = type.GetProperty("Status");
+        Assert.NotNull(statusProp);
+        Assert.Equal(typeof(RedemptionStatus), statusProp!.PropertyType);
+        Assert.NotNull(type.GetProperty("FulfilledByUserId"));
+        Assert.NotNull(type.GetProperty("FulfilledAt"));
+        Assert.NotNull(type.GetProperty("FulfilmentCodeHash"));
+        Assert.NotNull(type.GetProperty("FailedAttempts"));
+        Assert.NotNull(type.GetProperty("CodeLocked"));
+        Assert.NotNull(type.GetProperty("PayoutStatus"));
+    }
+
+    [Fact]
+    public void IdempotencyService_Contract_ExposesLookupAndStore()
+    {
+        var iface = typeof(PunchedApi.Domain.Interfaces.IIdempotencyService);
+        Assert.NotNull(iface.GetMethod("TryGetAsync"));
+        Assert.NotNull(iface.GetMethod("StoreAsync"));
+    }
 }

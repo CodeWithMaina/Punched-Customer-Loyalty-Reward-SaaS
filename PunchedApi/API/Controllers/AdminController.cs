@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -14,6 +15,7 @@ namespace PunchedApi.API.Controllers;
 [Route("v1/admin")]
 [Authorize(Roles = "Admin")]
 [Produces("application/json")]
+[EnableRateLimiting("general")]
 public class AdminController : ControllerBase
 {
     private readonly IAdminService _adminService;

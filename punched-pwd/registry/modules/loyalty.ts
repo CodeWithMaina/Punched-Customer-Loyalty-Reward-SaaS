@@ -8,7 +8,9 @@ export const loyaltyModule: ModuleManifest = {
   icon: CreditCard,
   version: "1.0.0",
   roles: ["Business", "Customer"],
-  nav: [],
+  nav: [
+    { label: "Loyalty Card", href: "/dashboard/business/program", icon: CreditCard, scope: "Business", exact: false },
+  ],
   requiredPermissions: ["loyalty.view", "loyalty.manage"],
   dependencies: ["customers", "stamps"],
   routes: [],

@@ -15,6 +15,7 @@ public partial class BusinessService : IBusinessService
     private readonly ApplicationDbContext _context;
     private readonly IInsightService _insightService;
     private readonly IBusinessScopeResolver _businessScopeResolver;
+    private readonly ISubscriptionProvisioningService _subscriptionProvisioning;
     private readonly ILogger<BusinessService> _logger;
 
     public BusinessService(
@@ -22,12 +23,14 @@ public partial class BusinessService : IBusinessService
         ApplicationDbContext context,
         IInsightService insightService,
         IBusinessScopeResolver businessScopeResolver,
+        ISubscriptionProvisioningService subscriptionProvisioning,
         ILogger<BusinessService> logger)
     {
         _unitOfWork = unitOfWork;
         _context = context;
         _insightService = insightService;
         _businessScopeResolver = businessScopeResolver;
+        _subscriptionProvisioning = subscriptionProvisioning;
         _logger = logger;
     }
 
@@ -57,6 +60,10 @@ public partial class BusinessService : IBusinessService
             await _unitOfWork.Businesses.AddAsync(business);
             await _unitOfWork.SaveChangesAsync();
             _businessScopeResolver.InvalidateOwner(ownerId);
+
+            // Ensure the newly created business is not locked out of modules:
+            // provision the default (Starter) subscription. Best-effort.
+            await _subscriptionProvisioning.EnsureDefaultSubscriptionAsync(business.Id);
 
             return ApiResponse<BusinessResponse>.Ok(MapToResponse(business));
         }
@@ -1102,7 +1109,7 @@ public partial class BusinessService : IBusinessService
 
         if (!string.IsNullOrWhiteSpace(normalizedStatus))
         {
-            redemptionQuery = redemptionQuery.Where(r => r.Status.ToLower() == normalizedStatus);
+            redemptionQuery = redemptionQuery.Where(r => r.PayoutStatus != null && r.PayoutStatus.ToLower() == normalizedStatus);
             if (normalizedStatus != "completed")
             {
                 includeStamps = false;
@@ -1159,7 +1166,7 @@ public partial class BusinessService : IBusinessService
                     CustomerId = r.Card.CustomerId,
                     CustomerName = r.Card.Customer.FullName,
                     StampNumber = 0,
-                    Status = r.Status,
+                    Status = r.Status.ToString(),
                     RewardValue = r.RewardValue,
                     StampedAt = r.RedeemedAt
                 })

@@ -1,43 +1,62 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { businessesApi } from "@/lib/api/businesses";
-import type { StaffMember } from "@/types";
+import { servicesApi } from "@/lib/api/services";
+import type { EligibleStaffResponse } from "@/types";
 import { User, Users, Check } from "lucide-react";
 
 interface StaffSelectorProps {
   businessId: string;
+  /** Selected service ids — only staff assigned to ALL of them are shown. */
+  serviceIds: string[];
   selectedStaffId: string | null;
   onSelect: (id: string | null) => void;
   className?: string;
 }
 
 /**
- * Staff selector for the booking wizard. Lists all staff for the business
- * and lets the customer pick a specific staff member or "Any available".
- * Staff availability filtering is done server-side via the availability
- * endpoint (frontend.md §5).
+ * Staff selector for the booking wizard. Lists staff who are eligible to
+ * perform the selected services (server-side filtering via the public
+ * /services/{businessId}/staff endpoint — respects staff-service
+ * assignments) and lets the customer pick a specific staff member or
+ * "Any available". Actual slot availability is still resolved server-side
+ * by the availability endpoint (frontend.md §5).
  */
 export function StaffSelector({
   businessId,
+  serviceIds,
   selectedStaffId,
   onSelect,
   className = "",
 }: StaffSelectorProps) {
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const key = serviceIds.join(",");
+  const [staff, setStaff] = useState<EligibleStaffResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    businessesApi
-      .getMyStaff()
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    servicesApi
+      .getEligibleStaff(businessId, serviceIds)
       .then((res) => {
-        if (res.success && res.data) setStaff(res.data.items);
-        else setError(res.error?.message ?? "Could not load staff.");
+        if (!cancelled) {
+          if (res.success && res.data) setStaff(res.data);
+          else setError(res.error?.message ?? "Could not load staff.");
+        }
       })
-      .catch(() => setError("Could not load staff."))
-      .finally(() => setLoading(false));
-  }, [businessId]);
+      .catch(() => {
+        if (!cancelled) setError("Could not load staff.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId, key]);
 
   if (loading) {
     return (
@@ -61,7 +80,15 @@ export function StaffSelector({
   }
 
   if (staff.length === 0) {
-    return null;
+    return (
+      <div className={`border border-[var(--border)] bg-[var(--surface-raised)] p-6 text-center ${className}`}>
+        <Users className="h-6 w-6 text-[var(--text-tertiary)] mx-auto mb-2" strokeWidth={1.5} />
+        <p className="text-sm font-semibold text-[var(--text-primary)]">No staff available</p>
+        <p className="font-mono text-xs text-[var(--text-tertiary)] mt-1" style={{ fontFamily: "'Space Mono', monospace" }}>
+          No staff members are assigned to the selected services. Go back and adjust your service selection.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -94,7 +121,7 @@ export function StaffSelector({
         )}
       </button>
 
-      {/* Individual staff */}
+      {/* Individual eligible staff */}
       {staff.map((s) => {
         const isSelected = selectedStaffId === s.userId;
         return (
@@ -125,9 +152,6 @@ export function StaffSelector({
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
                 {s.fullName}
-              </p>
-              <p className="font-mono text-xs text-[var(--text-tertiary)] truncate" style={{ fontFamily: "'Space Mono', monospace" }}>
-                {s.stampsIssued} stamps issued
               </p>
             </div>
             {isSelected && <Check className="h-4 w-4 text-brand flex-shrink-0" />}

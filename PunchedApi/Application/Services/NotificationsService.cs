@@ -38,7 +38,7 @@ public class NotificationsService : INotificationsService
         await _unitOfWork.SaveChangesAsync();
     }
 
-    public async Task CreateRewardReadyAsync(Guid userId, Guid? businessId)
+        public async Task CreateRewardReadyAsync(Guid userId, Guid? businessId)
     {
         await _unitOfWork.Notifications.AddAsync(new Notification
         {
@@ -47,6 +47,21 @@ public class NotificationsService : INotificationsService
             BusinessId = businessId,
             Type = "RewardReady",
             StampsCount = 1,
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow
+        });
+        await _unitOfWork.SaveChangesAsync();
+    }
+
+    public async Task CreateAsync(Guid userId, Guid? businessId, string type, int stampsCount = 0)
+    {
+        await _unitOfWork.Notifications.AddAsync(new Notification
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            BusinessId = businessId,
+            Type = type,
+            StampsCount = stampsCount,
             IsRead = false,
             CreatedAt = DateTime.UtcNow
         });

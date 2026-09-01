@@ -7,6 +7,7 @@ using PunchedApi.Application.Modules;
 using PunchedApi.Application.Services;
 using PunchedApi.Domain.Entities;
 using PunchedApi.Infrastructure.Data;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -19,6 +20,7 @@ namespace PunchedApi.API.Controllers;
 [ApiController]
 [Produces("application/json")]
 [Authorize]
+[EnableRateLimiting("general")]
 public class ModulesController : ControllerBase
 {
     private readonly IModuleEntitlementService _entitlementService;
@@ -201,11 +203,31 @@ public class ModulesController : ControllerBase
         if (!request.Enabled && module.IsCore)
             return BadRequest(ApiResponse<MessageResponse>.Fail(
                 "CORE_MODULE", $"Core module '{moduleKey}' cannot be disabled."));
-        if (request.Enabled && catalog != null &&
-            (catalog.Visibility == ModuleVisibility.Premium || catalog.Visibility == ModuleVisibility.Enterprise))
-            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<MessageResponse>.Fail(
-                "PLAN_UPGRADE_REQUIRED",
-                $"Module '{moduleKey}' requires a plan upgrade or an admin grant."));
+
+        if (request.Enabled)
+        {
+            // Premium/Enterprise add-ons are never self-serviceable.
+            if (catalog != null &&
+                (catalog.Visibility == ModuleVisibility.Premium || catalog.Visibility == ModuleVisibility.Enterprise))
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<MessageResponse>.Fail(
+                    "PLAN_UPGRADE_REQUIRED",
+                    $"Module '{moduleKey}' requires a plan upgrade or an admin grant."));
+
+            // A Standard module can only be self-enabled when the caller's
+            // CURRENT plan already bundles it — otherwise this would be a
+            // plan-tier bypass (e.g. Starter self-granting appointments).
+            var businessIdForPlan = businessId.Value;
+            var bundledInPlan = await _context.BusinessSubscriptions
+                .Where(s => s.BusinessId == businessIdForPlan && (s.Status == "active" || s.Status == "trial"))
+                .OrderByDescending(s => s.CreatedAt)
+                .SelectMany(s => s.Plan.PlanModules)
+                .AnyAsync(pm => pm.ModuleId == module.Id);
+
+            if (!bundledInPlan)
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<MessageResponse>.Fail(
+                    "PLAN_UPGRADE_REQUIRED",
+                    $"Module '{moduleKey}' is not part of your current plan. Upgrade or contact an admin."));
+        }
 
         var userId = CurrentUserId();
         var overrideRow = await _context.BusinessModules

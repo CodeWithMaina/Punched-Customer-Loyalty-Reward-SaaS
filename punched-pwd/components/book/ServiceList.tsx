@@ -109,6 +109,11 @@ export function ServiceList({
                     </span>
                   )}
                 </div>
+                {svc.description && (
+                  <p className="text-xs text-[var(--text-secondary)] leading-snug mt-0.5 line-clamp-2">
+                    {svc.description}
+                  </p>
+                )}
                 <div className="flex items-center gap-1.5 mt-2">
                   <Clock3 className="h-3.5 w-3.5 text-[var(--text-tertiary)] flex-shrink-0" />
                   <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)]">

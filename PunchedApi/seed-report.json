@@ -1,0 +1,546 @@
+{
+  "GenerationDateUtc": "2026-08-31T15:33:49.672254Z",
+  "RandomSeed": 12345,
+  "Mode": 3,
+  "BusinessesRequested": 5,
+  "ExecutionTime": "00:00:28.5051024",
+  "Counts": {
+    "UserAuthCreated": 0,
+    "UsersCreated": 0,
+    "BusinessesCreated": 0,
+    "SubscriptionsCreated": 0,
+    "StaffLinked": 15,
+    "LoyaltyProgramsCreated": 0,
+    "ReferralProgramsCreated": 0,
+    "LoyaltyCardsCreated": 0,
+    "QrTokensCreated": 1058,
+    "StampsCreated": 42,
+    "RedemptionsCreated": 8,
+    "ReferralLinksCreated": 0,
+    "ReferralsCreated": 0,
+    "RefreshTokensCreated": 12,
+    "BusinessesTotal": 6,
+    "UsersTotal": 81,
+    "CustomersTotal": 58,
+    "StaffTotal": 15,
+    "LoyaltyCardsTotal": 60,
+    "StampsTotal": 1184,
+    "RedemptionsTotal": 140,
+    "ReferralsTotal": 25,
+    "NotificationsTotal": 0,
+    "AppointmentsTotal": 0,
+    "InventoryRecordsTotal": 0
+  },
+  "Credentials": [
+    {
+      "BusinessKey": "business-1",
+      "BusinessName": "Aurelia Luxe Hair Atelier",
+      "Accounts": [
+        {
+          "Label": "Owner",
+          "Email": "elena.njeri@aurelialuxe.co.ke",
+          "Password": "Owner@1234!"
+        },
+        {
+          "Label": "Manager",
+          "Email": "ivy.wambui@aurelialuxe.co.ke",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Staff",
+          "Email": "chris.mwangi@aurelialuxe.co.ke",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Staff",
+          "Email": "leo.kiptoo@aurelialuxe.co.ke",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Staff",
+          "Email": "amy.naliaka@aurelialuxe.co.ke",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Receptionist",
+          "Email": "ruth.kendi@aurelialuxe.co.ke",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Demo Customer",
+          "Email": "diana.achieng.b101@demo.punched.app",
+          "Password": "Customer@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "gloria.maina.b102@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "james.achieng.b103@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "mercy.maina.b104@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "peter.achieng.b105@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "stella.maina.b106@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "victor.achieng.b107@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "yvonne.maina.b108@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "brenda.achieng.b109@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "eunice.maina.b110@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "hassan.achieng.b111@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "karen.maina.b112@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "noah.achieng.b113@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "queenie.maina.b114@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "terry.achieng.b115@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "winnie.maina.b116@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "zawadi.achieng.b117@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "caleb.maina.b118@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "felix.achieng.b119@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "imani.maina.b120@demo.punched.app",
+          "Password": "Cust@1234!"
+        }
+      ]
+    },
+    {
+      "BusinessKey": "business-2",
+      "BusinessName": "Harborline Modern Barbers",
+      "Accounts": [
+        {
+          "Label": "Owner",
+          "Email": "samuel.otieno@harborlinebarbers.com",
+          "Password": "Owner@1234!"
+        },
+        {
+          "Label": "Manager",
+          "Email": "david.ndungu@harborlinebarbers.com",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Staff",
+          "Email": "omar.hassan@harborlinebarbers.com",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Staff",
+          "Email": "ian.kiarie@harborlinebarbers.com",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Receptionist",
+          "Email": "nina.akinyi@harborlinebarbers.com",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Demo Customer",
+          "Email": "diana.achieng.b201@demo.punched.app",
+          "Password": "Customer@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "gloria.maina.b202@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "james.achieng.b203@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "mercy.maina.b204@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "peter.achieng.b205@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "stella.maina.b206@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "victor.achieng.b207@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "yvonne.maina.b208@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "brenda.achieng.b209@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "eunice.maina.b210@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "hassan.achieng.b211@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "karen.maina.b212@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "noah.achieng.b213@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "queenie.maina.b214@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "terry.achieng.b215@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "winnie.maina.b216@demo.punched.app",
+          "Password": "Cust@1234!"
+        }
+      ]
+    },
+    {
+      "BusinessKey": "business-3",
+      "BusinessName": "Velvet Petals Nail Studio",
+      "Accounts": [
+        {
+          "Label": "Owner",
+          "Email": "faith.cheruiyot@velvetpetals.co.ke",
+          "Password": "Owner@1234!"
+        },
+        {
+          "Label": "Staff",
+          "Email": "joyce.kipkorir@velvetpetals.co.ke",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Staff",
+          "Email": "peris.bii@velvetpetals.co.ke",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Demo Customer",
+          "Email": "diana.achieng.b301@demo.punched.app",
+          "Password": "Customer@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "gloria.maina.b302@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "james.achieng.b303@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "mercy.maina.b304@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "peter.achieng.b305@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "stella.maina.b306@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "victor.achieng.b307@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "yvonne.maina.b308@demo.punched.app",
+          "Password": "Cust@1234!"
+        }
+      ]
+    },
+    {
+      "BusinessKey": "business-4",
+      "BusinessName": "Serein Beauty Spa",
+      "Accounts": [
+        {
+          "Label": "Owner",
+          "Email": "miriam.wanjiru@sereinspa.com",
+          "Password": "Owner@1234!"
+        },
+        {
+          "Label": "Staff",
+          "Email": "joan.muthoni@sereinspa.com",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Staff",
+          "Email": "esther.kilonzo@sereinspa.com",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Demo Customer",
+          "Email": "diana.achieng.b401@demo.punched.app",
+          "Password": "Customer@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "gloria.maina.b402@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "james.achieng.b403@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "mercy.maina.b404@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "peter.achieng.b405@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "stella.maina.b406@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "victor.achieng.b407@demo.punched.app",
+          "Password": "Cust@1234!"
+        }
+      ]
+    },
+    {
+      "BusinessKey": "business-5",
+      "BusinessName": "Northlight Wellness Center",
+      "Accounts": [
+        {
+          "Label": "Owner",
+          "Email": "brian.kimani@northlightwellness.africa",
+          "Password": "Owner@1234!"
+        },
+        {
+          "Label": "Staff",
+          "Email": "allan.maina@northlightwellness.africa",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Staff",
+          "Email": "grace.karimi@northlightwellness.africa",
+          "Password": "Staff@1234!"
+        },
+        {
+          "Label": "Demo Customer",
+          "Email": "diana.achieng.b501@demo.punched.app",
+          "Password": "Customer@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "gloria.maina.b502@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "james.achieng.b503@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "mercy.maina.b504@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "peter.achieng.b505@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "stella.maina.b506@demo.punched.app",
+          "Password": "Cust@1234!"
+        },
+        {
+          "Label": "Customer",
+          "Email": "victor.achieng.b507@demo.punched.app",
+          "Password": "Cust@1234!"
+        }
+      ]
+    }
+  ],
+  "CapabilityAnalysis": [
+    {
+      "Module": "Businesses",
+      "Status": "Implemented",
+      "Notes": "businesses table supports core business seed data."
+    },
+    {
+      "Module": "Users and Authentication",
+      "Status": "Implemented",
+      "Notes": "users, user_auth, refresh_tokens fully seedable."
+    },
+    {
+      "Module": "Staff Linking",
+      "Status": "Implemented",
+      "Notes": "users.StaffBusinessId supports tenant staff mapping."
+    },
+    {
+      "Module": "Loyalty",
+      "Status": "Implemented",
+      "Notes": "loyalty_programs, loyalty_cards, stamps, redemptions supported."
+    },
+    {
+      "Module": "Referrals",
+      "Status": "Implemented",
+      "Notes": "referral_programs, referral_links, referrals supported."
+    },
+    {
+      "Module": "Roles and Permissions",
+      "Status": "Partially Implemented",
+      "Notes": "Role enum exists, but no role/permission tables exist for granular RBAC seeds."
+    },
+    {
+      "Module": "Services Catalog",
+      "Status": "Blocked by Schema",
+      "Notes": "No service/service-category tables exist in current EF model."
+    },
+    {
+      "Module": "Appointments",
+      "Status": "Blocked by Schema",
+      "Notes": "No appointment entities or relations currently exist."
+    },
+    {
+      "Module": "Payments and Invoices",
+      "Status": "Blocked by Schema",
+      "Notes": "No payment/invoice ledger tables; redemptions are loyalty payouts only."
+    },
+    {
+      "Module": "Notifications",
+      "Status": "Blocked by Schema",
+      "Notes": "No persisted notification tables exist; SSE is in-memory runtime only."
+    },
+    {
+      "Module": "Reviews",
+      "Status": "Blocked by Schema",
+      "Notes": "No review entities are currently present."
+    },
+    {
+      "Module": "Inventory",
+      "Status": "Blocked by Schema",
+      "Notes": "No inventory product/stock/supplier tables exist."
+    },
+    {
+      "Module": "Audit Logs",
+      "Status": "Blocked by Schema",
+      "Notes": "No persisted audit log entities exist."
+    },
+    {
+      "Module": "Business Settings",
+      "Status": "Partially Implemented",
+      "Notes": "Basic contact and profile fields exist; no dedicated tax/booking/cancellation settings schema."
+    }
+  ],
+  "Warnings": [
+    "RoleSeeder skipped: no role table exists (enum-only role model).",
+    "PermissionSeeder skipped: no permission tables exist.",
+    "ServiceSeeder skipped: services schema not implemented.",
+    "AppointmentSeeder skipped: appointments schema not implemented.",
+    "PaymentSeeder skipped: payment/invoice schema not implemented.",
+    "InventorySeeder skipped: inventory schema not implemented.",
+    "ReviewSeeder skipped: reviews schema not implemented.",
+    "NotificationSeeder skipped: persisted notification schema not implemented.",
+    "AuditSeeder skipped: audit log schema not implemented.",
+    "No appointment tables exist in current schema.",
+    "No payment/invoice tables exist beyond loyalty redemptions.",
+    "No notification tables exist; SSE events are ephemeral.",
+    "No review tables exist.",
+    "No inventory tables exist.",
+    "No persisted audit tables exist."
+  ],
+  "Errors": []
+}

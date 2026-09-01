@@ -33,6 +33,10 @@ namespace PunchedApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("DetailsJson")
+                        .HasColumnType("text")
+                        .HasColumnName("details_json");
+
                     b.Property<int>("DurationMs")
                         .HasColumnType("integer")
                         .HasColumnName("duration_ms");
@@ -511,6 +515,55 @@ namespace PunchedApi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PunchedApi.Domain.Entities.IdempotencyKey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("ResponseJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("response_json");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("IX_idempotency_keys_ExpiresAt");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("idempotency_keys", (string)null);
+                });
+
             modelBuilder.Entity("PunchedApi.Domain.Entities.Insight", b =>
                 {
                     b.Property<Guid>("Id")
@@ -698,6 +751,10 @@ namespace PunchedApi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("business_id");
 
+                    b.Property<string>("ConfigJson")
+                        .HasColumnType("text")
+                        .HasColumnName("config_json");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -708,11 +765,26 @@ namespace PunchedApi.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("default_enrollment_stamps");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime?>("EndsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends_at");
+
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
+
+                    b.Property<int>("MaxStampsPerVisit")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("max_stamps_per_visit");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -721,6 +793,14 @@ namespace PunchedApi.Migrations
                         .HasColumnType("character varying(100)")
                         .HasDefaultValue("Loyalty Program")
                         .HasColumnName("name");
+
+                    b.Property<string>("ProgramType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("stamp")
+                        .HasColumnName("program_type");
 
                     b.Property<string>("RewardDescription")
                         .IsRequired()
@@ -737,9 +817,23 @@ namespace PunchedApi.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("reward_value");
 
+                    b.Property<int?>("StampExpiryDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("stamp_expiry_days");
+
                     b.Property<int>("StampsRequired")
                         .HasColumnType("integer")
                         .HasColumnName("stamps_required");
+
+                    b.Property<DateTime?>("StartsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("status");
 
                     b.HasKey("Id");
 
@@ -747,6 +841,8 @@ namespace PunchedApi.Migrations
 
                     b.ToTable("loyalty_programs", null, t =>
                         {
+                            t.HasCheckConstraint("chk_program_max_stamps_per_visit_positive", "\"max_stamps_per_visit\" >= 1");
+
                             t.HasCheckConstraint("chk_program_reward_value_positive", "\"reward_value\" > 0");
 
                             t.HasCheckConstraint("chk_stamps_required_positive", "\"stamps_required\" > 0");
@@ -1052,14 +1148,39 @@ namespace PunchedApi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("card_id");
 
+                    b.Property<bool>("CodeLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("code_locked");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<int>("FailedAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("failed_attempts");
 
                     b.Property<string>("FailureReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("failure_reason");
+
+                    b.Property<DateTime?>("FulfilledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fulfilled_at");
+
+                    b.Property<Guid?>("FulfilledByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("fulfilled_by_user_id");
+
+                    b.Property<string>("FulfilmentCodeHash")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("fulfilment_code_hash");
 
                     b.Property<string>("MpesaRef")
                         .HasMaxLength(100)
@@ -1073,6 +1194,11 @@ namespace PunchedApi.Migrations
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("paid_at");
+
+                    b.Property<string>("PayoutStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("payout_status");
 
                     b.Property<string>("PerformedByRole")
                         .HasMaxLength(20)
@@ -1107,15 +1233,22 @@ namespace PunchedApi.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("reward_value");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
+                    b.Property<int>("StampsConsumed")
                         .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasDefaultValue("pending")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("stamps_consumed");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
                         .HasColumnName("status");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FulfilledByUserId")
+                        .HasDatabaseName("IX_redemptions_FulfilledByUserId");
 
                     b.HasIndex("PerformedByUserId")
                         .HasDatabaseName("IX_redemptions_UserId");
@@ -1126,13 +1259,18 @@ namespace PunchedApi.Migrations
 
                     b.HasIndex("CardId", "RedeemedAt");
 
-                    b.HasIndex("Status", "NextRetryAt");
+                    b.HasIndex("CardId", "Status")
+                        .HasDatabaseName("IX_redemptions_CardId_Status");
+
+                    b.HasIndex("PayoutStatus", "NextRetryAt");
 
                     b.HasIndex("BusinessId", "PerformedByUserId", "RedeemedAt");
 
                     b.ToTable("redemptions", null, t =>
                         {
                             t.HasCheckConstraint("chk_redemption_reward_value_positive", "\"reward_value\" > 0");
+
+                            t.HasCheckConstraint("chk_redemption_status_valid", "\"status\" IN (0, 1, 2)");
                         });
                 });
 
@@ -1431,6 +1569,10 @@ namespace PunchedApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<int>("DurationMinutes")
                         .HasColumnType("integer")
                         .HasColumnName("duration_minutes");
@@ -1712,6 +1854,61 @@ namespace PunchedApi.Migrations
                     b.ToTable("stamps", null, t =>
                         {
                             t.HasCheckConstraint("chk_stamp_number_positive", "\"stamp_number\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("PunchedApi.Domain.Entities.StampAdjustment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AdjustedByRole")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("adjusted_by_role");
+
+                    b.Property<Guid?>("AdjustedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("adjusted_by_user_id");
+
+                    b.Property<Guid>("CardId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("card_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("Delta")
+                        .HasColumnType("integer")
+                        .HasColumnName("delta");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<int>("Reason")
+                        .HasColumnType("integer")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid?>("RelatedStampId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("related_stamp_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdjustedByUserId");
+
+                    b.HasIndex("CardId", "CreatedAt")
+                        .HasDatabaseName("IX_stamp_adjustments_CardId_CreatedAt");
+
+                    b.ToTable("stamp_adjustments", null, t =>
+                        {
+                            t.HasCheckConstraint("chk_stamp_adjustment_delta_nonzero", "\"delta\" <> 0");
                         });
                 });
 
@@ -2058,6 +2255,17 @@ namespace PunchedApi.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PunchedApi.Domain.Entities.IdempotencyKey", b =>
+                {
+                    b.HasOne("PunchedApi.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("PunchedApi.Domain.Entities.Insight", b =>
                 {
                     b.HasOne("PunchedApi.Domain.Entities.Business", null)
@@ -2184,6 +2392,11 @@ namespace PunchedApi.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("PunchedApi.Domain.Entities.User", "FulfilledByUser")
+                        .WithMany()
+                        .HasForeignKey("FulfilledByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("PunchedApi.Domain.Entities.User", "PerformedByUser")
                         .WithMany("Redemptions")
                         .HasForeignKey("PerformedByUserId")
@@ -2192,6 +2405,8 @@ namespace PunchedApi.Migrations
                     b.Navigation("Business");
 
                     b.Navigation("Card");
+
+                    b.Navigation("FulfilledByUser");
 
                     b.Navigation("PerformedByUser");
                 });
@@ -2382,6 +2597,24 @@ namespace PunchedApi.Migrations
                         .HasForeignKey("CardId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Card");
+                });
+
+            modelBuilder.Entity("PunchedApi.Domain.Entities.StampAdjustment", b =>
+                {
+                    b.HasOne("PunchedApi.Domain.Entities.User", "AdjustedByUser")
+                        .WithMany()
+                        .HasForeignKey("AdjustedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("PunchedApi.Domain.Entities.LoyaltyCard", "Card")
+                        .WithMany()
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AdjustedByUser");
 
                     b.Navigation("Card");
                 });

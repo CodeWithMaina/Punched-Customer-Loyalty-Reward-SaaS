@@ -1,0 +1,8 @@
+{
+  "name": "punched",
+  "private": true,
+  "scripts": {
+    "e2e:install": "npm --prefix e2e install && npx --prefix e2e playwright install chromium",
+    "e2e": "npm --prefix e2e test"
+  }
+}

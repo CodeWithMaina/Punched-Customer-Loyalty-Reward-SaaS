@@ -11,11 +11,16 @@ public sealed class AnalyticsWorker : BackgroundService
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AnalyticsWorker> _logger;
+    private readonly Microsoft.Extensions.Options.IOptions<PunchedApi.Application.Settings.StampingSettings> _stampingSettings;
 
-    public AnalyticsWorker(IServiceScopeFactory scopeFactory, ILogger<AnalyticsWorker> logger)
+    public AnalyticsWorker(
+        IServiceScopeFactory scopeFactory,
+        ILogger<AnalyticsWorker> logger,
+        Microsoft.Extensions.Options.IOptions<PunchedApi.Application.Settings.StampingSettings> stampingSettings)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _stampingSettings = stampingSettings;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -23,6 +28,7 @@ public sealed class AnalyticsWorker : BackgroundService
         _logger.LogInformation("AnalyticsWorker started.");
 
         var lastDailyRun = DateTime.MinValue;
+        var lastWinBackRun = DateTime.MinValue;
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -34,8 +40,24 @@ public sealed class AnalyticsWorker : BackgroundService
                 var aggregator = scope.ServiceProvider.GetRequiredService<IAnalyticsAggregationService>();
                 var segmentation = scope.ServiceProvider.GetRequiredService<ISegmentationService>();
                 var insightService = scope.ServiceProvider.GetRequiredService<IInsightService>();
+                var maintenance = scope.ServiceProvider.GetRequiredService<IStampingMaintenanceService>();
 
                 var businessIds = await db.Businesses.Select(b => b.Id).ToListAsync(stoppingToken);
+
+                // ── Win-back nudge cron (Phase 4) ────────────────────
+                // Runs once per WinBackCronHours (default 24h). Dedupes via
+                // NotificationLog inside StampingMaintenanceService, so re-runs
+                // never notify the same customer twice.
+                var winBackCronHours = Math.Max(1, _stampingSettings.Value.WinBackCronHours);
+                if ((DateTime.UtcNow - lastWinBackRun) >= TimeSpan.FromHours(winBackCronHours))
+                {
+                    var winBackDays = Math.Max(1, _stampingSettings.Value.WinBackDays);
+                    var nudges = await maintenance.SendWinBackNotificationsAsync(winBackDays, stoppingToken);
+                    lastWinBackRun = DateTime.UtcNow;
+                    _logger.LogInformation(
+                        "Win-back cron complete. NudgesSent={Nudges}, WinBackDays={Days}, NextRunHours={Hours}",
+                        nudges, winBackDays, winBackCronHours);
+                }
 
                 foreach (var businessId in businessIds)
                 {

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PunchedApi.API.Filters;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -17,6 +18,7 @@ namespace PunchedApi.API.Controllers;
 [Produces("application/json")]
 [Authorize]
 [RequireModule("appointments")]
+[EnableRateLimiting("general")]
 public class AppointmentController : ControllerBase
 {
     private readonly IAppointmentService _appointmentService;

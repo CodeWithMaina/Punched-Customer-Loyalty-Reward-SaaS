@@ -19,6 +19,7 @@ public class ApiEventLogConfiguration : IEntityTypeConfiguration<ApiEventLog>
         builder.Property(x => x.StatusCode).HasColumnName("status_code");
         builder.Property(x => x.DurationMs).HasColumnName("duration_ms");
         builder.Property(x => x.ErrorCode).HasColumnName("error_code").HasMaxLength(100);
+        builder.Property(x => x.DetailsJson).HasColumnName("details_json");
         builder.Property(x => x.CreatedAt).HasColumnName("created_at");
 
         builder.HasOne<Business>()

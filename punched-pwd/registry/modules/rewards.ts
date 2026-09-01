@@ -10,6 +10,7 @@ export const rewardsModule: ModuleManifest = {
   roles: ["Business", "Customer"],
   nav: [
     { label: "Rewards", href: "/dashboard/cards", icon: Award, scope: "Customer", exact: false },
+    { label: "Rewards", href: "/dashboard/business/rewards", icon: Award, scope: "Business", exact: false },
   ],
   requiredPermissions: ["rewards.view", "rewards.manage"],
   dependencies: ["loyalty", "stamps"],

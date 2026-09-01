@@ -107,4 +107,88 @@ public class EntitySchemaTests
         Assert.Equal("Free Coffee", history.RewardDescription);
         Assert.True(history.EffectiveTo == null);
     }
+
+    [Fact]
+    public void StampAdjustment_HasAllRequiredColumns()
+    {
+        var adj = new StampAdjustment
+        {
+            Id = Guid.NewGuid(),
+            CardId = Guid.NewGuid(),
+            AdjustedByUserId = Guid.NewGuid(),
+            AdjustedByRole = "Business",
+            Delta = -2,
+            Reason = StampAdjustmentReason.VoidMistake,
+            Note = "Customer requested correction",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        Assert.NotEqual(Guid.Empty, adj.Id);
+        Assert.NotEqual(Guid.Empty, adj.CardId);
+        Assert.Equal(-2, adj.Delta);
+        Assert.Equal(StampAdjustmentReason.VoidMistake, adj.Reason);
+        Assert.Equal("Customer requested correction", adj.Note);
+        Assert.NotNull(adj.AdjustedByUserId);
+    }
+
+    [Fact]
+    public void StampAdjustmentReason_ExposesAllReasons()
+    {
+        Assert.Equal(StampAdjustmentReason.VoidMistake,
+            Enum.Parse<StampAdjustmentReason>("VoidMistake"));
+        Assert.True(Enum.IsDefined(typeof(StampAdjustmentReason), StampAdjustmentReason.ManualCorrection));
+        Assert.True(Enum.IsDefined(typeof(StampAdjustmentReason), StampAdjustmentReason.Goodwill));
+        Assert.True(Enum.IsDefined(typeof(StampAdjustmentReason), StampAdjustmentReason.SystemFix));
+    }
+
+    [Fact]
+    public void IdempotencyKey_HasAllRequiredColumns()
+    {
+        var key = new IdempotencyKey
+        {
+            Id = Guid.NewGuid(),
+            Key = "scan-2026-08-30-0001",
+            UserId = Guid.NewGuid(),
+            RequestHash = "abc123",
+            ResponseJson = "{}",
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddHours(24)
+        };
+
+        Assert.NotEqual(Guid.Empty, key.Id);
+        Assert.Equal("scan-2026-08-30-0001", key.Key);
+        Assert.NotEqual(Guid.Empty, key.UserId);
+        Assert.Equal("{}", key.ResponseJson);
+        Assert.True(key.ExpiresAt > key.CreatedAt);
+    }
+
+    [Fact]
+    public void Redemption_StatusEnum_DefaultsToPending_AndExposesNewColumns()
+    {
+        var redemption = new Redemption();
+        Assert.Equal(RedemptionStatus.Pending, redemption.Status);
+        Assert.False(redemption.CodeLocked);
+        Assert.Equal(0, redemption.FailedAttempts);
+        Assert.Equal(0, redemption.StampsConsumed);
+        Assert.Null(redemption.FulfilledByUserId);
+        Assert.Null(redemption.FulfilledAt);
+        Assert.Null(redemption.FulfilmentCodeHash);
+
+        var values = Enum.GetValues<RedemptionStatus>();
+        Assert.Contains(RedemptionStatus.Pending, values);
+        Assert.Contains(RedemptionStatus.Fulfilled, values);
+        Assert.Contains(RedemptionStatus.Cancelled, values);
+    }
+
+    [Fact]
+    public void LoyaltyProgram_StampExpiryDays_And_MaxStampsPerVisitColumns()
+    {
+        var program = new LoyaltyProgram
+        {
+            MaxStampsPerVisit = 3,
+            StampExpiryDays = 30
+        };
+        Assert.Equal(3, program.MaxStampsPerVisit);
+        Assert.Equal(30, program.StampExpiryDays);
+    }
 }

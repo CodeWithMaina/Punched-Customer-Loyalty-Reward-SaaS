@@ -12,13 +12,19 @@ export interface CustomerListState extends CustomerListFilters {
   sortBy: "recent" | "stamps" | "name";
   sortDirection: "asc" | "desc";
   page: number;
+  /** Server-side page size (backend clamps to 1..100). */
+  pageSize: number;
 }
+
+export const CUSTOMER_PAGE_SIZES = [10, 25, 50, 100] as const;
+export const DEFAULT_CUSTOMER_PAGE_SIZE = 25;
 
 export const DEFAULT_CUSTOMER_LIST_STATE: CustomerListState = {
   search: "",
   sortBy: "recent",
   sortDirection: "desc",
   page: 1,
+  pageSize: DEFAULT_CUSTOMER_PAGE_SIZE,
 };
 
 /** Parse customer list state from URL query params (shareable/refresh-safe). */
@@ -37,6 +43,11 @@ export function parseCustomerListState(query: ParsedUrlQuery): CustomerListState
     sortBy: ["recent", "stamps", "name"].includes(sortBy) ? sortBy : "recent",
     sortDirection: str(query.sortDirection) === "asc" ? "asc" : "desc",
     page: Math.max(1, Number.parseInt(str(query.page), 10) || 1),
+    pageSize: CUSTOMER_PAGE_SIZES.includes(
+      Number.parseInt(str(query.pageSize), 10) as (typeof CUSTOMER_PAGE_SIZES)[number],
+    )
+      ? Number.parseInt(str(query.pageSize), 10)
+      : DEFAULT_CUSTOMER_PAGE_SIZE,
   };
 }
 
@@ -50,6 +61,8 @@ export function customerListStateToParams(state: CustomerListState): Record<stri
   if (state.sortBy !== "recent") params.sortBy = state.sortBy;
   if (state.sortDirection !== "desc") params.sortDirection = state.sortDirection;
   if (state.page > 1) params.page = String(state.page);
+  if (state.pageSize !== DEFAULT_CUSTOMER_PAGE_SIZE)
+    params.pageSize = String(state.pageSize);
   return params;
 }
 

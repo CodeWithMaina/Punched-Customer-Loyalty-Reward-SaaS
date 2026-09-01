@@ -127,13 +127,20 @@ try
     builder.Services.Configure<PublicAppSettings>(
         builder.Configuration.GetSection(PublicAppSettings.SectionName));
 
+    // Stamping background jobs (win-back nudges) — Phase 4
+    builder.Services.Configure<StampingSettings>(
+        builder.Configuration.GetSection(StampingSettings.SectionName));
+    builder.Services.AddScoped<IStampingMaintenanceService, StampingMaintenanceService>();
+
     // Staff invitations (invitation-only staff onboarding)
     builder.Services.AddScoped<IInvitationService, InvitationService>();
 
     builder.Services.AddScoped<IUserService, UserService>();
     builder.Services.AddScoped<IBusinessService, BusinessService>();
     builder.Services.AddScoped<ILoyaltyService, LoyaltyService>();
-    builder.Services.AddScoped<IStampService, StampService>();
+            builder.Services.AddScoped<IStampService, StampService>();
+    builder.Services.AddScoped<PunchedApi.Application.Programs.IProgramRuleEngine, PunchedApi.Application.Programs.ProgramRuleEngine>();
+    builder.Services.AddScoped<IIdempotencyService, IdempotencyService>();
     builder.Services.AddScoped<INotificationsService, NotificationsService>();
     builder.Services.AddScoped<IQrService, QrService>();
     builder.Services.AddScoped<IRedemptionService, RedemptionService>();
@@ -157,6 +164,8 @@ try
     builder.Services.AddScoped<ISubscriptionLifecycleService, SubscriptionLifecycleService>();
     builder.Services.AddScoped<SubscriptionExpiryService>();
     builder.Services.AddScoped<IBillingGateway, FakeMpesaStkGateway>();
+builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.SectionName));
+builder.Services.AddScoped<ISubscriptionProvisioningService, SubscriptionProvisioningService>();
 
     // ── Module enforcement (plugin architecture Phases 4-6) ──
     // Fail-closed by default — enforcement is unconditional (Step 8).
@@ -260,8 +269,53 @@ try
                 {
                     PermitLimit = 1000,
                     Window = TimeSpan.FromHours(1),
-                    QueueLimit = 0
+                                        QueueLimit = 0
                 }));
+
+        // Manual phone lookup: 5 per hour per (IP + user)
+        options.AddPolicy("manual-lookup", httpContext =>
+        {
+            var userId = httpContext.User?.FindFirst("userId")?.Value ?? "anon";
+            var partitionKey = $"{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}:{userId}";
+            return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey,
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 5,
+                    Window = TimeSpan.FromHours(1),
+                    QueueLimit = 0
+                });
+        });
+
+        // Stamp awarding: 20 per hour per (IP + user)
+        options.AddPolicy("stamp-award", httpContext =>
+        {
+            var userId = httpContext.User?.FindFirst("userId")?.Value ?? "anon";
+            var partitionKey = $"{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}:{userId}";
+            return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey,
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 20,
+                    Window = TimeSpan.FromHours(1),
+                    QueueLimit = 0
+                });
+        });
+
+        // Enroll-and-stamp: 20 per hour per (IP + user)
+        options.AddPolicy("stamp-enroll", httpContext =>
+        {
+            var userId = httpContext.User?.FindFirst("userId")?.Value ?? "anon";
+            var partitionKey = $"{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}:{userId}";
+            return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey,
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 20,
+                    Window = TimeSpan.FromHours(1),
+                    QueueLimit = 0
+                });
+        });
 
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     });

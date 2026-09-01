@@ -493,6 +493,22 @@ punched/
 
 ---
 
+## SSE at scale
+
+The `SseService` (`PunchedApi/Application/Services/SseService.cs`) keeps customer
+EventSource subscriptions in **in-process memory**. This means live stamp/claim
+events work only with a **single API instance**. If you scale the API horizontally,
+events published on the instance that handled the scan will not reach customers
+connected to another instance.
+
+**Escape hatch (documented follow-up, not a blocker):** back the SSE broker with a
+Redis pub/sub channel — each instance subscribes on startup and re-publishes
+events received from Redis to its local subscribers. `ISseService` is already an
+abstraction, so the swap is a new `RedisSseService` implementation plus a
+`StackExchange.Redis` dependency; no call-site changes required.
+
+---
+
 ## License
 
 This project is proprietary. All rights reserved.

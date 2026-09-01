@@ -44,7 +44,7 @@ export function useBooking() {
 
   /** Book an appointment for the customer; navigate to its detail page. */
   const createAppointment = useCallback(
-    async (data: CreateAppointmentRequest) => {
+    async (data: CreateAppointmentRequest): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
       try {
@@ -54,15 +54,18 @@ export function useBooking() {
           invalidateBookingCaches();
           // `booked=1` renders the transactional "Booking Confirmed" screen
           router.push("/dashboard/appointments/" + result.data.id + "?booked=1");
+          return true;
         } else {
           const msg = result.error?.message || "Could not book.";
           setError(msg);
           toast.error(msg);
+          return false;
         }
       } catch (err) {
         const msg = getErrorMessage(err);
         setError(msg);
         toast.error(msg);
+        return false;
       } finally {
         setIsLoading(false);
       }
@@ -72,7 +75,7 @@ export function useBooking() {
 
   /** Reschedule an existing appointment. */
   const rescheduleAppointment = useCallback(
-    async (id: string, data: RescheduleAppointmentRequest) => {
+    async (id: string, data: RescheduleAppointmentRequest): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
       try {
@@ -81,15 +84,18 @@ export function useBooking() {
           toast.success("Appointment rescheduled.");
           invalidateBookingCaches();
           router.push("/dashboard/appointments/" + id);
+          return true;
         } else {
           const msg = result.error?.message || "Could not reschedule.";
           setError(msg);
           toast.error(msg);
+          return false;
         }
       } catch (err) {
         const msg = getErrorMessage(err);
         setError(msg);
         toast.error(msg);
+        return false;
       } finally {
         setIsLoading(false);
       }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PunchedApi.API.Filters;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -15,6 +16,7 @@ namespace PunchedApi.API.Controllers;
 [Route("v1/services")]
 [Produces("application/json")]
     [RequireModule("serviceCatalog")]
+[EnableRateLimiting("general")]
 public class ServiceCatalogController : ControllerBase
 {
     private readonly IServiceCatalogService _catalogService;
@@ -100,6 +102,31 @@ public class ServiceCatalogController : ControllerBase
     public async Task<IActionResult> GetServicesForBusiness(Guid businessId)
     {
         var result = await _catalogService.GetServicesForBusinessAsync(businessId);
+        return result.Success ? Ok(result) : MapFailure(result);
+    }
+
+    /// <summary>
+    /// Public: staff eligible to perform the given services (booking wizard, staff step).
+    /// Pass no serviceIds to list every staff member of the business.
+    /// </summary>
+    [HttpGet("{businessId:guid}/staff")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<List<EligibleStaffResponse>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetEligibleStaff(Guid businessId, [FromQuery] string? serviceIds)
+    {
+        var parsed = new List<Guid>();
+        if (!string.IsNullOrWhiteSpace(serviceIds))
+        {
+            foreach (var raw in serviceIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (!Guid.TryParse(raw, out var id))
+                    return BadRequest(ApiResponse<List<EligibleStaffResponse>>.Fail("VALIDATION_ERROR", "serviceIds must be a comma-separated list of GUIDs."));
+                parsed.Add(id);
+            }
+        }
+
+        var result = await _catalogService.GetEligibleStaffAsync(businessId, parsed.ToArray());
         return result.Success ? Ok(result) : MapFailure(result);
     }
 

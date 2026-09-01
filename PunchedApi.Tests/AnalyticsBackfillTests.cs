@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using PunchedApi.Application.Programs;
 using PunchedApi.Application.Services;
 using PunchedApi.Domain.Interfaces;
 using PunchedApi.Domain.Entities;
@@ -150,7 +151,7 @@ public class AnalyticsBackfillTests
         // Act
         var logger = TestHelpers.CreateLogger<LoyaltyService>();
         var uow = new UnitOfWork(context);
-        var service = new LoyaltyService(uow, context, new Mock<IStampService>().Object, logger);
+        var service = new LoyaltyService(uow, context, new Mock<IStampService>().Object, new ProgramRuleEngine(), logger);
         await service.BackfillProgramHistoryAsync();
 
         // Assert

@@ -89,6 +89,28 @@ export const adminApi = {
       .delete<ApiResponse<MessageResponse>>(`/admin/businesses/${businessId}`)
       .then((r) => r.data),
 
+  // ── Subscription / Billing Management ─────────────────
+  /** All active plans with bundled modules (public endpoint). */
+  getPlans: () =>
+    apiClient
+      .get<ApiResponse<import("@/types").PlanSummary[]>>("/plans")
+      .then((r) => r.data),
+
+  /** Manually assign (or change) a business's plan. */
+  assignPlan: (businessId: string, planKey: string, reason?: string) =>
+    apiClient
+      .put<ApiResponse<{ planKey: string; status: string }>>(
+        `/admin/businesses/${businessId}/subscription`,
+        { planKey, reason }
+      )
+      .then((r) => r.data),
+
+  /** Cancel the business's active subscription. */
+  cancelSubscription: (businessId: string) =>
+    apiClient
+      .delete<ApiResponse<MessageResponse>>(`/admin/businesses/${businessId}/subscription`)
+      .then((r) => r.data),
+
   // ── Redemptions ───────────────────────────────────────
   getRedemptions: (params?: { search?: string; page?: number; pageSize?: number }) =>
     apiClient

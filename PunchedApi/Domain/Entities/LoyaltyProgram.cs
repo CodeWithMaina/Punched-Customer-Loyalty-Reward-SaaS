@@ -64,6 +64,53 @@ public class LoyaltyProgram : BaseEntity
     [Range(0, 100)]
     public int DefaultEnrollmentStamps { get; set; } = 0;
 
+    /// <summary>
+    /// Optional number of days after which stamps on cards in this program expire.
+    /// Null means stamps never expire (current behavior).
+    /// </summary>
+    public int? StampExpiryDays { get; set; }
+
+    /// <summary>
+    /// Maximum stamps that can be awarded in a single visit/scan. Must be ≥ 1.
+    /// </summary>
+    [Range(1, 100)]
+    public int MaxStampsPerVisit { get; set; } = 1;
+
+    /// <summary>
+    /// Optional human-readable description shown on the details page and to customers.
+    /// </summary>
+    [MaxLength(500)]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Lifecycle status: Draft / Active / Paused / Archived.
+    /// Backward compatible — <see cref="IsActive"/> remains the persisted flag
+    /// used by the stamping pipeline and is kept in sync with this value at the
+    /// service layer (<c>Status == Active → IsActive == true</c>).
+    /// </summary>
+    public ProgramStatus Status { get; set; } = ProgramStatus.Active;
+
+    /// <summary>
+    /// Earning model key — one of <see cref="ProgramTypes"/> (default "stamp").
+    /// Legacy programs store nothing here and keep the classic stamp behaviour.
+    /// </summary>
+    [MaxLength(20)]
+    public string ProgramType { get; set; } = ProgramTypes.Stamp;
+
+    /// <summary>
+    /// Structured, extensible program configuration serialised as JSON
+    /// (<see cref="PunchedApi.Application.Programs.ProgramConfig"/>).
+    /// Null/empty for legacy programs, which the rule engine describes from the
+    /// scalar columns.
+    /// </summary>
+    public string? ConfigJson { get; set; }
+
+    /// <summary>Optional start date for the program's active window (travel time).</summary>
+    public DateTime? StartsAt { get; set; }
+
+    /// <summary>Optional end date for the program's active window.</summary>
+    public DateTime? EndsAt { get; set; }
+
     // ── Navigation ──────────────────────────────────────────
     /// <summary>
     /// The business this program belongs to.

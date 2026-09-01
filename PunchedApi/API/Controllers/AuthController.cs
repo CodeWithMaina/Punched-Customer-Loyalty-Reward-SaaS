@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
 
@@ -10,9 +11,13 @@ namespace PunchedApi.API.Controllers;
 /// Authentication controller handling user registration, login,
 /// email verification, token management, and logout.
 /// Base route: /v1/auth
+/// Brute-force sensitive actions (login, register, password reset,
+/// email verification) are rate limited via the "login" policy;
+/// verification-code resend uses the tighter "otp" policy.
 /// </summary>
 [ApiController]
 [Route("v1/auth")]
+[EnableRateLimiting("login")]
 [Produces("application/json")]
 public class AuthController : ControllerBase
 {
@@ -93,6 +98,7 @@ public class AuthController : ControllerBase
     /// <response code="401">Invalid verification code.</response>
     /// <response code="410">Verification code expired.</response>
     [HttpPost("verify-email")]
+    [EnableRateLimiting("otp")]
     [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest request)
@@ -194,6 +200,7 @@ public class AuthController : ControllerBase
     /// <returns>Success message.</returns>
     /// <response code="200">Verification code sent (if email exists).</response>
     [HttpPost("request-email")]
+    [EnableRateLimiting("otp")]
     [ProducesResponseType(typeof(ApiResponse<MessageResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> RequestEmail([FromBody] RequestEmailRequest request)
     {

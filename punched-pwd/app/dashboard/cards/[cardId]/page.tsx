@@ -72,6 +72,11 @@ function CardDetailPageContent() {
     stampsRequired: number;
     rewardReady: boolean;
   } | null>(null);
+  const [pendingRedemption, setPendingRedemption] = useState<{
+    code: string;
+    rewardDescription: string;
+    redeemedAt: string;
+  } | null>(null);
   const qrTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const expiryCountdown = useCountdown(rewardExpiresAt);
@@ -257,6 +262,11 @@ function CardDetailPageContent() {
                 const res = await redemptionsApi.claim({ cardId: card.id });
                 if (res.success && res.data) {
                   toast.success(`Reward claimed! ${res.data.rewardDescription}`);
+                  setPendingRedemption({
+                    code: res.data.fulfilmentCode ?? "",
+                    rewardDescription: res.data.rewardDescription,
+                    redeemedAt: res.data.redeemedAt,
+                  });
                   setRewardReady(false);
                   setRewardExpiresAt(undefined);
                   setCard((prev) => prev ? { ...prev, totalStamps: 0, totalRedemptions: prev.totalRedemptions + 1 } : prev);
@@ -281,6 +291,28 @@ function CardDetailPageContent() {
               </>
             )}
           </button>
+        </div>
+      )}
+
+      {/* Pending redemption — show the one-time fulfilment code at the counter */}
+      {pendingRedemption && (
+        <div className="bg-[var(--surface)] rounded-2xl border-2 border-brand p-6 flex flex-col items-center space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+            <Gift className="h-4 w-4" />
+            {pendingRedemption.rewardDescription || "Reward"} ready to collect
+          </div>
+          <p className="font-mono text-xs uppercase tracking-widest text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
+            Show this code at the counter
+          </p>
+          <p
+            className="font-mono text-5xl tracking-[0.35em] font-bold text-[var(--text-primary)] select-all"
+            style={{ fontFamily: "'Space Mono', monospace" }}
+          >
+            {pendingRedemption.code || "……"}
+          </p>
+          <p className="font-mono text-[11px] text-[var(--text-tertiary)]" style={{ fontFamily: "'Space Mono', monospace" }}>
+            Claimed {new Date(pendingRedemption.redeemedAt).toLocaleString()}
+          </p>
         </div>
       )}
 

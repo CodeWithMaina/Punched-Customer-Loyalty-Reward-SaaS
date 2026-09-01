@@ -177,10 +177,13 @@ CREATE TABLE loyalty_programs (
     reward_description character varying(200) NOT NULL,
     reward_expiration_hours integer NOT NULL,
     default_enrollment_stamps integer NOT NULL DEFAULT 0,
+    max_stamps_per_visit integer NOT NULL DEFAULT 1,
+    stamp_expiry_days integer,
     created_at timestamp with time zone NOT NULL,
     CONSTRAINT "PK_loyalty_programs" PRIMARY KEY (id),
     CONSTRAINT chk_program_reward_value_positive CHECK ("reward_value" > 0),
     CONSTRAINT chk_stamps_required_positive CHECK ("stamps_required" > 0),
+    CONSTRAINT chk_program_max_stamps_per_visit_positive CHECK ("max_stamps_per_visit" > 0),
     CONSTRAINT "FK_loyalty_programs_businesses_business_id" FOREIGN KEY (business_id) REFERENCES businesses (id) ON DELETE CASCADE
 );
 
@@ -435,7 +438,14 @@ CREATE TABLE redemptions (
     user_id uuid,
     performed_by_role character varying(20),
     reward_value numeric(10,2) NOT NULL,
-    status character varying(50) NOT NULL DEFAULT 'pending',
+    status integer NOT NULL DEFAULT 0,
+    payout_status character varying(20),
+    failed_attempts integer NOT NULL DEFAULT 0,
+    code_locked boolean NOT NULL DEFAULT FALSE,
+    stamps_consumed integer NOT NULL DEFAULT 0,
+    fulfilled_by_user_id uuid,
+    fulfilled_at timestamp with time zone,
+    fulfilment_code_hash character varying(255),
     mpesa_ref character varying(100),
     redeemed_at timestamp with time zone NOT NULL,
     paid_at timestamp with time zone,
@@ -447,9 +457,41 @@ CREATE TABLE redemptions (
     created_at timestamp with time zone NOT NULL,
     CONSTRAINT "PK_redemptions" PRIMARY KEY (id),
     CONSTRAINT chk_redemption_reward_value_positive CHECK ("reward_value" > 0),
+    CONSTRAINT chk_redemption_status_valid CHECK ("status" IN (0, 1, 2)),
     CONSTRAINT "FK_redemptions_businesses_business_id" FOREIGN KEY (business_id) REFERENCES businesses (id) ON DELETE RESTRICT,
     CONSTRAINT "FK_redemptions_loyalty_cards_card_id" FOREIGN KEY (card_id) REFERENCES loyalty_cards (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_redemptions_users_fulfilled_by_user_id" FOREIGN KEY (fulfilled_by_user_id) REFERENCES users (id) ON DELETE SET NULL,
     CONSTRAINT "FK_redemptions_users_user_id" FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+);
+
+
+CREATE TABLE stamp_adjustments (
+    id uuid NOT NULL,
+    card_id uuid NOT NULL,
+    adjusted_by_user_id uuid,
+    adjusted_by_role character varying(20),
+    delta integer NOT NULL,
+    reason integer NOT NULL,
+    note character varying(500),
+    related_stamp_id uuid,
+    created_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_stamp_adjustments" PRIMARY KEY (id),
+    CONSTRAINT chk_stamp_adjustment_delta_nonzero CHECK ("delta" <> 0),
+    CONSTRAINT "FK_stamp_adjustments_loyalty_cards_card_id" FOREIGN KEY (card_id) REFERENCES loyalty_cards (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_stamp_adjustments_users_adjusted_by_user_id" FOREIGN KEY (adjusted_by_user_id) REFERENCES users (id) ON DELETE SET NULL
+);
+
+
+CREATE TABLE idempotency_keys (
+    id uuid NOT NULL,
+    key character varying(200) NOT NULL,
+    user_id uuid NOT NULL,
+    request_hash character varying(255) NOT NULL,
+    response_json jsonb NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_idempotency_keys" PRIMARY KEY (id),
+    CONSTRAINT "FK_idempotency_keys_users_user_id" FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 
@@ -727,4 +769,27 @@ CREATE INDEX "IX_users_is_deleted" ON users (is_deleted);
 
 CREATE INDEX "IX_users_StaffBusinessId" ON users ("StaffBusinessId");
 
+
+CREATE UNIQUE INDEX "IX_idempotency_keys_key" ON idempotency_keys (key);
+
+
+CREATE INDEX "IX_idempotency_keys_expires_at" ON idempotency_keys (expires_at);
+
+
+CREATE INDEX "IX_stamp_adjustments_CardId_CreatedAt" ON stamp_adjustments (card_id, created_at);
+
+
+CREATE INDEX "IX_redemptions_CardId_Status" ON redemptions (card_id, status);
+
+
+CREATE INDEX "IX_redemptions_FulfilledByUserId" ON redemptions (fulfilled_by_user_id);
+
+
+CREATE INDEX "IX_redemptions_payout_status_next_retry_at" ON redemptions (payout_status, next_retry_at);
+
+
+
+
+-- Phase 4: stamping-ecosystem audit details
+ALTER TABLE api_event_logs ADD COLUMN IF NOT EXISTS details_json text;
 

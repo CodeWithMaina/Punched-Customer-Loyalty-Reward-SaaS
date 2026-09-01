@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PunchedApi.Application.DTOs;
+using PunchedApi.Application.Programs;
 using PunchedApi.Domain.Entities;
 using PunchedApi.Domain.Interfaces;
 using PunchedApi.Infrastructure.Data;
@@ -12,17 +13,20 @@ public class LoyaltyService : ILoyaltyService
         private readonly IUnitOfWork _unitOfWork;
     private readonly ApplicationDbContext _context;
     private readonly IStampService _stampService;
+    private readonly IProgramRuleEngine _ruleEngine;
     private readonly ILogger<LoyaltyService> _logger;
 
     public LoyaltyService(
         IUnitOfWork unitOfWork,
         ApplicationDbContext context,
         IStampService stampService,
+        IProgramRuleEngine ruleEngine,
         ILogger<LoyaltyService> logger)
     {
         _unitOfWork = unitOfWork;
         _context = context;
         _stampService = stampService;
+        _ruleEngine = ruleEngine;
         _logger = logger;
     }
 
@@ -150,11 +154,17 @@ public class LoyaltyService : ILoyaltyService
                 Id = Guid.NewGuid(),
                 BusinessId = business.Id,
                 Name = request.Name.Trim(),
+                Description = request.Description,
                 IsActive = true,
+                Status = ProgramStatus.Active,
                 StampsRequired = request.StampsRequired,
                 RewardValue = request.RewardValue,
                 RewardDescription = request.RewardDescription.Trim(),
                 DefaultEnrollmentStamps = Math.Clamp(request.DefaultEnrollmentStamps, 0, 100),
+                ProgramType = ValidateProgramType(request.ProgramType),
+                ConfigJson = request.Config?.ToJson(),
+                StartsAt = NormalizeUtc(request.StartsAt),
+                EndsAt = NormalizeUtc(request.EndsAt),
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -195,7 +205,13 @@ public class LoyaltyService : ILoyaltyService
                 return ApiResponse<LoyaltyProgramResponse>.Fail("NOT_FOUND", "Loyalty program not found.");
 
             if (request.Name != null) program.Name = request.Name.Trim();
-            if (request.IsActive.HasValue) program.IsActive = request.IsActive.Value;
+            if (request.Description != null) program.Description = request.Description;
+            if (request.StartsAt.HasValue) program.StartsAt = NormalizeUtc(request.StartsAt);
+            if (request.EndsAt.HasValue) program.EndsAt = NormalizeUtc(request.EndsAt);
+            if (request.ProgramType != null) program.ProgramType = ValidateProgramType(request.ProgramType);
+            if (request.Config != null) program.ConfigJson = request.Config.ToJson();
+            if (request.Status.HasValue) ApplyStatus(program, request.Status.Value);
+            else if (request.IsActive.HasValue) ApplyStatus(program, request.IsActive.Value ? ProgramStatus.Active : ProgramStatus.Paused);
             var changed = false;
             var now = DateTime.UtcNow;
             if (request.StampsRequired.HasValue && request.StampsRequired.Value != program.StampsRequired) changed = true;
@@ -267,6 +283,148 @@ public class LoyaltyService : ILoyaltyService
             return ApiResponse<bool>.Fail("DELETE_FAILED", "Failed to delete loyalty program.");
         }
     }
+
+        public async Task<ApiResponse<LoyaltyProgramResponse>> ActivateProgramAsync(Guid ownerId, Guid programId)
+        => await SetProgramStatusAsync(ownerId, programId, ProgramStatus.Active);
+
+    public async Task<ApiResponse<LoyaltyProgramResponse>> PauseProgramAsync(Guid ownerId, Guid programId)
+        => await SetProgramStatusAsync(ownerId, programId, ProgramStatus.Paused);
+
+    public async Task<ApiResponse<LoyaltyProgramResponse>> ArchiveProgramAsync(Guid ownerId, Guid programId)
+        => await SetProgramStatusAsync(ownerId, programId, ProgramStatus.Archived);
+
+    public async Task<ApiResponse<LoyaltyProgramResponse>> DuplicateProgramAsync(Guid ownerId, Guid programId, string? newName = null)
+    {
+        try
+        {
+            var business = await _unitOfWork.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+            if (business == null)
+                return ApiResponse<LoyaltyProgramResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+            var source = await _context.LoyaltyPrograms
+                .FirstOrDefaultAsync(p => p.Id == programId && p.BusinessId == business.Id);
+            if (source == null)
+                return ApiResponse<LoyaltyProgramResponse>.Fail("NOT_FOUND", "Loyalty program not found.");
+
+            var now = DateTime.UtcNow;
+            var copy = new LoyaltyProgram
+            {
+                Id = Guid.NewGuid(),
+                BusinessId = business.Id,
+                Name = string.IsNullOrWhiteSpace(newName)
+                    ? $"{source.Name} (Copy)"
+                    : newName.Trim(),
+                Description = source.Description,
+                IsActive = false,
+                Status = ProgramStatus.Draft,
+                StampsRequired = source.StampsRequired,
+                RewardValue = source.RewardValue,
+                RewardDescription = source.RewardDescription,
+                RewardExpirationHours = source.RewardExpirationHours,
+                DefaultEnrollmentStamps = source.DefaultEnrollmentStamps,
+                MaxStampsPerVisit = source.MaxStampsPerVisit,
+                StampExpiryDays = source.StampExpiryDays,
+                ProgramType = source.ProgramType,
+                ConfigJson = source.ConfigJson,
+                StartsAt = source.StartsAt,
+                EndsAt = source.EndsAt,
+                CreatedAt = now
+            };
+
+            await _unitOfWork.LoyaltyPrograms.AddAsync(copy);
+            await _context.LoyaltyProgramHistory.AddAsync(new LoyaltyProgramHistory
+            {
+                Id = Guid.NewGuid(),
+                LoyaltyProgramId = copy.Id,
+                StampsRequired = copy.StampsRequired,
+                RewardValue = copy.RewardValue,
+                RewardDescription = copy.RewardDescription,
+                EffectiveFrom = now,
+                CreatedAt = now,
+                ChangedByUserId = ownerId
+            });
+            await _unitOfWork.SaveChangesAsync();
+
+            return ApiResponse<LoyaltyProgramResponse>.Ok(MapProgram(copy));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error duplicating program {ProgramId} for owner {OwnerId}", programId, ownerId);
+            return ApiResponse<LoyaltyProgramResponse>.Fail("DUPLICATE_FAILED", "Failed to duplicate loyalty program.");
+        }
+    }
+
+        public async Task<ApiResponse<ProgramDetailResponse>> GetProgramDetailAsync(Guid ownerId, Guid programId)
+    {
+        var business = await _unitOfWork.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+        if (business == null)
+            return ApiResponse<ProgramDetailResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+        var program = await _context.LoyaltyPrograms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == programId && p.BusinessId == business.Id);
+        if (program == null)
+            return ApiResponse<ProgramDetailResponse>.Fail("NOT_FOUND", "Loyalty program not found.");
+
+        var activeCards = await _context.LoyaltyCards.CountAsync(c => c.ProgramId == program.Id);
+        var stampsIssued = await _context.Stamps.CountAsync(s => s.Card.ProgramId == program.Id);
+        var rewardsEarned = await _context.Redemptions.CountAsync(r => r.Card.ProgramId == program.Id);
+        var rewardsRedeemed = await _context.Redemptions
+            .CountAsync(r => r.Card.ProgramId == program.Id && r.Status == RedemptionStatus.Fulfilled);
+
+        var completionRate = activeCards > 0 ? Math.Round(rewardsEarned * 100.0 / activeCards, 1) : 0;
+        var redemptionRate = rewardsEarned > 0 ? Math.Round(rewardsRedeemed * 100.0 / rewardsEarned, 1) : 0;
+
+        return ApiResponse<ProgramDetailResponse>.Ok(new ProgramDetailResponse
+        {
+            Program = MapProgram(program),
+            Summary = _ruleEngine.Describe(program),
+            ActiveCustomers = activeCards,
+            StampsIssued = stampsIssued,
+            RewardsEarned = rewardsEarned,
+            RewardsRedeemed = rewardsRedeemed,
+            CompletionRate = completionRate,
+            RedemptionRate = redemptionRate
+        });
+    }
+
+    private async Task<ApiResponse<LoyaltyProgramResponse>> SetProgramStatusAsync(Guid ownerId, Guid programId, ProgramStatus status)
+    {
+        try
+        {
+            var business = await _unitOfWork.Businesses.FirstOrDefaultAsync(b => b.OwnerId == ownerId);
+            if (business == null)
+                return ApiResponse<LoyaltyProgramResponse>.Fail("NOT_FOUND", "No business found for this account.");
+
+            var program = await _unitOfWork.LoyaltyPrograms
+                .FirstOrDefaultAsync(p => p.Id == programId && p.BusinessId == business.Id);
+            if (program == null)
+                return ApiResponse<LoyaltyProgramResponse>.Fail("NOT_FOUND", "Loyalty program not found.");
+
+            ApplyStatus(program, status);
+            _unitOfWork.LoyaltyPrograms.Update(program);
+            await _unitOfWork.SaveChangesAsync();
+
+            return ApiResponse<LoyaltyProgramResponse>.Ok(MapProgram(program));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting status {Status} on program {ProgramId}", status, programId);
+            return ApiResponse<LoyaltyProgramResponse>.Fail("STATUS_FAILED", "Failed to update program status.");
+        }
+    }
+
+    private static void ApplyStatus(LoyaltyProgram program, ProgramStatus status)
+    {
+        program.Status = status;
+        program.IsActive = status == ProgramStatus.Active;
+    }
+
+    private static string ValidateProgramType(string? value) =>
+        ProgramTypes.IsKnown(value) ? value! : ProgramTypes.Stamp;
+
+    private static DateTime? NormalizeUtc(DateTime? value) =>
+        value.HasValue ? value.Value.ToUniversalTime() : null;
 
         public async Task BackfillProgramHistoryAsync(CancellationToken cancellationToken = default)
     {
@@ -400,12 +558,24 @@ public class LoyaltyService : ILoyaltyService
         Id = p.Id,
         BusinessId = p.BusinessId,
         Name = p.Name,
+        Description = p.Description,
         IsActive = p.IsActive,
+        Status = p.Status switch
+        {
+            ProgramStatus.Draft => "draft",
+            ProgramStatus.Paused => "paused",
+            ProgramStatus.Archived => "archived",
+            _ => "active"
+        },
         StampsRequired = p.StampsRequired,
         RewardValue = p.RewardValue,
         RewardDescription = p.RewardDescription,
         RewardExpirationHours = p.RewardExpirationHours,
         DefaultEnrollmentStamps = p.DefaultEnrollmentStamps,
+        ProgramType = string.IsNullOrWhiteSpace(p.ProgramType) ? "stamp" : p.ProgramType,
+        Config = ProgramConfig.FromJson(p.ConfigJson),
+        StartsAt = p.StartsAt,
+        EndsAt = p.EndsAt,
         CreatedAt = p.CreatedAt
     };
 

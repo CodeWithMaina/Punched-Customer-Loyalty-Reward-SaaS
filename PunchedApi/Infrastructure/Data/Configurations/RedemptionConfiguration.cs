@@ -38,9 +38,34 @@ public class RedemptionConfiguration : IEntityTypeConfiguration<Redemption>
 
         builder.Property(e => e.Status)
             .IsRequired()
-            .HasMaxLength(50)
-            .HasDefaultValue("pending")
-            .HasColumnName("status");
+            .HasColumnName("status")
+            .HasDefaultValue(RedemptionStatus.Pending);
+
+        builder.Property(e => e.FulfilledByUserId)
+            .HasColumnName("fulfilled_by_user_id");
+
+        builder.Property(e => e.FulfilledAt)
+            .HasColumnName("fulfilled_at");
+
+        builder.Property(e => e.FulfilmentCodeHash)
+            .HasMaxLength(255)
+            .HasColumnName("fulfilment_code_hash");
+
+        builder.Property(e => e.PayoutStatus)
+            .HasMaxLength(20)
+            .HasColumnName("payout_status");
+
+        builder.Property(e => e.FailedAttempts)
+            .HasColumnName("failed_attempts")
+            .HasDefaultValue(0);
+
+        builder.Property(e => e.CodeLocked)
+            .HasColumnName("code_locked")
+            .HasDefaultValue(false);
+
+        builder.Property(e => e.StampsConsumed)
+            .HasColumnName("stamps_consumed")
+            .HasDefaultValue(0);
 
         builder.Property(e => e.MpesaRef)
             .HasMaxLength(100)
@@ -77,6 +102,7 @@ public class RedemptionConfiguration : IEntityTypeConfiguration<Redemption>
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("chk_redemption_reward_value_positive", "\"reward_value\" > 0");
+            t.HasCheckConstraint("chk_redemption_status_valid", "\"status\" IN (0, 1, 2)");
         });
 
         // Indexes
@@ -86,7 +112,11 @@ public class RedemptionConfiguration : IEntityTypeConfiguration<Redemption>
         builder.HasIndex(e => new { e.CardId, e.RedeemedAt });
         builder.HasIndex(e => new { e.BusinessId, e.RedeemedAt });
         builder.HasIndex(e => new { e.BusinessId, e.PerformedByUserId, e.RedeemedAt });
-        builder.HasIndex(e => new { e.Status, e.NextRetryAt });
+        builder.HasIndex(e => new { e.PayoutStatus, e.NextRetryAt });
+        builder.HasIndex(e => new { e.CardId, e.Status })
+            .HasDatabaseName("IX_redemptions_CardId_Status");
+        builder.HasIndex(e => e.FulfilledByUserId)
+            .HasDatabaseName("IX_redemptions_FulfilledByUserId");
 
         // Relationships
         builder.HasOne(e => e.Card)
@@ -102,6 +132,11 @@ public class RedemptionConfiguration : IEntityTypeConfiguration<Redemption>
         builder.HasOne(e => e.PerformedByUser)
             .WithMany(u => u.Redemptions)
             .HasForeignKey(e => e.PerformedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(e => e.FulfilledByUser)
+            .WithMany()
+            .HasForeignKey(e => e.FulfilledByUserId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }

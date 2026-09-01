@@ -93,7 +93,9 @@ public class AppointmentAvailabilityService
         foreach (var staff in candidates)
         {
             var busy = await _context.Appointments
-                .Where(a => a.BusinessId == businessId && a.StaffUserId == staff.Id && a.ScheduledAt >= fromUtc && a.ScheduledAt < toUtc)
+                .Where(a => a.BusinessId == businessId && a.StaffUserId == staff.Id
+                    && a.ScheduledAt >= fromUtc && a.ScheduledAt < toUtc
+                    && a.Status != "cancelled") // cancelled appointments no longer hold the slot
                 .Select(a => new { a.ScheduledAt, a.EndAt })
                 .ToListAsync();
 

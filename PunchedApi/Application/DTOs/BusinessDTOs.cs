@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using PunchedApi.Application.Programs;
 using PunchedApi.Domain.Entities;
 
 namespace PunchedApi.Application.DTOs;
@@ -129,6 +130,9 @@ public class CreateLoyaltyProgramRequest
     [JsonPropertyName("name")]
     public string Name { get; set; } = "Loyalty Program";
 
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
     [JsonPropertyName("stampsRequired")]
     public int StampsRequired { get; set; }
 
@@ -141,6 +145,20 @@ public class CreateLoyaltyProgramRequest
     /// <summary>Welcome stamps granted automatically to a new customer on enrollment (0-100).</summary>
     [JsonPropertyName("defaultEnrollmentStamps")]
     public int DefaultEnrollmentStamps { get; set; }
+
+    /// <summary>Earning model key (see <c>ProgramTypes</c>). Defaults to "stamp".</summary>
+    [JsonPropertyName("programType")]
+    public string? ProgramType { get; set; }
+
+    /// <summary>Structured program configuration (multi-reward, tiers, eligibility, constraints).</summary>
+    [JsonPropertyName("config")]
+    public ProgramConfig? Config { get; set; }
+
+    [JsonPropertyName("startsAt")]
+    public DateTime? StartsAt { get; set; }
+
+    [JsonPropertyName("endsAt")]
+    public DateTime? EndsAt { get; set; }
 }
 
 public class UpdateLoyaltyProgramRequest
@@ -148,8 +166,14 @@ public class UpdateLoyaltyProgramRequest
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
     [JsonPropertyName("isActive")]
     public bool? IsActive { get; set; }
+
+    [JsonPropertyName("status")]
+    public ProgramStatus? Status { get; set; }
 
     [JsonPropertyName("stampsRequired")]
     public int? StampsRequired { get; set; }
@@ -163,6 +187,20 @@ public class UpdateLoyaltyProgramRequest
     /// <summary>Welcome stamps granted automatically to a new customer on enrollment (0-100).</summary>
     [JsonPropertyName("defaultEnrollmentStamps")]
     public int? DefaultEnrollmentStamps { get; set; }
+
+    /// <summary>Earning model key (see <c>ProgramTypes</c>).</summary>
+    [JsonPropertyName("programType")]
+    public string? ProgramType { get; set; }
+
+    /// <summary>Structured program configuration (multi-reward, tiers, eligibility, constraints).</summary>
+    [JsonPropertyName("config")]
+    public ProgramConfig? Config { get; set; }
+
+    [JsonPropertyName("startsAt")]
+    public DateTime? StartsAt { get; set; }
+
+    [JsonPropertyName("endsAt")]
+    public DateTime? EndsAt { get; set; }
 }
 
 /// <summary>Legacy upsert kept for backward-compatibility.</summary>
@@ -197,8 +235,15 @@ public class LoyaltyProgramResponse
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
     [JsonPropertyName("isActive")]
     public bool IsActive { get; set; }
+
+    /// <summary>Lifecycle status — draft | active | paused | archived.</summary>
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "active";
 
     [JsonPropertyName("stampsRequired")]
     public int StampsRequired { get; set; }
@@ -215,6 +260,20 @@ public class LoyaltyProgramResponse
     /// <summary>Welcome stamps granted automatically to a new customer on enrollment (0-100).</summary>
     [JsonPropertyName("defaultEnrollmentStamps")]
     public int DefaultEnrollmentStamps { get; set; }
+
+    /// <summary>Earning model key (see <c>ProgramTypes</c>).</summary>
+    [JsonPropertyName("programType")]
+    public string ProgramType { get; set; } = "stamp";
+
+    /// <summary>Structured configuration when the program uses the flexible model.</summary>
+    [JsonPropertyName("config")]
+    public ProgramConfig? Config { get; set; }
+
+    [JsonPropertyName("startsAt")]
+    public DateTime? StartsAt { get; set; }
+
+    [JsonPropertyName("endsAt")]
+    public DateTime? EndsAt { get; set; }
 
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; }
@@ -285,6 +344,12 @@ public class AwardStampRequest
     /// <summary>Business ID scanned at.</summary>
     [JsonPropertyName("businessId")]
     public Guid BusinessId { get; set; }
+
+    /// <summary>
+    /// Number of stamps to award in this visit (1..program.MaxStampsPerVisit). Defaults to 1.
+    /// </summary>
+    [JsonPropertyName("stampCount")]
+    public int? StampCount { get; set; }
 }
 
 public class StampAwardedResponse
@@ -503,8 +568,12 @@ public class CustomerActivityFeedResponse
 
 public class SseStampEvent
 {
+    /// <summary>
+    /// Event type: "stamp.awarded" (default, legacy "stamp_awarded"),
+    /// "stamp.adjusted", "reward.claimed", "redemption.fulfilled".
+    /// </summary>
     [JsonPropertyName("event")]
-    public string Event { get; set; } = "stamp_awarded";
+    public string Event { get; set; } = "stamp.awarded";
 
     [JsonPropertyName("cardId")]
     public Guid CardId { get; set; }
@@ -523,6 +592,14 @@ public class SseStampEvent
 
     [JsonPropertyName("stampedAt")]
     public DateTime StampedAt { get; set; }
+
+    /// <summary>Optional human-readable message (e.g. adjustment explanation).</summary>
+    [JsonPropertyName("message")]
+    public string? Message { get; set; }
+
+    /// <summary>Redemption id for redemption-related events (reward.claimed / redemption.fulfilled).</summary>
+    [JsonPropertyName("redemptionId")]
+    public Guid? RedemptionId { get; set; }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -546,6 +623,9 @@ public class RedemptionResponse
     [JsonPropertyName("businessName")]
     public string BusinessName { get; set; } = string.Empty;
 
+    [JsonPropertyName("customerName")]
+    public string? CustomerName { get; set; }
+
     [JsonPropertyName("rewardValue")]
     public decimal RewardValue { get; set; }
 
@@ -554,6 +634,10 @@ public class RedemptionResponse
 
     [JsonPropertyName("status")]
     public string Status { get; set; } = string.Empty;
+
+    /// <summary>One-time 6-char fulfilment code, shown once to the customer at claim time.</summary>
+    [JsonPropertyName("fulfilmentCode")]
+    public string? FulfilmentCode { get; set; }
 
     [JsonPropertyName("redeemedAt")]
     public DateTime RedeemedAt { get; set; }

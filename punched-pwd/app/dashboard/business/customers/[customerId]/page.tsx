@@ -6,17 +6,26 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Calendar, ChevronRight, Clock, Gift, Mail,
+  ArrowLeft, Calendar, CalendarPlus, ChevronRight, Clock, Gift, Mail,
   Phone, RotateCcw, Stamp, Target, Trophy, Users,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { businessesApi } from "@/lib/api/businesses";
+import { appointmentsApi } from "@/lib/api/appointments";
+import { servicesApi } from "@/lib/api/services";
+import { stampsApi } from "@/lib/api/stamps";
+import { useAppointmentActions } from "../../appointments/_hooks/useAppointmentActions";
+import { BookAppointmentSheet } from "../../appointments/_components/BookAppointmentSheet";
+import { CANCELLABLE_STATUSES } from "@/lib/appointment-status";
+import { stampAdjustmentSchema } from "@/lib/validations/stamping";
 import type {
   AnalyticsPeriod, BusinessCustomer, CustomerActivityItem,
-  CustomerPeriodStatsResponse,
+  CustomerPeriodStatsResponse, AppointmentResponse,
+  ServiceCatalogItemResponse, StaffMember,
 } from "@/types";
 import {
-  Avatar, Badge, IconButton, Pagination, Skeleton, Tabs,
+  Avatar, Badge, IconButton, Modal, Pagination, Skeleton, StatusBadge, Tabs,
 } from "@/components/ui";
 import { ErrorState } from "@/components/ui/States";
 import { RewardProgress } from "../_components/CustomerCard";
@@ -96,6 +105,91 @@ function CustomerDetailPageContent() {
   const [activityTotalPages, setActivityTotalPages] = useState(1);
   const [activityTotal, setActivityTotal] = useState(0);
   const [isActivityLoading, setIsActivityLoading] = useState(true);
+  const [delta, setDelta] = useState(0);
+  const [adjReason, setAdjReason] = useState("ManualCorrection");
+  const [adjNote, setAdjNote] = useState("");
+  const [confirmingAdjust, setConfirmingAdjust] = useState(false);
+  const [savingAdjust, setSavingAdjust] = useState(false);
+
+  // ── Appointments (customer-contextual) ────────────────────────────
+  const [appointments, setAppointments] = useState<AppointmentResponse[]>([]);
+  const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(true);
+  const [appointmentsError, setAppointmentsError] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const [bookingData, setBookingData] = useState<{
+    services: ServiceCatalogItemResponse[];
+    staff: StaffMember[];
+  } | null>(null);
+  const [isBookingDataLoading, setIsBookingDataLoading] = useState(false);
+
+  const loadAppointments = useCallback(() => {
+    let cancelled = false;
+    setIsAppointmentsLoading(true);
+    setAppointmentsError(false);
+    appointmentsApi
+      .getBusinessAppointments({ customerId, page: 1, pageSize: 5 })
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && res.data) setAppointments(res.data.items);
+        else setAppointmentsError(true);
+      })
+      .catch(() => !cancelled && setAppointmentsError(true))
+      .finally(() => !cancelled && setIsAppointmentsLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
+
+  useEffect(() => loadAppointments(), [loadAppointments]);
+
+  const { actionLoading, handleCancel, bookForCustomer } =
+    useAppointmentActions({
+      reload: loadAppointments,
+      onCompleted: () => setBookingOpen(false),
+    });
+
+  /** Lazily load services + staff the first time booking is opened. */
+  const openBooking = () => {
+    setBookingOpen(true);
+    if (bookingData || isBookingDataLoading) return;
+    setIsBookingDataLoading(true);
+    Promise.all([
+      servicesApi.getMyServices().catch(() => null),
+      businessesApi.getMyStaff({}).catch(() => null),
+    ]).then(([svcRes, staffRes]) => {
+      setBookingData({
+        services: svcRes?.success && svcRes.data ? svcRes.data : [],
+        staff: staffRes?.success && staffRes.data ? staffRes.data.items : [],
+      });
+      setIsBookingDataLoading(false);
+    });
+  };
+
+  const applyAdjustment = async () => {
+    const parsed = stampAdjustmentSchema.safeParse({ cardId: customer?.cardId, delta, reason: adjReason, note: adjNote.trim() || undefined });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Invalid adjustment");
+      return;
+    }
+    setSavingAdjust(true);
+    try {
+      const res = await stampsApi.adjust({ cardId: customer!.cardId, delta, reason: adjReason as never, note: adjNote.trim() || undefined });
+      if (res.success) {
+        toast.success(`Adjusted by ${delta > 0 ? "+" : ""}${delta} — new total ${res.data?.totalStampsAfter ?? customer!.totalStamps + delta}`);
+        setConfirmingAdjust(false);
+        setDelta(0);
+        setAdjNote("");
+        setCustomer((prev) => prev ? { ...prev, totalStamps: res.data?.totalStampsAfter ?? prev.totalStamps + delta } : prev);
+      } else {
+        toast.error(res.error?.code === "ADJUSTMENT_BELOW_ZERO" ? "Adjustment would make total stamps negative." : (res.error?.message ?? "Adjustment failed."));
+      }
+    } catch {
+      toast.error("Network error while adjusting stamps.");
+    } finally {
+      setSavingAdjust(false);
+    }
+  };
+
 
   // Initial load: profile + default period stats.
   useEffect(() => {
@@ -258,18 +352,31 @@ function CustomerDetailPageContent() {
                 </div>
               </div>
 
-              {/* Contact rows */}
+              {/* Contact rows — tappable where a value exists */}
               <div className="mt-3 flex flex-col items-center gap-1 text-xs text-[var(--text-secondary)] sm:items-start">
-                <span className="inline-flex items-center gap-1.5 truncate">
-                  <Mail className="h-3 w-3 shrink-0" />
-                  {customer.email}
-                </span>
+                {customer.email ? (
+                  <a
+                    href={`mailto:${customer.email}`}
+                    className="inline-flex items-center gap-1.5 truncate hover:text-brand hover:underline"
+                  >
+                    <Mail className="h-3 w-3 shrink-0" />
+                    {customer.email}
+                  </a>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 truncate">
+                    <Mail className="h-3 w-3 shrink-0" />
+                    No email on file
+                  </span>
+                )}
 
                 {customer.phoneNumber && (
-                  <span className="inline-flex items-center gap-1.5 truncate">
+                  <a
+                    href={`tel:${customer.phoneNumber}`}
+                    className="inline-flex items-center gap-1.5 truncate hover:text-brand hover:underline"
+                  >
                     <Phone className="h-3 w-3 shrink-0" />
                     {customer.phoneNumber}
-                  </span>
+                  </a>
                 )}
               </div>
             </div>
@@ -402,6 +509,212 @@ function CustomerDetailPageContent() {
           </div>
         </section>
 
+        {/* ── Appointments (customer-contextual) ─────────────────────── */}
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-bold sm:text-base">Appointments</h3>
+
+            <button
+              onClick={openBooking}
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] border border-brand px-3 py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand-surface"
+            >
+              <CalendarPlus className="h-3.5 w-3.5" />
+              Book appointment
+            </button>
+          </div>
+
+          <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
+            {isAppointmentsLoading && appointments.length === 0 ? (
+              <div className="space-y-px p-3" aria-busy="true">
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 border-b border-[var(--border-light)] py-2 last:border-b-0"
+                  >
+                    <Skeleton className="h-8 w-8 rounded-[var(--radius-md)]" />
+
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3 w-40 rounded" />
+                      <Skeleton className="h-2 w-24 rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : appointmentsError ? (
+              <div className="px-6 py-8 text-center">
+                <p className="text-sm font-semibold">
+                  Could not load appointments
+                </p>
+
+                <button
+                  onClick={loadAppointments}
+                  className="mt-2 text-xs font-semibold text-brand hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : appointments.length === 0 ? (
+              <div className="px-6 py-8 text-center">
+                <Calendar
+                  className="mx-auto h-6 w-6 text-[var(--text-muted)]"
+                  aria-hidden
+                />
+
+                <p className="mt-2 text-sm font-semibold">No appointments yet</p>
+
+                <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-[var(--text-secondary)]">
+                  Book one for{" "}
+                  {customer.fullName.split(" ")[0]} without leaving this page.
+                </p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-[var(--border-light)]">
+                {appointments.map((appt) => {
+                  const cancellable = CANCELLABLE_STATUSES.includes(appt.status);
+
+                  return (
+                    <li
+                      key={appt.id}
+                      className="flex items-center gap-3 px-4 py-3"
+                    >
+                      <Link
+                        href={`/dashboard/business/appointments/${appt.id}`}
+                        className="min-w-0 flex-1"
+                      >
+                        <p className="truncate text-sm font-medium">
+                          {appt.services?.[0]?.name ?? "Appointment"}
+                          {(appt.services?.length ?? 0) > 1
+                            ? ` +${appt.services!.length - 1}`
+                            : ""}
+                        </p>
+
+                        <p className="mt-0.5 truncate text-xs text-[var(--text-tertiary)]">
+                          {new Date(appt.scheduledAt).toLocaleString("en-KE", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </Link>
+
+                      <StatusBadge status={appt.status} />
+
+                      {cancellable && (
+                        <button
+                          onClick={() => handleCancel(appt.id)}
+                          disabled={actionLoading === appt.id}
+                          className="rounded-[var(--radius-md)] border border-[var(--border)] px-2.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:border-red-300 hover:text-red-600 disabled:opacity-40"
+                        >
+                          {actionLoading === appt.id ? "…" : "Cancel"}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          <Link
+            href="/dashboard/business/appointments"
+            className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
+          >
+            Manage in calendar
+            <ChevronRight className="h-3 w-3" />
+          </Link>
+        </section>
+
+        {/* ── Adjust stamps (Business only) ──────────────────────────── */}
+        <section>
+          <h3 className="mb-3 text-sm font-bold sm:text-base">Adjust stamps</h3>
+
+          <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="mb-4 text-xs text-[var(--text-secondary)]">
+              Current total: <span className="font-bold text-[var(--text-primary)]">{customer.totalStamps}</span> stamps.
+              Applying a change immediately updates the balance (lifetime stamps are untouched).
+            </p>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setDelta((d) => d - 1)}
+                className="h-11 w-11 border border-[var(--border)] text-lg font-bold text-[var(--text-primary)] hover:bg-[var(--brand-light)]"
+                aria-label="Remove one stamp"
+              >
+                −
+              </button>
+              <button
+                onClick={() => setDelta((d) => d + 1)}
+                className="h-11 w-11 border border-[var(--border)] text-lg font-bold text-[var(--text-primary)] hover:bg-[var(--brand-light)]"
+                aria-label="Add one stamp"
+              >
+                +
+              </button>
+              <span className="flex h-11 items-center px-4 border border-[var(--border)] font-mono text-sm tabular-nums text-[var(--text-primary)]">
+                {delta > 0 ? `+${delta}` : delta}
+              </span>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <select
+                value={adjReason}
+                onChange={(e) => setAdjReason(e.target.value)}
+                className="h-11 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--text-primary)]"
+              >
+                <option value="VoidMistake">Void a mistake</option>
+                <option value="ManualCorrection">Manual correction</option>
+                <option value="Goodwill">Goodwill</option>
+                <option value="SystemFix">System fix</option>
+              </select>
+
+              <input
+                value={adjNote}
+                onChange={(e) => setAdjNote(e.target.value)}
+                placeholder="Note (optional)"
+                maxLength={500}
+                className="h-11 flex-1 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+              />
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => delta !== 0 && setConfirmingAdjust(true)}
+                disabled={delta === 0 || savingAdjust}
+                className="rounded-[var(--radius-md)] bg-[var(--text-primary)] px-4 py-2.5 text-sm font-bold text-[var(--background)] disabled:opacity-50"
+              >
+                {savingAdjust ? "Saving…" : "Apply adjustment"}
+              </button>
+            </div>
+
+            {confirmingAdjust && (
+              <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] p-4">
+                <p className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
+                  Confirm adjustment
+                </p>
+                <p className="mb-4 text-xs text-[var(--text-secondary)]">
+                  Before: <span className="tab-nums">{customer.totalStamps}</span> → After:{" "}
+                  <span className="font-bold tabular-nums">{Math.max(0, customer.totalStamps + delta)}</span> stamps
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={applyAdjustment}
+                    disabled={savingAdjust}
+                    className="rounded-[var(--radius-md)] bg-[var(--text-primary)] px-4 py-2 text-sm font-bold text-[var(--background)] disabled:opacity-50"
+                  >
+                    {savingAdjust ? "Saving…" : "Confirm"}
+                  </button>
+                  <button
+                    onClick={() => { setConfirmingAdjust(false); setDelta(0); }}
+                    className="rounded-[var(--radius-md)] border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* ── Recent activity ────────────────────────────────────────── */}
         <section>
           <div className="mb-3 flex items-center justify-between">
@@ -521,9 +834,33 @@ function CustomerDetailPageContent() {
           Back to all customers
         </Link>
       </div>
+
+      {/* Customer-contextual booking sheet */}
+      {bookingOpen &&
+        (bookingData ? (
+          <BookAppointmentSheet
+            customers={[]}
+            services={bookingData.services}
+            staff={bookingData.staff}
+            lockedCustomer={{
+              id: customerId,
+              name: customer?.fullName ?? "Customer",
+            }}
+            onClose={() => setBookingOpen(false)}
+            onBook={(book) => bookForCustomer(book)}
+          />
+        ) : (
+          <Modal open onClose={() => setBookingOpen(false)} title="Book appointment">
+            <div className="space-y-3 py-2" aria-busy="true">
+              <Skeleton className="h-12 w-full rounded-[var(--radius-md)]" />
+
+              <Skeleton className="h-12 w-full rounded-[var(--radius-md)]" />
+
+              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+            </div>
+          </Modal>
+        ))}
     </div>
-
-
   );
 }
 

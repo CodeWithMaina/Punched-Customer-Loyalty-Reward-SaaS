@@ -1,0 +1,12 @@
+{
+  "name": "punched-e2e",
+  "private": true,
+  "scripts": {
+    "seed": "node seed/seed.mjs",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0"
+  }
+}

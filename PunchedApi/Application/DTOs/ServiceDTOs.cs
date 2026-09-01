@@ -20,6 +20,9 @@ public class ServiceCatalogItemResponse
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
     [JsonPropertyName("durationMinutes")]
     public int DurationMinutes { get; set; }
 
@@ -34,12 +37,30 @@ public class ServiceCatalogItemResponse
 }
 
 /// <summary>
+/// A staff member eligible to perform a set of services (public booking view).
+/// </summary>
+public class EligibleStaffResponse
+{
+    [JsonPropertyName("userId")]
+    public Guid UserId { get; set; }
+
+    [JsonPropertyName("fullName")]
+    public string FullName { get; set; } = string.Empty;
+
+    [JsonPropertyName("avatarUrl")]
+    public string? AvatarUrl { get; set; }
+}
+
+/// <summary>
 /// Creates a new catalog service.
 /// </summary>
 public class CreateServiceRequest
 {
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
 
     [JsonPropertyName("durationMinutes")]
     public int DurationMinutes { get; set; }
@@ -55,6 +76,9 @@ public class UpdateServiceRequest
 {
     [JsonPropertyName("name")]
     public string? Name { get; set; }
+
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
 
     [JsonPropertyName("durationMinutes")]
     public int? DurationMinutes { get; set; }

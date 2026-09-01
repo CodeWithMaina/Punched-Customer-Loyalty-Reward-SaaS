@@ -126,6 +126,21 @@ function AppointmentDetailPageContent() {
                   {formatDate(appointment.scheduledAt)} · {formatTime(appointment.scheduledAt)}
                 </p>
               </div>
+                          {appointment.services && appointment.services.length > 0 && (
+              <div className="border-b border-[var(--border)] pb-4">
+                <p className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] mb-2">Services</p>
+                <div className="space-y-2">
+                  {appointment.services.map((svc) => (
+                    <div key={svc.serviceCatalogItemId} className="flex justify-between gap-4 text-sm">
+                      <span className="text-[var(--text-primary)]">{svc.name}</span>
+                      <span className="text-[var(--text-tertiary)] flex-shrink-0" style={{ fontFamily: MONO }}>
+                        {svc.durationMinutes} min{svc.price > 0 ? ` · KES ${svc.price}` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
               <div>
                 <p className="text-[10px] tracking-[0.15em] uppercase font-bold text-[var(--text-tertiary)] mb-1">Location</p>
                 <p className="text-sm" style={{ fontFamily: MONO }}>

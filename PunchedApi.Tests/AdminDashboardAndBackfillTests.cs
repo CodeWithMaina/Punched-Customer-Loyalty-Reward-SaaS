@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using PunchedApi.Application.DTOs;
+using PunchedApi.Application.Programs;
 using PunchedApi.Application.Services;
 using PunchedApi.Domain.Entities;
 using PunchedApi.Domain.Interfaces;
@@ -42,7 +43,7 @@ public class AdminDashboardAndBackfillTests
             new Mock<IInsightService>().Object,
             new AnalyticsAggregationService(context, TestHelpers.CreateLogger<AnalyticsAggregationService>()),
             new SegmentationService(context, TestHelpers.CreateLogger<SegmentationService>()),
-            new LoyaltyService(new UnitOfWork(context), context, new Mock<IStampService>().Object, TestHelpers.CreateLogger<LoyaltyService>()),
+            new LoyaltyService(new UnitOfWork(context), context, new Mock<IStampService>().Object, new ProgramRuleEngine(), TestHelpers.CreateLogger<LoyaltyService>()),
             TestHelpers.CreateLogger<AdminService>());
 [Fact]
     public async Task AdminDashboardAsync_IncludesChurnedBusinessesCount()

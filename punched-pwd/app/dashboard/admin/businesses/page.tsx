@@ -117,7 +117,24 @@ export default function AdminBusinesses() {
                   <Store className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-[var(--text-primary)] truncate">{biz.name}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm text-[var(--text-primary)] truncate">{biz.name}</span>
+                    {biz.planName && (
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                          biz.subscriptionStatus === "active" || biz.subscriptionStatus === "trial"
+                            ? "bg-emerald-50 text-emerald-600"
+                            : "bg-red-50 text-red-500"
+                        }`}
+                      >
+                        {biz.planName}
+                        {biz.subscriptionStatus === "trial" && " · trial"}
+                        {(biz.subscriptionStatus === "canceled" ||
+                          biz.subscriptionStatus === "expired") &&
+                          ` · ${biz.subscriptionStatus}`}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-[var(--text-secondary)] flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
                     {biz.location}

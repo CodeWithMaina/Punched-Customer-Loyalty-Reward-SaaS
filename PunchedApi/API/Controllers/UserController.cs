@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PunchedApi.Application.DTOs;
 using PunchedApi.Domain.Interfaces;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace PunchedApi.API.Controllers;
 
@@ -14,6 +15,7 @@ namespace PunchedApi.API.Controllers;
 [Route("v1/users")]
 [Produces("application/json")]
 [Authorize]
+[EnableRateLimiting("general")]
 public class UserController : ControllerBase
 {
     private readonly IAuthService _authService;

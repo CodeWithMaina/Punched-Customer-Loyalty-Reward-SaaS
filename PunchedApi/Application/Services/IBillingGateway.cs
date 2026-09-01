@@ -18,10 +18,13 @@ public interface IBillingGateway
     Task<PaymentInitiationResult> InitiateAsync(SubscriptionPlan plan, Guid businessId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Validates a webhook payload's authenticity. The fake gateway accepts
-    /// everything; a real implementation must verify the provider signature.
+    /// Validates a webhook payload's authenticity. Implementations MUST verify
+    /// the provider signature (HMAC-SHA256 hex over the raw body, shared
+    /// secret) and FAIL CLOSED when the secret is not configured.
     /// </summary>
-    bool VerifyWebhookSignature(string payload);
+    /// <param name="payload">The exact raw request body bytes.</param>
+    /// <param name="signature">The <c>X-Punched-Signature</c> header value.</param>
+    bool VerifyWebhookSignature(byte[] payload, string? signature);
 }
 
 /// <summary>Result of initiating a payment.</summary>

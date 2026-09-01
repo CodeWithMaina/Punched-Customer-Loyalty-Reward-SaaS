@@ -738,6 +738,11 @@ public class AdminService : IAdminService
                     TotalStaff = _context.Users.Count(u => u.Role == UserRole.Staff && u.StaffBusinessId == b.Id),
                     ProgramCount = b.LoyaltyPrograms.Count(),
                     CreatedAt = b.CreatedAt,
+                    // Subscription summary for the admin billing view.
+                    PlanKey = b.CurrentSubscription != null && b.CurrentSubscription.Plan != null ? b.CurrentSubscription.Plan.Key : null,
+                    PlanName = b.CurrentSubscription != null && b.CurrentSubscription.Plan != null ? b.CurrentSubscription.Plan.Name : null,
+                    SubscriptionStatus = b.CurrentSubscription != null ? b.CurrentSubscription.Status : null,
+                    SubscriptionEndsAt = b.CurrentSubscription != null ? b.CurrentSubscription.EndsAt : null,
                 })
                 .ToListAsync();
 
@@ -782,6 +787,20 @@ public class AdminService : IAdminService
                 ProgramCount = await _context.LoyaltyPrograms.CountAsync(p => p.BusinessId == b.Id),
                 CreatedAt = b.CreatedAt,
             };
+
+            // Subscription summary for the admin billing view.
+            var sub = await _context.BusinessSubscriptions
+                .Include(s => s.Plan)
+                .Where(s => s.BusinessId == businessId && (s.Status == "active" || s.Status == "trial"))
+                .OrderByDescending(s => s.CreatedAt)
+                .FirstOrDefaultAsync();
+            if (sub?.Plan != null)
+            {
+                summary.PlanKey = sub.Plan.Key;
+                summary.PlanName = sub.Plan.Name;
+                summary.SubscriptionStatus = sub.Status;
+                summary.SubscriptionEndsAt = sub.EndsAt;
+            }
 
             return ApiResponse<AdminBusinessSummary>.Ok(summary);
         }
@@ -846,7 +865,7 @@ public class AdminService : IAdminService
                     BusinessName = r.Business.Name,
                     RewardValue = r.RewardValue,
                     RewardDescription = r.Card.Program.RewardDescription,
-                    Status = r.Status,
+                    Status = r.Status.ToString(),
                     RedeemedAt = r.RedeemedAt,
                 })
                 .ToListAsync();

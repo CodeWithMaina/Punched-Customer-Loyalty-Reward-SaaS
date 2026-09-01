@@ -20,4 +20,10 @@ public class ApiEventLog : BaseEntity
 
     [MaxLength(100)]
     public string? ErrorCode { get; set; }
+
+    /// <summary>
+    /// Optional structured details (JSON) — e.g. actor/target/before-after counters
+    /// for stamping actions (adjust, lookup, enroll-and-stamp). Phase 4 audit.
+    /// </summary>
+    public string? DetailsJson { get; set; }
 }

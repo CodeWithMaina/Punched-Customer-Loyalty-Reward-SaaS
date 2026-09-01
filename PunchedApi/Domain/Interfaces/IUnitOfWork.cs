@@ -30,10 +30,19 @@ public interface IUnitOfWork : IDisposable
     IRepository<QrToken> QrTokens { get; }
 
     /// <summary>Repository for Stamp entities.</summary>
-    IRepository<Stamp> Stamps { get; }
+        IRepository<Stamp> Stamps { get; }
 
     /// <summary>Repository for Redemption entities.</summary>
     IRepository<Redemption> Redemptions { get; }
+
+        /// <summary>Repository for StampAdjustment entities.</summary>
+    IRepository<StampAdjustment> StampAdjustments { get; }
+
+    /// <summary>Repository for IdempotencyKey entities.</summary>
+    IRepository<IdempotencyKey> IdempotencyKeys { get; }
+
+    /// <summary>Repository for ApiEventLog entities.</summary>
+    IRepository<ApiEventLog> ApiEventLogs { get; }
 
     /// <summary>Repository for ReferralProgram entities.</summary>
     IRepository<ReferralProgram> ReferralPrograms { get; }

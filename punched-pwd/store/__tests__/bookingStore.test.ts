@@ -77,6 +77,48 @@ describe("useBookingStore — cart math", () => {
     expect(useBookingStore.getState().serviceIds).toEqual([]);
   });
 
+  // ── Dependent selection invalidation ───────────────────────────
+  const SLOT = {
+    startAtUtc: "2026-08-19T10:00:00.000Z",
+    endAtUtc: "2026-08-19T11:00:00.000Z",
+    staffUserId: "staff-1",
+    staffName: "Jane",
+    serviceIds: [UUID_A],
+  };
+
+  it("toggleService clears selected staff and slot (eligibility may change)", () => {
+    useBookingStore.setState({ serviceIds: [UUID_A], selectedStaffId: "staff-1", slot: SLOT });
+    useBookingStore.getState().toggleService(UUID_B);
+    const s = useBookingStore.getState();
+    expect(s.selectedStaffId).toBeNull();
+    expect(s.slot).toBeNull();
+  });
+
+  it("setServices clears selected staff and slot", () => {
+    useBookingStore.setState({ serviceIds: [UUID_A], selectedStaffId: "staff-1", slot: SLOT });
+    useBookingStore.getState().setServices([UUID_B]);
+    const s = useBookingStore.getState();
+    expect(s.selectedStaffId).toBeNull();
+    expect(s.slot).toBeNull();
+  });
+
+  it("clearServices clears selected staff and slot", () => {
+    useBookingStore.setState({ serviceIds: [UUID_A], selectedStaffId: "staff-1", slot: SLOT });
+    useBookingStore.getState().clearServices();
+    const s = useBookingStore.getState();
+    expect(s.selectedStaffId).toBeNull();
+    expect(s.slot).toBeNull();
+  });
+
+  it("setStaff clears the slot but keeps services", () => {
+    useBookingStore.setState({ serviceIds: [UUID_A], slot: SLOT });
+    useBookingStore.getState().setStaff("staff-2");
+    const s = useBookingStore.getState();
+    expect(s.selectedStaffId).toBe("staff-2");
+    expect(s.slot).toBeNull();
+    expect(s.serviceIds).toEqual([UUID_A]);
+  });
+
   it("setBusiness / setStaff / setSlot / removeSlot update state", () => {
     const slot = {
       startAtUtc: "2026-08-19T10:00:00.000Z",

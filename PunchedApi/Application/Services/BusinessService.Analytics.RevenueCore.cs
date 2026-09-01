@@ -20,8 +20,8 @@ public partial class BusinessService
             {
                 RewardPayoutKes = g.Sum(r => r.RewardValue),
                 RewardsPaidKes = g.Where(r => r.PaidAt != null).Sum(r => r.RewardValue),
-                PendingPayoutKes = g.Where(r => r.PaidAt == null && r.Status != "failed").Sum(r => r.RewardValue),
-                FailedPayouts = g.Count(r => r.Status == "failed"),
+                PendingPayoutKes = g.Where(r => r.PaidAt == null && r.PayoutStatus != "failed").Sum(r => r.RewardValue),
+                FailedPayouts = g.Count(r => r.PayoutStatus == "failed"),
                 AvgPayoutLatencyDays = g.Where(r => r.PaidAt != null)
                     .Average(r => (double?)(r.PaidAt!.Value - r.RedeemedAt).TotalDays)
             })

@@ -53,7 +53,8 @@ public class BusinessRegistrationTests
             CreateJwtService(),
             emailMock.Object,
             CreateMapper(),
-            TestHelpers.CreateLogger<AuthService>());
+            TestHelpers.CreateLogger<AuthService>(),
+            new SubscriptionProvisioningService(context, TestHelpers.CreateLogger<SubscriptionProvisioningService>()));
     }
 
     private static RegisterBusinessRequest ValidRequest() => new()

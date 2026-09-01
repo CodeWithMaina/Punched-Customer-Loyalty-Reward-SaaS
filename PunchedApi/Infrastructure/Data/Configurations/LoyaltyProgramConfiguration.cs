@@ -49,17 +49,50 @@ public class LoyaltyProgramConfiguration : IEntityTypeConfiguration<LoyaltyProgr
             .HasColumnName("default_enrollment_stamps")
             .HasDefaultValue(0);
 
+        builder.Property(e => e.StampExpiryDays)
+            .HasColumnName("stamp_expiry_days");
+
+        builder.Property(e => e.MaxStampsPerVisit)
+            .HasColumnName("max_stamps_per_visit")
+            .HasDefaultValue(1);
+
         builder.Property(e => e.RewardExpirationHours)
             .HasColumnName("reward_expiration_hours");
 
         builder.Property(e => e.CreatedAt)
             .HasColumnName("created_at");
 
+        // Flexible program configuration (see Application/Programs/ProgramConfig.cs)
+        builder.Property(e => e.Status)
+            .IsRequired()
+            .HasColumnName("status")
+            .HasDefaultValue(ProgramStatus.Active);
+
+        builder.Property(e => e.Description)
+            .HasMaxLength(500)
+            .HasColumnName("description");
+
+        builder.Property(e => e.ProgramType)
+            .IsRequired()
+            .HasMaxLength(20)
+            .HasColumnName("program_type")
+            .HasDefaultValue("stamp");
+
+        builder.Property(e => e.ConfigJson)
+            .HasColumnName("config_json");
+
+        builder.Property(e => e.StartsAt)
+            .HasColumnName("starts_at");
+
+        builder.Property(e => e.EndsAt)
+            .HasColumnName("ends_at");
+
         // Check constraints
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("chk_stamps_required_positive", "\"stamps_required\" > 0");
             t.HasCheckConstraint("chk_program_reward_value_positive", "\"reward_value\" > 0");
+            t.HasCheckConstraint("chk_program_max_stamps_per_visit_positive", "\"max_stamps_per_visit\" >= 1");
         });
 
         // Index on business_id (non-unique: many programs per business)
